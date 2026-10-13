@@ -498,13 +498,49 @@ window.addEventListener('afterprint', () => {
 
 // ── Couleurs ────────────────────────────────────────────────────────────────────
 
+const VUES = [
+  ['vueOriginale', ''], ['vueDeuteranopie', 'f-deuteranopie'], ['vueProtanopie', 'f-protanopie'],
+  ['vueTritanopie', 'f-tritanopie'], ['vueGris', 'f-gris'],
+];
+
+// Vignettes ; un clic ouvre la vue en grand, où l'on passe d'une simulation à l'autre
+// par les boutons ou les flèches du clavier.
 function rendreCouleurs() {
-  const vues = [
-    ['vueOriginale', ''], ['vueDeuteranopie', 'f-deuteranopie'], ['vueProtanopie', 'f-protanopie'],
-    ['vueTritanopie', 'f-tritanopie'], ['vueGris', 'f-gris'],
-  ];
-  $('couleurs').replaceChildren(...vues.map(([cle, classe]) =>
-    element('figure', {}, element('img', { src: etat.source.url, alt: '', class: classe }), element('figcaption', {}, t(cle)))));
+  $('couleurs').replaceChildren(...VUES.map(([cle, classe], i) => {
+    const bouton = element('button', { type: 'button', class: 'vignette', 'aria-label': t('agrandirVue', { vue: t(cle) }) },
+      element('img', { src: etat.source.url, alt: '', class: classe }),
+      element('span', { class: 'vignette-titre' }, t(cle)));
+    bouton.addEventListener('click', () => ouvrirVue(i));
+    return element('li', {}, bouton);
+  }));
+}
+
+function ouvrirVue(depart) {
+  const d = $('dialogue-couleurs');
+  const image = $('vue-grande');
+  image.src = etat.source.url;
+  const boutons = VUES.map(([cle], i) => {
+    const b = element('button', { type: 'button', role: 'tab', 'aria-controls': 'vue-grande' }, t(cle));
+    b.addEventListener('click', () => choisir(i));
+    return b;
+  });
+  const choisir = (i) => {
+    image.className = VUES[i][1];
+    boutons.forEach((b, k) => { b.setAttribute('aria-selected', String(k === i)); b.tabIndex = k === i ? 0 : -1; });
+    d.dataset.vue = i;
+  };
+  $('vues-onglets').replaceChildren(...boutons);
+  d.onkeydown = (e) => {
+    const sens = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    if (!sens) return;
+    e.preventDefault();
+    const i = (Number(d.dataset.vue) + sens + VUES.length) % VUES.length;
+    choisir(i);
+    boutons[i].focus();
+  };
+  choisir(depart);
+  d.showModal();
+  boutons[depart].focus();
 }
 
 // ── Chargement d'une figure ─────────────────────────────────────────────────────
@@ -602,6 +638,8 @@ function brancher() {
     if (etat.lecture) rendreAnalyse();
   });
   $('calibrer').addEventListener('click', ouvrirCalibration);
+  $('vue-fermer').addEventListener('click', () => $('dialogue-couleurs').close());
+  $('dialogue-couleurs').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('imprimer').addEventListener('click', () => window.print());
   $('imprimer-rapport').addEventListener('click', imprimerRapport);
   window.addEventListener('resize', () => etat.source && etat.vue === 'page' && zoomer());

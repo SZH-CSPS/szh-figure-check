@@ -117,11 +117,20 @@
 
       <h2 data-t="sectionCouleurs"></h2>
       <p data-t="couleursAide"></p>
-      <div id="couleurs" class="couleurs"></div>
+      <ul id="couleurs" class="couleurs"></ul>
     </section>
   </main>
 
   <footer class="pied"><p data-t="pied"></p></footer>
+
+  <dialog id="dialogue-couleurs" class="dialogue-vue">
+    <div class="vue-entete">
+      <h2 data-t="sectionCouleurs"></h2>
+      <button type="button" id="vue-fermer" data-t="fermer"></button>
+    </div>
+    <div id="vues-onglets" class="vues-onglets" role="tablist"></div>
+    <div class="vue-cadre"><img id="vue-grande" alt=""></div>
+  </dialog>
 
   <dialog id="dialogue-calibration">
     <h2 data-t="calibrationTitre"></h2>

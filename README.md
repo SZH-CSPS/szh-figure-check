@@ -17,7 +17,8 @@ figure et on voit :
   faire (agrandir de tant de %, prendre telle couleur). Le rapport s’imprime ou
   s’enregistre en PDF pour l’envoyer à la rédaction ;
 - **la figure vue par des personnes daltoniennes** (deutéranopie, protanopie, tritanopie)
-  et en niveaux de gris.
+  et en niveaux de gris ; un clic sur une vignette l’ouvre en grand, où l’on passe d’une
+  vue à l’autre par les boutons ou les flèches du clavier.
 
 La figure ne quitte pas le navigateur. Interface en français et en allemand.
 

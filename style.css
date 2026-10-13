@@ -193,10 +193,18 @@ tr.actif td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .nuancier span { width: 18px; height: 18px; }
 
 /* Couleurs */
-.couleurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.couleurs figure { margin: 0; }
-.couleurs img { display: block; width: 100%; height: auto; background: #fff; box-shadow: var(--ombre); }
-.couleurs figcaption { margin-top: 6px; font-size: 0.9rem; font-weight: 700; }
+.couleurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; list-style: none; padding: 0; margin: 0; }
+.vignette { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: zoom-in; }
+.vignette img { display: block; width: 100%; height: auto; background: #fff; box-shadow: var(--ombre); transition: transform 0.15s; }
+.vignette:hover img { transform: scale(1.02); }
+.vignette-titre { display: block; margin-top: 6px; font-size: 0.9rem; font-weight: 700; }
+.vignette-titre::after { content: ' ⤢'; color: var(--encre-2); font-weight: 400; }
+.dialogue-vue { max-width: calc(100vw - 32px); width: 1400px; }
+.vue-entete { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.vues-onglets { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.vues-onglets [aria-selected="true"] { background: var(--encre); border-color: var(--encre); color: var(--surface); }
+.vue-cadre { background: #fff; display: flex; justify-content: center; }
+.vue-cadre img { display: block; max-width: 100%; max-height: calc(100vh - 220px); height: auto; }
 .f-deuteranopie { filter: url(#f-deuteranopie); }
 .f-protanopie { filter: url(#f-protanopie); }
 .f-tritanopie { filter: url(#f-tritanopie); }
