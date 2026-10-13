@@ -333,9 +333,10 @@ function rendreAnalyse() {
   if (souple) groupes = regrouper(fautifs, { souple: true });
   const affiches = groupes.slice(0, CARTES_MAX);
 
-  // Figure annotée, à l'écran : seules les pastilles numérotées sont visibles. Un seul
-  // groupe est mis en évidence à la fois, au survol (pastille, texte de la figure ou puce)
-  // ou par un clic qui le garde affiché ; sa carte s'affiche dans le panneau.
+  // Figure annotée : rien n'y est dessiné par défaut, et on n'agit pas sur elle. Les puces
+  // numérotées choisissent le groupe mis en évidence, un seul à la fois : le survol
+  // l'affiche, le clic le rend actif ; sortir de la rangée de puces revient au groupe actif.
+  // Le groupe 1 est actif au départ. Sa carte s'affiche dans le panneau.
   const ns = 'http://www.w3.org/2000/svg';
   const svgEl = (nom, attributs = {}) => {
     const el = document.createElementNS(ns, nom);
@@ -363,28 +364,14 @@ function rendreAnalyse() {
   }
   svg.append(neutres);
 
-  const rayon = Math.max(16, W / 70);
-  const placees = [];
-  const calques = affiches.map((g, i) => {
+  const calques = affiches.map((g) => {
     const calque = svgEl('g', { class: `groupe ${g.niveau}` });
     for (const l of g.membres) {
       const b = boite(l);
       const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: `cadre ${l.niveau || 'inconnu'}` });
-      const zone = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: 'sensible' });
-      calque.append(r, zone);
+      calque.append(r);
       rectDe.set(l.id, r);
     }
-    // Pastille au-dessus du représentant (dessous s'il touche le haut), décalée vers la
-    // droite si elle en chevauche une autre, pour ne pas cacher le texte signalé.
-    const b = boite(g.representant);
-    let cx = Math.min(W - rayon, Math.max(rayon, b.x + rayon));
-    let cy = b.y - rayon - 2 >= rayon ? b.y - rayon - 2 : Math.min(H - rayon, b.y + b.h + rayon + 2);
-    while (placees.some((p) => Math.hypot(p.x - cx, p.y - cy) < rayon * 2.1)) cx += rayon * 2.2;
-    placees.push({ x: cx, y: cy });
-    const pastille = svgEl('g', { class: 'pastille-num' });
-    pastille.append(svgEl('circle', { cx, cy, r: rayon }),
-      Object.assign(svgEl('text', { x: cx, y: cy, 'font-size': rayon * 1.25, 'text-anchor': 'middle', 'dominant-baseline': 'central' }), { textContent: String(i + 1) }));
-    calque.append(pastille);
     svg.append(calque);
     return calque;
   });
@@ -393,7 +380,8 @@ function rendreAnalyse() {
   const boutons = affiches.map((g, i) => element('button', {
     type: 'button', class: `puce ${g.niveau}`, 'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
   }, String(i + 1)));
-  puces.replaceChildren(...(affiches.length ? [element('span', { class: 'discret' }, t('puces')), ...boutons] : []));
+  const rangee = element('span', { class: 'puces-rangee' }, ...boutons);
+  puces.replaceChildren(...(affiches.length ? [element('span', { class: 'discret' }, t('puces')), rangee] : []));
 
   const cartes = new Map();
   const carteDe = (i) => {
@@ -416,14 +404,9 @@ function rendreAnalyse() {
   };
   const survoler = (i) => montrer(i);
   const epingler = (i) => { choix.epingle = i; montrer(i); };
-  calques.forEach((c, i) => {
-    c.addEventListener('mouseenter', () => survoler(i));
-    c.addEventListener('click', () => epingler(i));
-  });
-  svg.addEventListener('mouseleave', () => montrer(choix.epingle));
+  rangee.addEventListener('mouseleave', () => montrer(choix.epingle));
   boutons.forEach((b, i) => {
     b.addEventListener('mouseenter', () => survoler(i));
-    b.addEventListener('mouseleave', () => montrer(choix.epingle));
     b.addEventListener('focus', () => epingler(i));
     b.addEventListener('click', () => epingler(i));
     b.addEventListener('keydown', (e) => {
