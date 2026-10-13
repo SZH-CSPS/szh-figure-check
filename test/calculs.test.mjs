@@ -4,7 +4,7 @@ import { lc, rapportWcag, versHex } from '../js/apca.js';
 import { FORMATS, zoneContenu, tailleFigure, versPoints, MM_PAR_PX } from '../js/formats.js';
 import {
   corpsDepuisSymboles, contrasteZone, depuisRotation, recouvrement, seuilOtsu,
-  verdictTaille, verdictContraste,
+  niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper,
 } from '../js/analyse.js';
 import { T, TEXTES, nombre, langueInitiale } from '../js/i18n.js';
 
@@ -71,14 +71,14 @@ test('contraste mesuré dans une zone : texte minoritaire, fond majoritaire', ()
   assert.deepEqual(m.texte, [166, 166, 166]);
   assert.deepEqual(m.fond, [255, 255, 255]);
   assert.equal(Math.round(m.lc), Math.round(lc([166, 166, 166], [255, 255, 255])));
-  assert.equal(verdictContraste(m.lc), 'echec');
+  assert.equal(niveauContraste(m.lc), 'ameliorer');
 });
 
 test('texte clair sur fond sombre : Lc négatif', () => {
   const px = image(30, 30, [20, 40, 90], [255, 255, 255], { x0: 10, x1: 14, y0: 5, y1: 25 });
   const m = contrasteZone(px, 30, 30, { x0: 0, y0: 0, x1: 30, y1: 30 });
   assert.ok(m.lc < -60);
-  assert.equal(verdictContraste(m.lc), 'ok');
+  assert.equal(niveauContraste(m.lc), 'ok');
 });
 
 test('zone uniforme : pas de mesure', () => {
@@ -104,12 +104,36 @@ test('recouvrement', () => {
   assert.equal(recouvrement({ x0: 0, y0: 0, x1: 10, y1: 10 }, { x0: 20, y0: 0, x1: 25, y1: 5 }), 0);
 });
 
-test('verdicts aux seuils', () => {
-  assert.equal(verdictTaille(7.99), 'echec');
-  assert.equal(verdictTaille(8), 'ok');
-  assert.equal(verdictTaille(null), 'inconnu');
-  assert.equal(verdictContraste(59.5), 'ok');
-  assert.equal(verdictContraste(-59.4), 'echec');
+test('degré de non-conformité aux seuils', () => {
+  assert.equal(niveauTaille(8), 'ok');
+  assert.equal(niveauTaille(7.99), 'ameliorer');
+  assert.equal(niveauTaille(6.5), 'ameliorer');
+  assert.equal(niveauTaille(6.49), 'corriger');
+  assert.equal(niveauTaille(null), null);
+  assert.equal(niveauContraste(59.5), 'ok');
+  assert.equal(niveauContraste(-59.4), 'ameliorer');
+  assert.equal(niveauContraste(44.4), 'corriger');
+  assert.equal(pireNiveau('ok', null, 'corriger', 'ameliorer'), 'corriger');
+  assert.equal(pireNiveau(null, null), null);
+});
+
+test('agrandissement nécessaire', () => {
+  assert.equal(agrandissement(4), 100);
+  assert.equal(agrandissement(6.1), 35);   // 8 / 6,1 = 1,31
+});
+
+test('couleur conforme : foncer sur fond clair, éclaircir sur fond sombre', () => {
+  const blanc = [255, 255, 255];
+  const r = couleurConforme([166, 166, 166], blanc);
+  assert.equal(r.sens, 'foncer');
+  assert.ok(Math.abs(lc(r.couleur, blanc)) >= 69.5);                         // minimum + 10 de marge
+  assert.ok(Math.abs(lc(r.couleur.map((c) => c + 6), blanc)) < 69.5);       // la plus proche, à un pas près
+  const s = couleurConforme([90, 90, 120], [20, 30, 60]);
+  assert.equal(s.sens, 'eclaircir');
+  // Texte blanc sur jaune : le blanc ne peut plus s'éclaircir, la réponse est de foncer.
+  assert.equal(couleurConforme(blanc, [242, 197, 61]).sens, 'foncer');
+  // Fond gris moyen : ni le noir ni le blanc n'atteignent Lc 60.
+  assert.equal(couleurConforme([150, 150, 150], [160, 160, 160]), null);
 });
 
 test('i18n : mêmes clés en fr et en de, valeurs remplacées', () => {
@@ -126,4 +150,12 @@ test('i18n : ni cadratin ni espace ordinaire devant : ; ? ! en français', () =>
     assert.ok(!v.includes('—'), v);
     assert.ok(!/ [:;?!»]|« /.test(v), v);
   }
+});
+
+test('regroupement des textes au même défaut', () => {
+  const gris = { texte: [166, 166, 166], fond: [255, 255, 255] };
+  const l = (texte, pt, lcv, contraste = gris) => ({ texte, pt, lc: lcv, nt: niveauTaille(pt), nc: niveauContraste(lcv), contraste });
+  const groupes = regrouper([l('100', 6.0, 42), l('Source', 5.3, 31), l('75', 5.7, 42), l('42', 8.6, -32, { texte: [255, 255, 255], fond: [242, 197, 61] })]);
+  assert.deepEqual(groupes.map((g) => g.membres.map((m) => m.texte)), [['100', '75'], ['Source'], ['42']]);
+  assert.equal(groupes[0].representant.texte, '75');
 });

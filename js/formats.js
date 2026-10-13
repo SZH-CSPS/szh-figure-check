@@ -6,6 +6,8 @@ export const MM_PAR_PT = 25.4 / 72;
 
 export const TAILLE_MIN_PT = 8;          // plus petit texte admis dans une figure
 export const LC_MIN = 60;                // contraste APCA minimal d'un texte de figure
+export const TAILLE_GRAVE_PT = 6.5;      // en dessous : « à corriger », au-dessus : « à améliorer »
+export const LC_GRAVE = 45;              // idem pour le contraste ; Lc 45 suffit à peine à un gros titre
 
 export const FORMATS = {
   revue: {

@@ -72,24 +72,38 @@
       <div id="cadre-page" class="cadre-page"><div id="page" class="page"></div></div>
       <p class="discret" data-t="conseilImpression"></p>
 
-      <h2 data-t="sectionTextes"></h2>
-      <p id="statut" class="statut" aria-live="polite"></p>
-      <div id="resume" class="resume"></div>
-      <div class="analyse">
-        <div class="analyse-figure" id="analyse-figure"></div>
-        <div class="analyse-table">
-          <table id="table-textes" hidden>
-            <thead><tr>
-              <th scope="col" data-t="colTexte"></th>
-              <th scope="col" data-t="colTaille"></th>
-              <th scope="col" data-t="colContraste"></th>
-              <th scope="col" data-t="colCouleurs"></th>
-            </tr></thead>
-            <tbody></tbody>
-          </table>
+      <div id="rapport" class="rapport">
+        <div class="titre-section">
+          <h2 data-t="sectionTextes"></h2>
+          <button type="button" id="imprimer-rapport" data-t="imprimerRapport" hidden></button>
         </div>
+        <p id="rapport-fichier" class="discret"></p>
+        <p id="statut" class="statut" aria-live="polite"></p>
+        <div id="bilan" class="bilan" hidden></div>
+        <ul class="niveaux" id="niveaux" hidden>
+          <li class="corriger"><span class="symbole" aria-hidden="true">✕</span> <b data-t="niveau_corriger"></b> <span data-t="legende_corriger"></span></li>
+          <li class="ameliorer"><span class="symbole" aria-hidden="true">!</span> <b data-t="niveau_ameliorer"></b> <span data-t="legende_ameliorer"></span></li>
+          <li class="ok"><span class="symbole" aria-hidden="true">✓</span> <b data-t="niveau_ok"></b> <span data-t="legende_ok"></span></li>
+        </ul>
+        <div class="analyse-figure" id="analyse-figure"></div>
+        <h3 id="zones-titre" hidden></h3>
+        <ol id="zones" class="zones"></ol>
+        <details id="details-textes" hidden>
+          <summary id="details-titre"></summary>
+          <div class="analyse-table">
+            <table id="table-textes">
+              <thead><tr>
+                <th scope="col" data-t="colTexte"></th>
+                <th scope="col" data-t="colTaille"></th>
+                <th scope="col" data-t="colContraste"></th>
+                <th scope="col" data-t="colCouleurs"></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+        <p id="note-mesure" class="discret"></p>
       </div>
-      <p id="note-mesure" class="discret"></p>
 
       <h2 data-t="sectionCouleurs"></h2>
       <p data-t="couleursAide"></p>

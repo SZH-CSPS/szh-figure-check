@@ -1,8 +1,8 @@
 // Calculs sans DOM : taille d'un texte reconnu, contraste d'une zone de pixels, passage
-// des coordonnées de l'image tournée à l'image d'origine, verdicts.
+// des coordonnées de l'image tournée à l'image d'origine, degré de non-conformité, couleur conforme.
 
-import { lc } from './apca.js';
-import { TAILLE_MIN_PT, LC_MIN } from './formats.js';
+import { lc, luminanceApca } from './apca.js';
+import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, LC_GRAVE } from './formats.js';
 
 // Rapport hauteur du glyphe / corps, moyen sur les sans-serif courantes (Arial, Open Sans,
 // Calibri, Helvetica). Les minuscules sans hampe donnent la hauteur d'x, les capitales et
@@ -139,12 +139,72 @@ export function unionBoites(boites) {
   };
 }
 
-export function verdictTaille(pt) {
-  if (pt == null) return 'inconnu';
-  return pt < TAILLE_MIN_PT ? 'echec' : 'ok';
+// Degré de non-conformité, en trois niveaux lisibles sans connaître les normes :
+// « ok » atteint le minimum, « ameliorer » le manque de peu, « corriger » le manque nettement.
+export const NIVEAUX = ['ok', 'ameliorer', 'corriger'];
+
+export function niveauTaille(pt) {
+  if (pt == null) return null;
+  if (pt >= TAILLE_MIN_PT) return 'ok';
+  return pt >= TAILLE_GRAVE_PT ? 'ameliorer' : 'corriger';
 }
 
-export function verdictContraste(valeur) {
-  if (valeur == null) return 'inconnu';
-  return Math.abs(valeur) < LC_MIN - TOLERANCE_LC ? 'echec' : 'ok';
+export function niveauContraste(valeur) {
+  if (valeur == null) return null;
+  const v = Math.abs(valeur) + TOLERANCE_LC;
+  if (v >= LC_MIN) return 'ok';
+  return v >= LC_GRAVE ? 'ameliorer' : 'corriger';
+}
+
+export function pireNiveau(...niveaux) {
+  const connus = niveaux.filter(Boolean);
+  if (!connus.length) return null;
+  return connus.reduce((a, b) => (NIVEAUX.indexOf(b) > NIVEAUX.indexOf(a) ? b : a));
+}
+
+// Agrandissement qui amène un texte au minimum, en pour cent arrondis aux 5 supérieurs.
+export function agrandissement(pt) {
+  return Math.ceil((TAILLE_MIN_PT / pt - 1) * 20) * 5;
+}
+
+function melange(a, b, t) {
+  return a.map((c, i) => Math.round(c + (b[i] - c) * t));
+}
+
+// Couleur de texte la plus proche de l'actuelle qui atteint `cible` sur ce fond : le texte
+// est assombri sur un fond clair, éclairci sur un fond sombre, puis dans l'autre sens si le
+// premier n'y arrive pas. La cible dépasse le minimum de 10 pour laisser de la marge à
+// l'impression. Rend { couleur, sens } ou null si aucune teinte ne suffit.
+export function couleurConforme(texte, fond, cible = LC_MIN + 10) {
+  const fondClair = luminanceApca(fond) > luminanceApca(texte);
+  const sens = fondClair ? ['foncer', 'eclaircir'] : ['eclaircir', 'foncer'];
+  for (const s of sens) {
+    const extreme = s === 'foncer' ? [0, 0, 0] : [255, 255, 255];
+    for (let t = 0.02; t <= 1.0001; t += 0.02) {
+      const c = melange(texte, extreme, t);
+      if (Math.abs(lc(c, fond)) + TOLERANCE_LC >= cible) return { couleur: c, sens: s };
+    }
+  }
+  return null;
+}
+
+// Regroupe les textes qui ont le même défaut, pour ne pas répéter la même carte : même
+// degré pour la taille et pour le contraste, tailles à 0,5 pt près, contrastes à Lc 5 près,
+// couleurs de texte voisines (graduations d'un axe, par exemple). Chaque groupe garde
+// l'ordre de `lignes` ; son représentant est le membre le plus petit.
+export function regrouper(lignes) {
+  const groupes = [];
+  const proche = (a, b) => a.nt === b.nt && a.nc === b.nc
+    && ((a.pt == null && b.pt == null) || (a.pt != null && b.pt != null && Math.abs(a.pt - b.pt) <= 0.5))
+    && ((a.lc == null && b.lc == null) || (a.lc != null && b.lc != null && Math.abs(Math.abs(a.lc) - Math.abs(b.lc)) <= 5))
+    && (!a.contraste || !b.contraste || a.contraste.texte.every((c, i) => Math.abs(c - b.contraste.texte[i]) <= 30));
+  for (const l of lignes) {
+    const g = groupes.find((x) => proche(x.membres[0], l));
+    if (g) g.membres.push(l);
+    else groupes.push({ membres: [l] });
+  }
+  for (const g of groupes) {
+    g.representant = g.membres.reduce((a, b) => ((b.pt ?? Infinity) < (a.pt ?? Infinity) ? b : a));
+  }
+  return groupes;
 }

@@ -8,6 +8,10 @@ figure et on voit :
   dans le format de la Revue (A4) ou du livre (155 × 225 mm) ;
 - **la taille et le contraste de chaque texte** de la figure, à l’impression : minimum
   8 pt et contraste APCA Lc 60 ;
+- **un rapport des endroits à revoir** : pour chacun, un extrait de la figure entouré de
+  rouge, la taille et le contraste mesurés, un degré de non-conformité et ce qu’il faut
+  faire (agrandir de tant de %, prendre telle couleur). Le rapport s’imprime ou
+  s’enregistre en PDF pour l’envoyer à la rédaction ;
 - **la figure vue par des personnes daltoniennes** (deutéranopie, protanopie, tritanopie)
   et en niveaux de gris.
 
@@ -26,6 +30,7 @@ données de langue (fra, deu, eng, quelques Mo, une fois) depuis tessdata.projec
 node outils/serveur.mjs          # http://localhost:8123/ ; les modules ES refusent file://
 node --test test/*.test.mjs      # calculs : APCA, géométrie, contraste, verdicts, i18n
 node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
+node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
 ```
 
 `?exemple=png|svg` charge la figure d’exemple, `?langue=de` et `?format=livre` fixent la
@@ -37,7 +42,7 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 | `js/formats.js` | géométrie des pages de Pronto, seuils, place de la figure, conversion en points |
 | `js/sources.js` | ouverture d’une image, d’un SVG ou de la première page d’un PDF |
 | `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
-| `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste d’une zone, verdicts |
+| `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto |
 | `js/i18n.js` | libellés fr et de |
 | `js/app.js` | interface |
@@ -63,11 +68,26 @@ le groupe le plus nombreux, la couleur du texte est la moyenne des 20 % de pixel
 éloignés du fond. Sur une image de petite résolution, le lissage éclaircit les traits fins
 et la mesure est un peu plus sévère que la couleur nominale.
 
+**Degré de non-conformité.** Trois niveaux, avec une couleur et un symbole :
+
+| Niveau | Taille | Contraste |
+|---|---|---|
+| ✓ Conforme | 8 pt ou plus | Lc 60 ou plus |
+| ! À améliorer | de 6,5 à 8 pt | de Lc 45 à 60 |
+| ✕ À corriger | moins de 6,5 pt | moins de Lc 45 |
+
+Le degré se décide sur la valeur affichée, arrondie. Les textes qui ont le même défaut
+(graduations d’un axe, par exemple) forment un seul endroit à revoir. La couleur proposée
+est la plus proche de l’actuelle qui atteint Lc 70, soit le minimum avec 10 de marge.
+
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression
 peut échapper à l’OCR. Le « taille réelle » de l’écran n’est juste qu’après le réglage par
 carte bancaire ; l’impression à 100 % reste la référence.
 
-## Polices
+## Licence
 
-Open Sans semi-condensée, copiée de Pronto, sous SIL Open Font License 1.1
-(`fonts/OFL-OpenSans.txt`).
+Code, textes et figure d’exemple : Creative Commons Attribution 4.0 International
+(CC BY 4.0, `LICENSE`), SZH/CSPS.
+
+Les polices du dossier `fonts/` (Open Sans semi-condensée) restent sous SIL Open Font
+License 1.1 (`fonts/OFL-OpenSans.txt`), la licence de leurs autrices et auteurs.
