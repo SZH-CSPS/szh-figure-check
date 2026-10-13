@@ -121,7 +121,7 @@ const TEXTES = {
     fermer: 'Fermer',
     erreurFichier: 'Ce fichier ne peut pas être ouvert.',
     erreurCdn: `La reconnaissance de texte n’a pas pu être chargée${_}: vérifiez la connexion.`,
-    pied: 'Outil de la Revue suisse de pédagogie spécialisée et des Éditions SZH/CSPS.',
+    pied: 'Outil au stade expérimental.',
   },
   de: {
     titre: 'Ihre Abbildungen im Druck',
@@ -240,7 +240,7 @@ const TEXTES = {
     fermer: 'Schliessen',
     erreurFichier: 'Diese Datei kann nicht geöffnet werden.',
     erreurCdn: 'Die Texterkennung konnte nicht geladen werden: Prüfen Sie die Verbindung.',
-    pied: 'Ein Werkzeug der Schweizerischen Zeitschrift für Heilpädagogik und der Edition SZH/CSPS.',
+    pied: 'Werkzeug im Versuchsstadium.',
   },
 };
 
