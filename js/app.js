@@ -336,7 +336,9 @@ function rendreAnalyse() {
   // Figure annotée : rien n'y est dessiné par défaut, et on n'agit pas sur elle. Les puces
   // numérotées choisissent le groupe mis en évidence, un seul à la fois : le survol
   // l'affiche, le clic le rend actif ; sortir de la rangée de puces revient au groupe actif.
-  // Le groupe 1 est actif au départ. Sa carte s'affiche dans le panneau.
+  // Le groupe 1 est actif au départ. Sa carte s'affiche dans le panneau. Les puces suivent
+  // le motif des onglets : la puce active est pleine et soulignée, celle qu'on survole
+  // n'est que teintée, et le panneau dit s'il montre l'endroit actif ou un aperçu.
   const ns = 'http://www.w3.org/2000/svg';
   const svgEl = (nom, attributs = {}) => {
     const el = document.createElementNS(ns, nom);
@@ -378,9 +380,10 @@ function rendreAnalyse() {
 
   const puces = $('puces');
   const boutons = affiches.map((g, i) => element('button', {
-    type: 'button', class: `puce ${g.niveau}`, 'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
+    type: 'button', role: 'tab', 'aria-controls': 'panneau', class: `puce ${g.niveau}`,
+    'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
   }, String(i + 1)));
-  const rangee = element('span', { class: 'puces-rangee' }, ...boutons);
+  const rangee = element('span', { class: 'puces-rangee', role: 'tablist', 'aria-label': t('puces') }, ...boutons);
   puces.replaceChildren(...(affiches.length ? [element('span', { class: 'discret' }, t('puces')), rangee] : []));
 
   const cartes = new Map();
@@ -392,7 +395,12 @@ function rendreAnalyse() {
   const montrer = (i) => {
     svg.classList.toggle('focus', i != null);
     calques.forEach((c, k) => c.classList.toggle('choisi', k === i));
-    boutons.forEach((b, k) => b.setAttribute('aria-pressed', String(k === i)));
+    boutons.forEach((b, k) => {
+      const actif = k === choix.epingle;
+      b.setAttribute('aria-selected', String(actif));
+      b.tabIndex = actif ? 0 : -1;
+      b.classList.toggle('apercu', k === i && !actif);
+    });
     if (i == null) {
       voile.setAttribute('d', '');
       $('panneau').replaceChildren(element('p', { class: 'discret' }, t(affiches.length ? 'panneauAide' : 'panneauVide')));
@@ -400,7 +408,11 @@ function rendreAnalyse() {
     }
     const trous = affiches[i].membres.map((l) => { const b = boite(l); return `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`; }).join('');
     voile.setAttribute('d', `M0 0H${W}V${H}H0Z${trous}`);
-    $('panneau').replaceChildren(carteDe(i));
+    const apercu = i !== choix.epingle;
+    const etatPanneau = element('p', { class: `panneau-etat${apercu ? ' apercu' : ''}` },
+      apercu ? t('panneauApercu', { n: i + 1, actif: choix.epingle + 1 }) : t('panneauActif', { n: i + 1, total: affiches.length }));
+    $('panneau').classList.toggle('apercu', apercu);
+    $('panneau').replaceChildren(etatPanneau, carteDe(i));
   };
   const survoler = (i) => montrer(i);
   const epingler = (i) => { choix.epingle = i; montrer(i); };
