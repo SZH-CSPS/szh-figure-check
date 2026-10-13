@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contrôle des figures</title>
+  <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
+  <link rel="stylesheet" href="style.css">
+  <style id="style-impression"></style>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
+       sévérité 1, appliquées en RVB linéaire. -->
+  <svg class="filtres" aria-hidden="true" focusable="false">
+    <filter id="f-deuteranopie" color-interpolation-filters="linearRGB">
+      <feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-protanopie" color-interpolation-filters="linearRGB">
+      <feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/>
+    </filter>
+    <filter id="f-tritanopie" color-interpolation-filters="linearRGB">
+      <feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/>
+    </filter>
+  </svg>
+
+  <header class="entete">
+    <div class="entete-texte">
+      <h1 data-t="titre"></h1>
+      <p data-t="intro"></p>
+    </div>
+    <button type="button" id="langue" class="lien"></button>
+  </header>
+
+  <main>
+    <section class="depot-zone">
+      <label id="depot" class="depot" tabindex="0">
+        <input type="file" id="fichier" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf,.svg,.pdf" hidden>
+        <strong data-t="deposer"></strong>
+        <span data-t="formatsAcceptes"></span>
+        <span class="discret" data-t="confidentialite"></span>
+      </label>
+      <button type="button" id="exemple" class="lien" data-t="exemple"></button>
+      <p id="erreur" class="erreur" role="alert" hidden></p>
+    </section>
+
+    <section id="resultats" hidden>
+      <h2 data-t="sectionPage"></h2>
+      <div class="commandes">
+        <fieldset class="bascule" id="formats">
+          <legend data-t="format"></legend>
+          <label><input type="radio" name="format" value="revue" checked> <span data-t="formatRevue"></span></label>
+          <label><input type="radio" name="format" value="livre"> <span data-t="formatLivre"></span></label>
+        </fieldset>
+        <label class="champ"><span data-t="largeur"></span>
+          <select id="proportion">
+            <option value="" data-t="largeurAuto"></option>
+            <option value="1" data-t="largeur100"></option>
+            <option value="0.75" data-t="largeur75"></option>
+            <option value="0.5" data-t="largeur50"></option>
+          </select>
+        </label>
+        <fieldset class="bascule" id="vues">
+          <label><input type="radio" name="vue" value="reelle" checked> <span data-t="vueReelle"></span></label>
+          <label><input type="radio" name="vue" value="page"> <span data-t="vuePage"></span></label>
+        </fieldset>
+        <button type="button" id="calibrer" data-t="calibrer"></button>
+        <button type="button" id="imprimer" data-t="imprimer"></button>
+      </div>
+      <p class="infos"><span id="dimensions"></span> <span id="calibration" class="discret"></span></p>
+      <ul id="alertes-page" class="alertes"></ul>
+      <div id="cadre-page" class="cadre-page"><div id="page" class="page"></div></div>
+      <p class="discret" data-t="conseilImpression"></p>
+
+      <h2 data-t="sectionTextes"></h2>
+      <p id="statut" class="statut" aria-live="polite"></p>
+      <div id="resume" class="resume"></div>
+      <div class="analyse">
+        <div class="analyse-figure" id="analyse-figure"></div>
+        <div class="analyse-table">
+          <table id="table-textes" hidden>
+            <thead><tr>
+              <th scope="col" data-t="colTexte"></th>
+              <th scope="col" data-t="colTaille"></th>
+              <th scope="col" data-t="colContraste"></th>
+              <th scope="col" data-t="colCouleurs"></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <p id="note-mesure" class="discret"></p>
+
+      <h2 data-t="sectionCouleurs"></h2>
+      <p data-t="couleursAide"></p>
+      <div id="couleurs" class="couleurs"></div>
+    </section>
+  </main>
+
+  <footer class="pied"><p data-t="pied"></p></footer>
+
+  <dialog id="dialogue-calibration">
+    <h2 data-t="calibrationTitre"></h2>
+    <p data-t="calibrationAide"></p>
+    <div class="carte-zone"><div id="carte" class="carte"></div></div>
+    <div class="carte-commandes">
+      <button type="button" id="carte-moins" data-t="plusPetit"></button>
+      <input type="range" id="carte-curseur" min="2" max="9" step="0.01" aria-labelledby="carte-moins">
+      <button type="button" id="carte-plus" data-t="plusGrand"></button>
+    </div>
+    <div class="carte-actions">
+      <button type="button" id="carte-reinitialiser" class="lien" data-t="reinitialiser"></button>
+      <button type="button" id="carte-annuler" data-t="annuler"></button>
+      <button type="button" id="carte-valider" class="principal" data-t="valider"></button>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,140 @@
+// Trouve les textes d'une figure, leur corps en pixels et leur contraste. Les textes d'un
+// SVG ou d'un PDF se lisent tels quels ; ceux d'une image passent par l'OCR (Tesseract.js),
+// une fois à l'endroit et une fois tournée d'un quart de tour, pour les axes verticaux.
+
+import { corpsDepuisSymboles, hauteurGlyphe, contrasteZone, depuisRotation, recouvrement, unionBoites, mediane } from './analyse.js';
+
+const TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const LANGUES = 'fra+deu+eng';
+const CONFIANCE_MIN = 55;
+const CONFIANCE_MIN_TOURNEE = 70;        // à l'envers, l'OCR invente davantage
+const PX_PAR_MM_OCR = 20;                // résolution de lecture, rapportée à la colonne de la Revue
+const LARGEUR_COLONNE_MM = 172;
+const PIXELS_MAX = 14e6;
+
+let travailleur = null;
+let suivre = () => {};
+
+function charger(url) {
+  return new Promise((ok, ko) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = ok;
+    s.onerror = () => ko(new Error('cdn'));
+    document.head.append(s);
+  });
+}
+
+async function ocr() {
+  if (!travailleur) {
+    if (!window.Tesseract) await charger(TESSERACT);
+    travailleur = await window.Tesseract.createWorker(LANGUES, 1, { logger: (m) => suivre(m) });
+    // Mode « texte épars » : une figure n'a pas de paragraphes, l'analyse de mise en page
+    // par défaut y perd les graduations et les petites notes.
+    await travailleur.setParameters({ tessedit_pageseg_mode: '11' });
+  }
+  return travailleur;
+}
+
+// Largeur du canevas d'analyse : assez de pixels pour lire un texte de 6 pt, sans dépasser
+// PIXELS_MAX.
+export function largeurAnalyse(ratio) {
+  const voulue = LARGEUR_COLONNE_MM * PX_PAR_MM_OCR;
+  return Math.round(Math.min(voulue, Math.sqrt(PIXELS_MAX / ratio)));
+}
+
+// Copie en niveaux de gris, assombrie (gamma 3) : un texte gris clair sur blanc, que le
+// seuillage de Tesseract confond avec le fond, devient lisible. Les mesures se font
+// toujours sur l'image d'origine.
+function foncer(c) {
+  const f = document.createElement('canvas');
+  f.width = c.width;
+  f.height = c.height;
+  const ctx = f.getContext('2d');
+  const image = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height);
+  const d = image.data;
+  for (let p = 0; p < d.length; p += 4) {
+    const v = 255 * ((0.2126 * d[p] + 0.7152 * d[p + 1] + 0.0722 * d[p + 2]) / 255) ** 3;
+    d[p] = d[p + 1] = d[p + 2] = v;
+  }
+  ctx.putImageData(image, 0, 0);
+  return f;
+}
+
+function tourner(c) {
+  const t = document.createElement('canvas');
+  t.width = c.height;
+  t.height = c.width;
+  const ctx = t.getContext('2d');
+  ctx.translate(c.height, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(c, 0, 0);
+  return t;
+}
+
+function pixels(c) {
+  const rgba = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;
+  return (bbox) => hauteurGlyphe(rgba, c.width, c.height, bbox);
+}
+
+function lignesOcr(data, confianceMin, mesurer) {
+  const lignes = [];
+  for (const ligne of data.lines || []) {
+    const mots = ligne.words.filter((m) => m.confidence >= confianceMin && /[\p{L}\p{N}]/u.test(m.text));
+    if (!mots.length) continue;
+    const symboles = mots.flatMap((m) => m.symbols || []);
+    lignes.push({
+      texte: mots.map((m) => m.text).join(' '),
+      mots: mots.map((m) => m.bbox),
+      bbox: unionBoites(mots.map((m) => m.bbox)),
+      corpsPx: corpsDepuisSymboles(symboles, mesurer),
+      exact: false,
+      vertical: false,
+    });
+  }
+  return lignes;
+}
+
+async function lireOcr(c, progres) {
+  const t = await ocr();
+  suivre = (m) => m.status === 'recognizing text' && progres('ocr', m.progress / 2);
+  const fonce = foncer(c);
+  const droit = lignesOcr((await t.recognize(fonce)).data, CONFIANCE_MIN, pixels(c));
+  suivre = (m) => m.status === 'recognizing text' && progres('ocr', 0.5 + m.progress / 2);
+  const ct = tourner(c);
+  const tournees = lignesOcr((await t.recognize(tourner(fonce))).data, CONFIANCE_MIN_TOURNEE, pixels(ct));
+  suivre = () => {};
+  for (const ligne of tournees) {
+    ligne.mots = ligne.mots.map((b) => depuisRotation(b, c.height));
+    ligne.bbox = depuisRotation(ligne.bbox, c.height);
+    ligne.vertical = true;
+    if (!droit.some((d) => recouvrement(d.bbox, ligne.bbox) > 0.3)) droit.push(ligne);
+  }
+  return droit;
+}
+
+// `source` vient de sources.js. Rend { canevas, lignes }, les boîtes et les corps étant en
+// pixels du canevas.
+export async function lire(source, progres = () => {}) {
+  const largeur = largeurAnalyse(source.ratio);
+  progres('rendu', 0);
+  const c = await source.dessiner(largeur);
+  let lignes = [];
+  if (source.textesExacts) {
+    lignes = (await source.textesExacts(c.width)).map((t) => ({ ...t, mots: [t.bbox], exact: true, vertical: false }));
+  }
+  if (!lignes.length) {
+    progres('chargement', 0);
+    lignes = await lireOcr(c, progres);
+  }
+  const rgba = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  for (const ligne of lignes) {
+    const mesures = ligne.mots.map((b) => contrasteZone(rgba, c.width, c.height, b)).filter(Boolean);
+    if (!mesures.length) { ligne.contraste = null; continue; }
+    const lcMedian = mediane(mesures.map((m) => Math.abs(m.lc)));
+    ligne.contraste = mesures.reduce((a, b) => (Math.abs(Math.abs(b.lc) - lcMedian) < Math.abs(Math.abs(a.lc) - lcMedian) ? b : a));
+  }
+  lignes.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+  progres('fini', 1);
+  return { canevas: c, lignes };
+}

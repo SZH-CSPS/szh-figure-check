@@ -1,0 +1,10 @@
+{
+  "name": "szh-figure-check",
+  "private": true,
+  "type": "module",
+  "description": "Voir une figure à sa taille imprimée et vérifier la taille et le contraste de ses textes.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "serveur": "node outils/serveur.mjs"
+  }
+}
