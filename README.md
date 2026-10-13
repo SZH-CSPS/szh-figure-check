@@ -33,7 +33,8 @@ node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
 node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
 ```
 
-`?exemple=png|svg` charge la figure d’exemple, `?langue=de` et `?format=livre` fixent la
+`?exemple=png|svg` charge la figure d’exemple, `?figure=tmp/nom.png` une figure du dossier
+`tmp/` (non suivi : les figures d’auteurs ne vont pas dans le dépôt), `?langue=de` et `?format=livre` fixent la
 langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 `body[data-etat="fini"]`, imprime le tableau des textes et enregistre une capture.
 
@@ -77,7 +78,15 @@ et la mesure est un peu plus sévère que la couleur nominale.
 | ✕ À corriger | moins de 6,5 pt | moins de Lc 45 |
 
 Le degré se décide sur la valeur affichée, arrondie. Les textes qui ont le même défaut
-(graduations d’un axe, par exemple) forment un seul endroit à revoir. La couleur proposée
+(graduations d’un axe, par exemple) forment un seul endroit à revoir.
+
+**Figure très chargée.** Quand la moitié au moins des textes (et au moins 5) sont sous
+8 pt, c’est la figure entière qui est trop petite : un encadré le dit une fois, avec la
+plage de tailles, le facteur d’agrandissement nécessaire et ce que donneraient la pleine
+largeur et une page entière en paysage. Les cartes ne portent alors plus que sur le
+contraste, regroupées par style de texte (mêmes couleurs de texte et de fond, tailles à
+20 % près). Au-delà de 8 groupes, les cartes passent aussi par style ; les suivants
+restent dans la liste de tous les textes. La couleur proposée
 est la plus proche de l’actuelle qui atteint Lc 70, soit le minimum avec 10 de marge.
 
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression

@@ -1,7 +1,7 @@
 // Interface : dépôt, page simulée, tableau des textes, aperçus des couleurs.
 
 import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, LC_MIN, MM_PAR_PX } from './formats.js';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper } from './analyse.js';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble } from './analyse.js';
 import { versHex } from './apca.js';
 import { ouvrir } from './sources.js';
 import { lire } from './lecture.js';
@@ -158,13 +158,13 @@ async function analyser() {
 function mesures() {
   const { canevas, lignes } = etat.lecture;
   const fig = figureSurPage();
-  return lignes.map((l) => {
+  return lignes.map((l, id) => {
     const pt = l.corpsPx ? versPoints(l.corpsPx, canevas.width, fig.l) : null;
     const lcv = l.contraste ? l.contraste.lc : null;
     // Le degré se décide sur la valeur affichée, arrondie comme elle s'écrit.
     const nt = niveauTaille(pt == null ? null : Math.round(pt * 10) / 10);
     const nc = niveauContraste(lcv == null ? null : Math.round(lcv));
-    return { ...l, pt, lc: lcv, nt, nc, niveau: pireNiveau(nt, nc) };
+    return { ...l, id, pt, lc: lcv, nt, nc, niveau: pireNiveau(nt, nc) };
   });
 }
 
@@ -224,23 +224,83 @@ function conseils(l, plusieurs) {
   return liste;
 }
 
-function carteZone(groupe, numero, canevas) {
+const TEXTES_PAR_CARTE = 6;
+const CARTES_MAX = 8;
+
+// « 3,0 pt » ou « 3,0 à 4,2 pt » selon l'étendue des valeurs.
+function plage(valeurs, formater) {
+  const a = Math.min(...valeurs), b = Math.max(...valeurs);
+  const fa = formater(a), fb = formater(b);
+  return fa === fb ? fa : t('plage', { a: fa, b: fb });
+}
+
+// Ce qu'un groupe montre : les pires valeurs et la plage de ses membres.
+function resumeGroupe(groupe) {
+  const m = groupe.membres;
+  const tailles = m.filter((l) => l.pt != null);
+  const contrastes = m.filter((l) => l.lc != null);
+  const approx = tailles.some((l) => !l.exact) ? '≈ ' : '';
+  const pireContraste = contrastes.reduce((a, b) => (Math.abs(b.lc) < Math.abs(a.lc) ? b : a), contrastes[0]);
+  return {
+    taille: tailles.length ? `${approx}${plage(tailles.map((l) => l.pt), (v) => nombre(v))} pt` : t('nonMesure'),
+    contraste: contrastes.length ? `Lc ${plage(contrastes.map((l) => Math.abs(l.lc)), (v) => String(Math.round(v)))}` : t('nonMesure'),
+    pour: {
+      nt: pireNiveau(...m.map((l) => l.nt)),
+      pt: tailles.length ? Math.min(...tailles.map((l) => l.pt)) : null,
+      nc: pireNiveau(...m.map((l) => l.nc)),
+      contraste: pireContraste ? pireContraste.contraste : null,
+    },
+  };
+}
+
+// `sansTaille` : la taille est traitée par le diagnostic d'ensemble, la carte ne conseille
+// que sur le contraste.
+function carteZone(groupe, numero, canevas, survol, sansTaille = false) {
   const l = groupe.representant;
-  const textes = groupe.membres.map((m) => `« ${m.texte} »`).join(', ');
+  const r = resumeGroupe(groupe);
+  const n = groupe.membres.length;
+  const montres = n > TEXTES_PAR_CARTE + 1 ? TEXTES_PAR_CARTE : n;
+  const cites = groupe.membres.slice(0, montres).map((m) => `« ${m.texte} »`).join(', ')
+    + (n > montres ? ` ${t('etAutres', { n: n - montres })}` : '');
   const ligneMesure = (cle, valeur, niveau, minimum, extra) => element('div', { class: 'mesure' },
     element('dt', {}, t(cle)),
     element('dd', { class: niveau || 'inconnu' }, element('b', {}, valeur), ` (${minimum}) `, extra,
       niveau && niveau !== 'ok' ? badge(niveau) : null));
-  return element('li', { class: `zone ${l.niveau}`, id: `zone-${numero}` },
-    element('div', { class: 'zone-tete' }, element('span', { class: 'numero' }, String(numero)), badge(l.niveau)),
+  const carte = element('li', { class: `zone ${groupe.niveau}`, id: `zone-${numero}` },
+    element('div', { class: 'zone-tete' }, element('span', { class: 'numero' }, String(numero)), badge(groupe.niveau),
+      n > 1 ? element('span', { class: 'discret' }, t('memeStyle', { n })) : null),
     element('img', { src: extrait(canevas, l.bbox), alt: t('extraitAlt', { texte: l.texte }) }),
     element('dl', {},
-      element('div', { class: 'mesure' }, element('dt', {}, t('zoneTexteLu')), element('dd', {}, textes)),
-      ligneMesure('zoneTaille', texteTaille(l), l.nt, t('minimumTaille', { min: TAILLE_MIN_PT })),
-      ligneMesure('zoneContraste', texteContraste(l), l.nc, t('minimumContraste', { lc: LC_MIN }),
-        l.contraste ? nuancier(l.contraste.texte, l.contraste.fond) : null)),
+      element('div', { class: 'mesure' }, element('dt', {}, t(n > 1 ? 'zoneTextesLus' : 'zoneTexteLu')), element('dd', {}, cites)),
+      ligneMesure('zoneTaille', r.taille, r.pour.nt, t('minimumTaille', { min: TAILLE_MIN_PT })),
+      ligneMesure('zoneContraste', r.contraste, r.pour.nc, t('minimumContraste', { lc: LC_MIN }),
+        r.pour.contraste ? nuancier(r.pour.contraste.texte, r.pour.contraste.fond) : null)),
     element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
-    element('ul', {}, ...conseils(l, groupe.membres.length > 1)));
+    element('ul', {}, ...conseils(sansTaille ? { ...r.pour, nt: null } : r.pour, n > 1)));
+  carte.addEventListener('mouseenter', () => survol(groupe, true));
+  carte.addEventListener('mouseleave', () => survol(groupe, false));
+  return carte;
+}
+
+// Encadré « la figure entière est trop petite », avec ce que donneraient la pleine
+// largeur de colonne et une page entière en paysage.
+function carteEnsemble(diag) {
+  const f = FORMATS[etat.format];
+  const zone = zoneContenu(f);
+  const fig = figureSurPage();
+  const ratio = etat.source.ratio;
+  const phrases = [
+    t('ensembleTexte', { n: diag.petits, total: diag.total, min: TAILLE_MIN_PT, bas: nombre(diag.bas), haut: nombre(diag.haut) }),
+    t('ensembleFacteur', { min: TAILLE_MIN_PT, f: nombre(diag.facteur) }),
+  ];
+  const pleine = Math.min(zone.l, zone.h * f.plafond / ratio);
+  if (pleine > fig.l * 1.05) phrases.push(t('ensemblePleineLargeur', { pt: nombre(diag.mediane * pleine / fig.l) }));
+  const paysage = Math.min(zone.h, zone.l / ratio);
+  if (paysage > Math.max(fig.l, pleine) * 1.05) phrases.push(t('ensemblePaysage', { pt: nombre(diag.mediane * paysage / fig.l) }));
+  return element('div', { class: 'bilan corriger ensemble' },
+    element('p', { class: 'bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES.corriger), ' ', t('ensembleTitre')),
+    element('p', {}, phrases.join(' ')),
+    element('p', {}, element('b', {}, t('queFaireDeuxPoints')), ' ', t('ensembleConseil')));
 }
 
 function rendreAnalyse() {
@@ -254,41 +314,53 @@ function rendreAnalyse() {
     cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }));
     for (const id of ['bilan', 'niveaux', 'zones-titre', 'details-textes', 'imprimer-rapport']) $(id).hidden = true;
     $('zones').replaceChildren();
+    $('ensemble').replaceChildren();
+    $('zones-reste').textContent = '';
     tbody.replaceChildren();
     $('note-mesure').textContent = '';
     return;
   }
   const { canevas } = etat.lecture;
   const lignes = mesures();
-  const aRevoir = regrouper(lignes.filter((l) => l.niveau && l.niveau !== 'ok'))
-    .sort((a, b) => (a.representant.niveau === b.representant.niveau ? 0 : a.representant.niveau === 'corriger' ? -1 : 1));
-  const numeros = new Map(aRevoir.flatMap((g, i) => g.membres.map((l) => [l, i + 1])));
+  // Quand la figure entière est trop petite, un encadré le dit une fois pour toutes ; les
+  // cartes ne portent alors plus que sur le contraste, par style de texte.
+  const diag = diagnosticEnsemble(lignes);
+  const fautifs = diag
+    ? lignes.filter((l) => l.nc && l.nc !== 'ok').map((l) => ({ ...l, niveau: l.nc }))
+    : lignes.filter((l) => l.niveau && l.niveau !== 'ok');
+  let groupes = regrouper(fautifs);
+  const souple = Boolean(diag) || groupes.length > CARTES_MAX;
+  if (souple) groupes = regrouper(fautifs, { souple: true });
+  const affiches = groupes.slice(0, CARTES_MAX);
+  const numeros = new Map(affiches.map((g, i) => [g.representant.id, i + 1]));
 
-  // Figure annotée : un cadre par texte lu, un numéro sur ceux à revoir.
+  // Figure annotée : un cadre par texte lu, le numéro de sa carte sur le représentant.
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', `0 0 ${canevas.width} ${canevas.height}`);
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('aria-hidden', 'true');
   const corpsNumero = Math.max(28, canevas.width / 45);
-  const rects = lignes.map((l) => {
+  const rectDe = new Map();
+  lignes.forEach((l) => {
     const m = 4;
     const r = document.createElementNS(ns, 'rect');
     r.setAttribute('x', l.bbox.x0 - m); r.setAttribute('y', l.bbox.y0 - m);
     r.setAttribute('width', l.bbox.x1 - l.bbox.x0 + 2 * m); r.setAttribute('height', l.bbox.y1 - l.bbox.y0 + 2 * m);
     r.setAttribute('class', l.niveau || 'inconnu');
     svg.append(r);
-    if (numeros.has(l)) {
+    rectDe.set(l.id, r);
+    if (numeros.has(l.id)) {
       const n = document.createElementNS(ns, 'text');
       n.setAttribute('x', l.bbox.x0 - m);
       n.setAttribute('y', l.bbox.y0 - m - corpsNumero * 0.2);
       n.setAttribute('font-size', corpsNumero);
       n.setAttribute('class', 'numero-zone');
-      n.textContent = numeros.get(l);
+      n.textContent = numeros.get(l.id);
       svg.append(n);
     }
-    return r;
   });
+  const survol = (groupe, oui) => groupe.membres.forEach((l) => rectDe.get(l.id).classList.toggle('actif', oui));
   cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }), svg);
 
   // Bilan
@@ -310,13 +382,15 @@ function rendreAnalyse() {
   bilan.hidden = false;
   $('niveaux').hidden = !lignes.length;
 
-  // Endroits à revoir
-  $('zones-titre').hidden = !aRevoir.length;
-  $('zones-titre').textContent = t('zonesTitre', { n: aRevoir.length });
-  $('zones').replaceChildren(...aRevoir.map((g, i) => carteZone(g, i + 1, canevas)));
+  // Diagnostic d'ensemble et endroits à revoir
+  $('ensemble').replaceChildren(...(diag ? [carteEnsemble(diag)] : []));
+  $('zones-titre').hidden = !groupes.length;
+  $('zones-titre').textContent = t(diag ? 'contrastesTitre' : souple ? 'stylesTitre' : 'zonesTitre', { n: groupes.length });
+  $('zones').replaceChildren(...affiches.map((g, i) => carteZone(g, i + 1, canevas, survol, Boolean(diag))));
+  $('zones-reste').textContent = groupes.length > affiches.length ? t('autresGroupes', { n: groupes.length - affiches.length }) : '';
 
   // Tous les textes
-  tbody.replaceChildren(...lignes.map((l, i) => {
+  tbody.replaceChildren(...lignes.map((l) => {
     const cellule = (valeur, niveau) => element('td', { class: niveau || 'inconnu' }, valeur,
       niveau && niveau !== 'ok' ? element('span', { class: 'etiquette' }, t(`niveau_${niveau}`)) : null);
     const tr = element('tr', {},
@@ -324,7 +398,7 @@ function rendreAnalyse() {
       cellule(texteTaille(l), l.nt),
       cellule(texteContraste(l), l.nc),
       element('td', {}, l.contraste ? nuancier(l.contraste.texte, l.contraste.fond) : null));
-    const activer = (oui) => { tr.classList.toggle('actif', oui); rects[i].classList.toggle('actif', oui); };
+    const activer = (oui) => { tr.classList.toggle('actif', oui); rectDe.get(l.id).classList.toggle('actif', oui); };
     tr.addEventListener('mouseenter', () => activer(true));
     tr.addEventListener('mouseleave', () => activer(false));
     return tr;
@@ -387,11 +461,15 @@ async function charger(fichier) {
   analyser();
 }
 
-async function chargerExemple(type) {
-  const reponse = await fetch(EXEMPLES[type] || EXEMPLES.png);
-  const blob = await reponse.blob();
-  const nom = (EXEMPLES[type] || EXEMPLES.png).split('/').pop();
-  await charger(new File([blob], nom, { type: blob.type }));
+// Charge une figure servie à côté de la page : un exemple, ou `?figure=chemin` en
+// développement (fichiers du dossier tmp/, non suivi).
+async function chargerUrl(chemin) {
+  const blob = await (await fetch(chemin)).blob();
+  await charger(new File([blob], chemin.split('/').pop(), { type: blob.type }));
+}
+
+function chargerExemple(type) {
+  return chargerUrl(EXEMPLES[type] || EXEMPLES.png);
 }
 
 // ── Calibration ─────────────────────────────────────────────────────────────────
@@ -460,3 +538,4 @@ function brancher() {
 brancher();
 appliquerLangue();
 if (params.get('exemple')) chargerExemple(params.get('exemple'));
+else if (/^tmp\/[\w.-]+$/.test(params.get('figure') || '')) chargerUrl(params.get('figure'));

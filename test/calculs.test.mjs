@@ -4,7 +4,7 @@ import { lc, rapportWcag, versHex } from '../js/apca.js';
 import { FORMATS, zoneContenu, tailleFigure, versPoints, MM_PAR_PX } from '../js/formats.js';
 import {
   corpsDepuisSymboles, contrasteZone, depuisRotation, recouvrement, seuilOtsu,
-  niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper,
+  niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, quantile,
 } from '../js/analyse.js';
 import { T, TEXTES, nombre, langueInitiale } from '../js/i18n.js';
 
@@ -158,4 +158,25 @@ test('regroupement des textes au même défaut', () => {
   const groupes = regrouper([l('100', 6.0, 42), l('Source', 5.3, 31), l('75', 5.7, 42), l('42', 8.6, -32, { texte: [255, 255, 255], fond: [242, 197, 61] })]);
   assert.deepEqual(groupes.map((g) => g.membres.map((m) => m.texte)), [['100', '75'], ['Source'], ['42']]);
   assert.equal(groupes[0].representant.texte, '75');
+});
+
+test('regroupement souple : par style de texte, quel que soit le degré', () => {
+  const style = (texte, fond) => ({ texte, fond });
+  const gris = style([140, 140, 140], [255, 255, 255]);
+  const vert = style([30, 120, 90], [215, 235, 228]);
+  const l = (texte, pt, lcv, contraste) => ({ texte, pt, lc: lcv, nt: niveauTaille(pt), nc: niveauContraste(lcv), niveau: pireNiveau(niveauTaille(pt), niveauContraste(lcv)), contraste });
+  const groupes = regrouper([l('a', 3.0, 47, gris), l('b', 3.4, 52, gris), l('c', 4.2, 58, vert), l('d', 3.9, 44, vert), l('e', 2.0, 47, gris)], { souple: true });
+  assert.deepEqual(groupes.map((g) => g.membres.map((m) => m.texte)), [['a', 'b'], ['c', 'd'], ['e']]);
+  assert.equal(groupes[1].representant.texte, 'd');
+});
+
+test('diagnostic d’ensemble : seulement si la moitié des textes est trop petite', () => {
+  const l = (pt) => ({ pt });
+  assert.equal(diagnosticEnsemble([3, 3.5, 4, 9, 10].map(l)), null);            // moins de 5 petits
+  const d = diagnosticEnsemble([3, 3.2, 3.4, 3.6, 4, 9, 10].map(l));
+  assert.equal(d.petits, 5);
+  assert.equal(d.mediane, 3.6);
+  assert.equal(d.facteur.toFixed(2), '2.22');
+  assert.equal(diagnosticEnsemble([3, 3, 3, 3, 3, 9, 9, 9, 9, 9, 9].map(l)), null); // moins de la moitié
+  assert.equal(quantile([1, 2, 3, 4], 0.25), 1.75);
 });

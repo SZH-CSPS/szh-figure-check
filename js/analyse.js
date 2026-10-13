@@ -188,23 +188,73 @@ export function couleurConforme(texte, fond, cible = LC_MIN + 10) {
   return null;
 }
 
-// Regroupe les textes qui ont le même défaut, pour ne pas répéter la même carte : même
-// degré pour la taille et pour le contraste, tailles à 0,5 pt près, contrastes à Lc 5 près,
-// couleurs de texte voisines (graduations d'un axe, par exemple). Chaque groupe garde
-// l'ordre de `lignes` ; son représentant est le membre le plus petit.
-export function regrouper(lignes) {
+const RANG = { ok: 0, ameliorer: 1, corriger: 2 };
+
+function couleursVoisines(a, b, ecart) {
+  return a.every((c, i) => Math.abs(c - b[i]) <= ecart);
+}
+
+// Regroupe les textes à revoir pour ne pas répéter la même carte.
+// Strict : même défaut, au même degré, tailles à 0,5 pt près, contrastes à Lc 5 près,
+// couleurs de texte voisines (les graduations d'un axe, par exemple).
+// Souple, pour une figure qui a beaucoup de défauts : même style de texte, c'est-à-dire
+// mêmes couleurs de texte et de fond et tailles à 20 % près, quel que soit le degré ;
+// l'auteur corrige un style, pas chaque texte.
+// Le représentant d'un groupe est son membre le plus grave, puis le plus petit.
+export function regrouper(lignes, { souple = false } = {}) {
   const groupes = [];
-  const proche = (a, b) => a.nt === b.nt && a.nc === b.nc
-    && ((a.pt == null && b.pt == null) || (a.pt != null && b.pt != null && Math.abs(a.pt - b.pt) <= 0.5))
-    && ((a.lc == null && b.lc == null) || (a.lc != null && b.lc != null && Math.abs(Math.abs(a.lc) - Math.abs(b.lc)) <= 5))
-    && (!a.contraste || !b.contraste || a.contraste.texte.every((c, i) => Math.abs(c - b.contraste.texte[i]) <= 30));
+  const proche = (a, b) => {
+    if (souple) {
+      const tailles = a.pt == null || b.pt == null ? a.pt == null && b.pt == null
+        : Math.max(a.pt, b.pt) / Math.min(a.pt, b.pt) <= 1.2;
+      const couleurs = !a.contraste || !b.contraste ? !a.contraste && !b.contraste
+        : couleursVoisines(a.contraste.texte, b.contraste.texte, 40) && couleursVoisines(a.contraste.fond, b.contraste.fond, 40);
+      return tailles && couleurs;
+    }
+    return a.nt === b.nt && a.nc === b.nc
+      && ((a.pt == null && b.pt == null) || (a.pt != null && b.pt != null && Math.abs(a.pt - b.pt) <= 0.5))
+      && ((a.lc == null && b.lc == null) || (a.lc != null && b.lc != null && Math.abs(Math.abs(a.lc) - Math.abs(b.lc)) <= 5))
+      && (!a.contraste || !b.contraste || couleursVoisines(a.contraste.texte, b.contraste.texte, 30));
+  };
   for (const l of lignes) {
     const g = groupes.find((x) => proche(x.membres[0], l));
     if (g) g.membres.push(l);
     else groupes.push({ membres: [l] });
   }
   for (const g of groupes) {
-    g.representant = g.membres.reduce((a, b) => ((b.pt ?? Infinity) < (a.pt ?? Infinity) ? b : a));
+    g.representant = g.membres.reduce((a, b) => {
+      const d = (RANG[b.niveau] ?? -1) - (RANG[a.niveau] ?? -1);
+      if (d) return d > 0 ? b : a;
+      return (b.pt ?? Infinity) < (a.pt ?? Infinity) ? b : a;
+    });
+    g.niveau = g.representant.niveau;
   }
-  return groupes;
+  // Les plus graves d'abord, puis les plus nombreux.
+  return groupes.sort((a, b) => (RANG[b.niveau] ?? -1) - (RANG[a.niveau] ?? -1) || b.membres.length - a.membres.length);
+}
+
+export function quantile(valeurs, q) {
+  if (!valeurs.length) return null;
+  const v = [...valeurs].sort((a, b) => a - b);
+  const p = (v.length - 1) * q;
+  const b = Math.floor(p);
+  return b + 1 < v.length ? v[b] + (v[b + 1] - v[b]) * (p - b) : v[b];
+}
+
+// Diagnostic d'ensemble : quand la moitié au moins des textes mesurés (et au moins 5) sont
+// sous le minimum, c'est la figure qui est trop petite pour la page, pas quelques textes.
+// Rend null sinon.
+export function diagnosticEnsemble(lignes) {
+  const tailles = lignes.map((l) => l.pt).filter((v) => v != null);
+  const petits = tailles.filter((v) => v < TAILLE_MIN_PT);
+  if (petits.length < 5 || petits.length < tailles.length / 2) return null;
+  const mediane = quantile(tailles, 0.5);
+  return {
+    total: tailles.length,
+    petits: petits.length,
+    bas: quantile(tailles, 0.25),
+    haut: quantile(tailles, 0.75),
+    mediane,
+    facteur: TAILLE_MIN_PT / mediane,
+  };
 }

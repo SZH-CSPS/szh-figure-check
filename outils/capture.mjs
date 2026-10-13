@@ -48,7 +48,7 @@ while (Date.now() - debut < 300000) {
 }
 console.log('etat :', await evaluer('document.body.dataset.etat'), `(${Math.round((Date.now() - debut) / 1000)} s)`);
 console.log(await evaluer(`[document.getElementById('dimensions').textContent,
-  ...[...document.querySelectorAll('#alertes-page li, #bilan p, .zone')].map(e => e.textContent),
+  ...[...document.querySelectorAll('#alertes-page li, #bilan p, #ensemble p, #zones-titre, .zone, #zones-reste')].map(e => e.textContent),
   ...[...document.querySelectorAll('#table-textes tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join(' | ')),
   document.getElementById('erreur').hidden ? '' : 'ERREUR ' + document.getElementById('erreur').textContent].join('\\n')`));
 if (sortie.endsWith('.pdf')) {
