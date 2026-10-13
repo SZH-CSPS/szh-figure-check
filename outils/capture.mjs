@@ -51,6 +51,9 @@ console.log(await evaluer(`[document.getElementById('dimensions').textContent,
   ...[...document.querySelectorAll('#alertes-page li, #bilan p, #ensemble p, #zones-titre, .zone, #zones-reste')].map(e => e.textContent),
   ...[...document.querySelectorAll('#table-textes tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join(' | ')),
   document.getElementById('erreur').hidden ? '' : 'ERREUR ' + document.getElementById('erreur').textContent].join('\\n')`));
+// CAPTURE_JS : script joué avant la capture (survol simulé, par exemple) ;
+// CAPTURE_CLIP : sélecteur de l'élément à capturer seul.
+if (process.env.CAPTURE_JS) await evaluer(process.env.CAPTURE_JS);
 if (sortie.endsWith('.pdf')) {
   // Rapport imprimé, tel que le donne le bouton « Imprimer le rapport ».
   await evaluer(`document.body.dataset.impression = 'rapport';
@@ -65,7 +68,9 @@ if (sortie.endsWith('.pdf')) {
 const { cssContentSize } = (await cdp('Page.getLayoutMetrics')).result;
 const capture = await cdp('Page.captureScreenshot', {
   format: 'png', captureBeyondViewport: true,
-  clip: { x: 0, y: 0, width: cssContentSize.width, height: cssContentSize.height, scale: 1 },
+  clip: process.env.CAPTURE_CLIP
+    ? { ...(await evaluer(`(() => { const r = document.querySelector(${JSON.stringify(process.env.CAPTURE_CLIP)}).getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height }; })()`)), scale: 1 }
+    : { x: 0, y: 0, width: cssContentSize.width, height: cssContentSize.height, scale: 1 },
 });
 await writeFile(sortie, Buffer.from(capture.result.data, 'base64'));
 ws.close();

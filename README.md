@@ -8,6 +8,9 @@ figure et on voit :
   dans le format de la Revue (A4) ou du livre (155 × 225 mm) ;
 - **la taille et le contraste de chaque texte** de la figure, à l’impression : minimum
   8 pt et contraste APCA Lc 60 ;
+- **une figure annotée qu’on explore** : des pastilles numérotées, une par endroit à
+  revoir ; le survol ou le clic d’une pastille met en évidence ce seul endroit, voile le
+  reste et affiche sa carte à côté de la figure (dessous sur un écran étroit) ;
 - **un rapport des endroits à revoir** : pour chacun, un extrait de la figure entouré de
   rouge, la taille et le contraste mesurés, un degré de non-conformité et ce qu’il faut
   faire (agrandir de tant de %, prendre telle couleur). Le rapport s’imprime ou

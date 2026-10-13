@@ -255,7 +255,7 @@ function resumeGroupe(groupe) {
 
 // `sansTaille` : la taille est traitée par le diagnostic d'ensemble, la carte ne conseille
 // que sur le contraste.
-function carteZone(groupe, numero, canevas, survol, sansTaille = false) {
+function carteZone(groupe, numero, canevas, sansTaille = false) {
   const l = groupe.representant;
   const r = resumeGroupe(groupe);
   const n = groupe.membres.length;
@@ -277,8 +277,6 @@ function carteZone(groupe, numero, canevas, survol, sansTaille = false) {
         r.pour.contraste ? nuancier(r.pour.contraste.texte, r.pour.contraste.fond) : null)),
     element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
     element('ul', {}, ...conseils(sansTaille ? { ...r.pour, nt: null } : r.pour, n > 1)));
-  carte.addEventListener('mouseenter', () => survol(groupe, true));
-  carte.addEventListener('mouseleave', () => survol(groupe, false));
   return carte;
 }
 
@@ -314,6 +312,8 @@ function rendreAnalyse() {
     cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }));
     for (const id of ['bilan', 'niveaux', 'zones-titre', 'details-textes', 'imprimer-rapport']) $(id).hidden = true;
     $('zones').replaceChildren();
+    $('puces').replaceChildren();
+    $('panneau').replaceChildren();
     $('ensemble').replaceChildren();
     $('zones-reste').textContent = '';
     tbody.replaceChildren();
@@ -332,35 +332,108 @@ function rendreAnalyse() {
   const souple = Boolean(diag) || groupes.length > CARTES_MAX;
   if (souple) groupes = regrouper(fautifs, { souple: true });
   const affiches = groupes.slice(0, CARTES_MAX);
-  const numeros = new Map(affiches.map((g, i) => [g.representant.id, i + 1]));
 
-  // Figure annotée : un cadre par texte lu, le numéro de sa carte sur le représentant.
+  // Figure annotée, à l'écran : seules les pastilles numérotées sont visibles. Un seul
+  // groupe est mis en évidence à la fois, au survol (pastille, texte de la figure ou puce)
+  // ou par un clic qui le garde affiché ; sa carte s'affiche dans le panneau.
   const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${canevas.width} ${canevas.height}`);
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.setAttribute('aria-hidden', 'true');
-  const corpsNumero = Math.max(28, canevas.width / 45);
+  const svgEl = (nom, attributs = {}) => {
+    const el = document.createElementNS(ns, nom);
+    for (const [k, v] of Object.entries(attributs)) el.setAttribute(k, v);
+    return el;
+  };
+  const W = canevas.width, H = canevas.height;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+  const voile = svgEl('path', { class: 'voile', 'fill-rule': 'evenodd' });
+  svg.append(voile);
+  const m = 4;
+  const boite = (l) => ({ x: l.bbox.x0 - m, y: l.bbox.y0 - m, w: l.bbox.x1 - l.bbox.x0 + 2 * m, h: l.bbox.y1 - l.bbox.y0 + 2 * m });
+
+  // Cadres des textes sans carte : invisibles, montrés un par un depuis la liste des textes.
   const rectDe = new Map();
-  lignes.forEach((l) => {
-    const m = 4;
-    const r = document.createElementNS(ns, 'rect');
-    r.setAttribute('x', l.bbox.x0 - m); r.setAttribute('y', l.bbox.y0 - m);
-    r.setAttribute('width', l.bbox.x1 - l.bbox.x0 + 2 * m); r.setAttribute('height', l.bbox.y1 - l.bbox.y0 + 2 * m);
-    r.setAttribute('class', l.niveau || 'inconnu');
-    svg.append(r);
+  const groupeDe = new Map();
+  affiches.forEach((g, i) => g.membres.forEach((l) => groupeDe.set(l.id, i)));
+  const neutres = svgEl('g', { class: 'neutres' });
+  for (const l of lignes) {
+    if (groupeDe.has(l.id)) continue;
+    const b = boite(l);
+    const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: l.niveau || 'inconnu' });
+    neutres.append(r);
     rectDe.set(l.id, r);
-    if (numeros.has(l.id)) {
-      const n = document.createElementNS(ns, 'text');
-      n.setAttribute('x', l.bbox.x0 - m);
-      n.setAttribute('y', l.bbox.y0 - m - corpsNumero * 0.2);
-      n.setAttribute('font-size', corpsNumero);
-      n.setAttribute('class', 'numero-zone');
-      n.textContent = numeros.get(l.id);
-      svg.append(n);
+  }
+  svg.append(neutres);
+
+  const rayon = Math.max(16, W / 70);
+  const placees = [];
+  const calques = affiches.map((g, i) => {
+    const calque = svgEl('g', { class: `groupe ${g.niveau}` });
+    for (const l of g.membres) {
+      const b = boite(l);
+      const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: `cadre ${l.niveau || 'inconnu'}` });
+      const zone = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: 'sensible' });
+      calque.append(r, zone);
+      rectDe.set(l.id, r);
     }
+    // Pastille au-dessus du représentant (dessous s'il touche le haut), décalée vers la
+    // droite si elle en chevauche une autre, pour ne pas cacher le texte signalé.
+    const b = boite(g.representant);
+    let cx = Math.min(W - rayon, Math.max(rayon, b.x + rayon));
+    let cy = b.y - rayon - 2 >= rayon ? b.y - rayon - 2 : Math.min(H - rayon, b.y + b.h + rayon + 2);
+    while (placees.some((p) => Math.hypot(p.x - cx, p.y - cy) < rayon * 2.1)) cx += rayon * 2.2;
+    placees.push({ x: cx, y: cy });
+    const pastille = svgEl('g', { class: 'pastille-num' });
+    pastille.append(svgEl('circle', { cx, cy, r: rayon }),
+      Object.assign(svgEl('text', { x: cx, y: cy, 'font-size': rayon * 1.25, 'text-anchor': 'middle', 'dominant-baseline': 'central' }), { textContent: String(i + 1) }));
+    calque.append(pastille);
+    svg.append(calque);
+    return calque;
   });
-  const survol = (groupe, oui) => groupe.membres.forEach((l) => rectDe.get(l.id).classList.toggle('actif', oui));
+
+  const puces = $('puces');
+  const boutons = affiches.map((g, i) => element('button', {
+    type: 'button', class: `puce ${g.niveau}`, 'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
+  }, String(i + 1)));
+  puces.replaceChildren(...(affiches.length ? [element('span', { class: 'discret' }, t('puces')), ...boutons] : []));
+
+  const cartes = new Map();
+  const carteDe = (i) => {
+    if (!cartes.has(i)) cartes.set(i, carteZone(affiches[i], i + 1, canevas, Boolean(diag)));
+    return cartes.get(i);
+  };
+  const choix = { epingle: affiches.length ? 0 : null };
+  const montrer = (i) => {
+    svg.classList.toggle('focus', i != null);
+    calques.forEach((c, k) => c.classList.toggle('choisi', k === i));
+    boutons.forEach((b, k) => b.setAttribute('aria-pressed', String(k === i)));
+    if (i == null) {
+      voile.setAttribute('d', '');
+      $('panneau').replaceChildren(element('p', { class: 'discret' }, t(affiches.length ? 'panneauAide' : 'panneauVide')));
+      return;
+    }
+    const trous = affiches[i].membres.map((l) => { const b = boite(l); return `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`; }).join('');
+    voile.setAttribute('d', `M0 0H${W}V${H}H0Z${trous}`);
+    $('panneau').replaceChildren(carteDe(i));
+  };
+  const survoler = (i) => montrer(i);
+  const epingler = (i) => { choix.epingle = i; montrer(i); };
+  calques.forEach((c, i) => {
+    c.addEventListener('mouseenter', () => survoler(i));
+    c.addEventListener('click', () => epingler(i));
+  });
+  svg.addEventListener('mouseleave', () => montrer(choix.epingle));
+  boutons.forEach((b, i) => {
+    b.addEventListener('mouseenter', () => survoler(i));
+    b.addEventListener('mouseleave', () => montrer(choix.epingle));
+    b.addEventListener('focus', () => epingler(i));
+    b.addEventListener('click', () => epingler(i));
+    b.addEventListener('keydown', (e) => {
+      const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      boutons[(i + d + boutons.length) % boutons.length].focus();
+    });
+  });
+  montrer(choix.epingle);
   cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }), svg);
 
   // Bilan
@@ -386,7 +459,7 @@ function rendreAnalyse() {
   $('ensemble').replaceChildren(...(diag ? [carteEnsemble(diag)] : []));
   $('zones-titre').hidden = !groupes.length;
   $('zones-titre').textContent = t(diag ? 'contrastesTitre' : souple ? 'stylesTitre' : 'zonesTitre', { n: groupes.length });
-  $('zones').replaceChildren(...affiches.map((g, i) => carteZone(g, i + 1, canevas, survol, Boolean(diag))));
+  $('zones').replaceChildren(...affiches.map((g, i) => carteZone(g, i + 1, canevas, Boolean(diag))));
   $('zones-reste').textContent = groupes.length > affiches.length ? t('autresGroupes', { n: groupes.length - affiches.length }) : '';
 
   // Tous les textes
@@ -398,7 +471,11 @@ function rendreAnalyse() {
       cellule(texteTaille(l), l.nt),
       cellule(texteContraste(l), l.nc),
       element('td', {}, l.contraste ? nuancier(l.contraste.texte, l.contraste.fond) : null));
-    const activer = (oui) => { tr.classList.toggle('actif', oui); rectDe.get(l.id).classList.toggle('actif', oui); };
+    const activer = (oui) => {
+      tr.classList.toggle('actif', oui);
+      if (groupeDe.has(l.id)) montrer(oui ? groupeDe.get(l.id) : choix.epingle);
+      rectDe.get(l.id).classList.toggle('actif', oui);
+    };
     tr.addEventListener('mouseenter', () => activer(true));
     tr.addEventListener('mouseleave', () => activer(false));
     return tr;

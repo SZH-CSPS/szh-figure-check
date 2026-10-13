@@ -86,9 +86,17 @@
           <li class="ameliorer"><span class="symbole" aria-hidden="true">!</span> <b data-t="niveau_ameliorer"></b> <span data-t="legende_ameliorer"></span></li>
           <li class="ok"><span class="symbole" aria-hidden="true">✓</span> <b data-t="niveau_ok"></b> <span data-t="legende_ok"></span></li>
         </ul>
-        <div class="analyse-figure" id="analyse-figure"></div>
-        <h3 id="zones-titre" hidden></h3>
-        <ol id="zones" class="zones"></ol>
+        <div class="explorateur">
+          <div class="explorateur-figure">
+            <div class="puces" id="puces"></div>
+            <div class="analyse-figure" id="analyse-figure"></div>
+          </div>
+          <aside class="explorateur-panneau" id="panneau" aria-live="polite"></aside>
+        </div>
+        <div class="cartes-impression">
+          <h3 id="zones-titre" hidden></h3>
+          <ol id="zones" class="zones"></ol>
+        </div>
         <p id="zones-reste" class="discret"></p>
         <details id="details-textes" hidden>
           <summary id="details-titre"></summary>
