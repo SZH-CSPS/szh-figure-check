@@ -7,7 +7,7 @@ figure et on voit :
 - **la figure sur la page**, à sa taille imprimée, entourée du texte courant au bon corps,
   dans le format de la Revue (A4) ou du livre (155 × 225 mm) ;
 - **la taille et le contraste de chaque texte** de la figure, à l’impression : minimum
-  8 pt et contraste APCA Lc 60 ;
+  8 pt et contraste APCA Lc 75 (Lc 90 recommandé) ;
 - **une figure qu’on explore** : une rangée de numéros, un par endroit à revoir ; le
   survol d’un numéro met en évidence ce seul endroit sur la figure, voile le reste et
   affiche sa carte à côté (dessous sur un écran étroit) ; le clic le rend actif, et sortir
@@ -17,14 +17,15 @@ figure et on voit :
   faire (agrandir de tant de %, prendre telle couleur). Le rapport s’imprime ou
   s’enregistre en PDF pour l’envoyer à la rédaction ;
 - **la figure projetée** sur une diapositive, dans une petite salle avec écran ou une grande
-  salle avec projecteur, à la taille apparente qu’elle a au dernier rang, avec le corps
-  imprimé équivalent de chaque texte (approché, sans réglage de l’écran) ;
+  salle avec projecteur, à la taille apparente qu’elle a au dernier rang (approchée sans
+  réglage de l’écran), jugée selon la norme AVIXA DISCAS : la hauteur d’une minuscule doit
+  atteindre 1/200 de la distance du dernier rang ;
 - **la figure vue par des personnes daltoniennes** (deutéranopie, protanopie, tritanopie)
   et en niveaux de gris ; un clic sur une vignette l’ouvre en grand, où l’on passe d’une
   vue à l’autre par les boutons ou les flèches du clavier.
 
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
-(format, largeur, contraste minimal Lc 60 par défaut ou Lc 75 recommandé), régler l’écran,
+(format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
 lire l’analyse. L’analyse montre une vue à la fois : aperçu à taille réelle, taille et
 contraste des textes, couleurs.
 
@@ -68,7 +69,7 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 | `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
-| `js/projection.js` | diapositive 16:9, salles types, taille apparente et corps équivalent |
+| `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
 | `js/i18n.js` | libellés fr et de |
 | `js/app.js` | interface |
 
@@ -97,12 +98,12 @@ et la mesure est un peu plus sévère que la couleur nominale.
 
 | Niveau | Taille | Contraste |
 |---|---|---|
-| ✓ Conforme | 8 pt ou plus | Lc 60 ou plus |
-| ! À améliorer | de 6,5 à 8 pt | de Lc 45 à 60 |
-| ✕ À corriger | moins de 6,5 pt | moins de Lc 45 |
+| ✓ Conforme | 8 pt ou plus | Lc 75 ou plus |
+| ! À améliorer | de 6,5 à 8 pt | de Lc 60 à 75 |
+| ✕ À corriger | moins de 6,5 pt | moins de Lc 60 |
 
-Les seuils de contraste sont ceux du réglage par défaut, Lc 60 ; avec Lc 75, « à améliorer »
-va de Lc 60 à 75 et « à corriger » commence sous Lc 60. Le degré se décide sur la valeur affichée, arrondie. Les textes qui ont le même défaut
+Les seuils de contraste sont ceux du réglage par défaut, Lc 75 ; avec Lc 90, « à améliorer »
+va de Lc 75 à 90 et « à corriger » commence sous Lc 75. Le degré se décide sur la valeur affichée, arrondie. Les textes qui ont le même défaut
 (graduations d’un axe, par exemple) forment un seul endroit à revoir.
 
 **Figure très chargée.** Quand la moitié au moins des textes (et au moins 5) sont sous
@@ -112,7 +113,7 @@ largeur et une page entière en paysage. Les cartes ne portent alors plus que su
 contraste, regroupées par style de texte (mêmes couleurs de texte et de fond, tailles à
 20 % près). Au-delà de 8 groupes, les cartes passent aussi par style ; les suivants
 restent dans la liste de tous les textes. La couleur proposée
-est la plus proche de l’actuelle qui atteint Lc 70, soit le minimum avec 10 de marge.
+est la plus proche de l’actuelle qui atteint le seuil plus 10 de marge (Lc 85 ou 100), ou à défaut le seuil.
 
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression
 peut échapper à l’OCR. Le « taille réelle » de l’écran n’est juste qu’après le réglage par

@@ -6,9 +6,10 @@ export const MM_PAR_PT = 25.4 / 72;
 
 export const TAILLE_MIN_PT = 8;          // plus petit texte admis dans une figure
 export const TAILLE_GRAVE_PT = 6.5;      // en dessous : « à corriger », au-dessus : « à améliorer »
-// Contraste APCA minimal d'un texte de figure, au choix : Lc 60 par défaut, Lc 75
-// recommandé (minimum APCA du texte courant). « À corriger » commence 15 en dessous.
-export const SEUILS_LC = [60, 75];
+// Contraste APCA minimal d'un texte de figure, au choix : Lc 75 par défaut (minimum APCA
+// du texte courant), Lc 90 recommandé (niveau préféré d'APCA). « À corriger » commence
+// 15 en dessous.
+export const SEUILS_LC = [75, 90];
 export const LC_MIN = SEUILS_LC[0];
 export const ECART_GRAVE_LC = 15;
 

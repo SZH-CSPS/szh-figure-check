@@ -2,11 +2,11 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs).
 
 import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble } from './analyse.js';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js';
 import { versHex } from './apca.js';
 import { ouvrir } from './sources.js';
 import { lire } from './lecture.js';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, ptEquivalent } from './projection.js';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js';
 import { T, langueInitiale, nombre } from './i18n.js';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
@@ -692,7 +692,8 @@ function montrerVue(id) {
 // ── Projection ──────────────────────────────────────────────────────────────────
 
 // La diapositive est affichée à la taille apparente qu'elle aurait au dernier rang. Le
-// bilan donne, pour chaque texte lu, le corps imprimé qui paraîtrait aussi grand.
+// bilan compare la hauteur des minuscules de chaque texte, sur l'écran de la salle, au
+// minimum de la norme DISCAS.
 function rendreProjection() {
   $('salle-largeur').value = String(Math.round(etat.ecranCm) / 100);
   $('salle-distance').value = String(Math.round(etat.distanceCm) / 100);
@@ -724,18 +725,21 @@ function rendreProjection() {
   }
   const { canevas, lignes } = etat.lecture;
   const figureCm = cadre.l * etat.ecranCm;
-  const equivalents = lignes.filter((l) => l.corpsPx).map((l) => ptEquivalent(l.corpsPx / canevas.width * figureCm, etat.distanceCm));
-  if (!equivalents.length) {
+  // Hauteur d'x estimée depuis le corps, aussi pour les textes en capitales.
+  const hauteurs = lignes.filter((l) => l.corpsPx).map((l) => l.corpsPx / canevas.width * figureCm * RATIO_X);
+  if (!hauteurs.length) {
     bilan.className = 'bilan';
     bilan.replaceChildren(element('p', {}, t('aucunTexte')));
     return;
   }
-  const petits = equivalents.filter((v) => Math.round(v * 10) / 10 < TAILLE_MIN_PT).length;
-  const min = Math.min(...equivalents);
+  const minimum = minusculeMinCm(etat.distanceCm);
+  const arrondi = (v) => Math.round(v * 10) / 10;
+  const petits = hauteurs.filter((h) => arrondi(h) < arrondi(minimum)).length;
+  const plusPetite = Math.min(...hauteurs);
+  const valeurs = { d: nombre(etat.distanceCm / 100).replace(/,0$/, ''), min: nombre(minimum), x: nombre(plusPetite), n: petits, total: hauteurs.length,
+    p: Math.ceil((minimum / plusPetite - 1) * 20) * 5 };
   bilan.className = `bilan ${petits ? 'corriger' : 'ok'}`;
-  bilan.replaceChildren(element('p', {}, petits
-    ? t('projectionPetit', { pt: nombre(min), min: TAILLE_MIN_PT, n: petits, total: equivalents.length })
-    : t('projectionOk', { min: TAILLE_MIN_PT })));
+  bilan.replaceChildren(element('p', {}, t(petits ? 'projectionPetit' : 'projectionOk', valeurs)));
 }
 
 function synchroniserReglages() {

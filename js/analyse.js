@@ -9,7 +9,7 @@ import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './format
 // les chiffres la hauteur de capitale.
 const SANS_HAMPE = new Set('acemnorsuvwxz');
 const CAPITALE = /^[A-HK-PR-Z0-9]$/;
-const RATIO_X = 0.52;
+export const RATIO_X = 0.52;
 const RATIO_CAPITALE = 0.71;
 
 const TOLERANCE_LC = 0.5;                // comme apca.TOLERANCE_SEUIL de Pronto

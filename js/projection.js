@@ -1,11 +1,14 @@
 // Projection d'une figure sur une diapositive 16:9, vue depuis le dernier rang d'une salle.
 // L'aperçu à l'écran a la même taille apparente que la diapositive vue de la salle, pour
-// une personne assise à DISTANCE_ECRAN_CM de son propre écran. Sans réglage de l'écran,
-// c'est approché.
+// une personne assise à DISTANCE_ECRAN_CM de son propre écran ; sans réglage de l'écran,
+// c'est approché. Le verdict, lui, ne dépend que de la salle : il suit la norme DISCAS.
 
 export const CM_PAR_PT = 2.54 / 72;
 export const DISTANCE_ECRAN_CM = 60;     // un bras tendu devant son écran
-export const LECTURE_PAPIER_CM = 40;     // distance de lecture d'une page imprimée
+
+// ANSI/AVIXA V202.01 (DISCAS), prise de décision de base (lire et comprendre) : la hauteur
+// d'une lettre minuscule doit atteindre 1/200 de la distance du spectateur le plus éloigné.
+export const ACUITE_DISCAS = 200;
 
 // Diapositive de présentation par défaut (PowerPoint, Impress) : 33,867 × 19,05 cm.
 // Bandeau de titre en haut, marges sur les côtés et en bas ; la figure occupe le reste.
@@ -31,8 +34,7 @@ export function largeurApparenteCm(largeurCm, distanceCm, distanceEcranCm = DIST
   return largeurCm * distanceEcranCm / distanceCm;
 }
 
-// Corps d'un texte imprimé lu à LECTURE_PAPIER_CM qui paraît aussi grand qu'un texte de
-// corpsCm sur l'écran de la salle vu à distanceCm.
-export function ptEquivalent(corpsCm, distanceCm) {
-  return corpsCm * LECTURE_PAPIER_CM / distanceCm / CM_PAR_PT;
+// Hauteur minimale d'une minuscule sur l'écran de la salle, selon DISCAS.
+export function minusculeMinCm(distanceCm) {
+  return distanceCm / ACUITE_DISCAS;
 }
