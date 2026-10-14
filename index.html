@@ -232,20 +232,18 @@
 
           <section id="vue-couleurs" class="vue" role="tabpanel" aria-labelledby="onglet-couleurs" hidden>
             <h3 data-t="titreBasseVision"></h3>
-            <div class="avertissement seulement-basse-vision" role="note">
-              <p class="avertissement-titre" data-t="avertissementTitre"></p>
+            <details class="avertissement seulement-basse-vision" open>
+              <summary class="avertissement-titre" data-t="avertissementTitre"></summary>
               <p data-t="avertissementTexte"></p>
-              <details>
-                <summary data-t="modelesTitre"></summary>
-                <ul>
-                  <li data-t="modeleAcuite"></li>
-                  <li data-t="modeleLecture"></li>
-                  <li data-t="modeleContraste"></li>
-                  <li data-t="modeleCataracte"></li>
-                  <li data-t="modeleNiveaux"></li>
-                </ul>
-              </details>
-            </div>
+              <p class="avertissement-sous-titre" data-t="modelesTitre"></p>
+              <ul>
+                <li data-t="modeleAcuite"></li>
+                <li data-t="modeleLecture"></li>
+                <li data-t="modeleContraste"></li>
+                <li data-t="modeleCataracte"></li>
+                <li data-t="modeleNiveaux"></li>
+              </ul>
+            </details>
             <p class="seulement-basse-vision" data-t="basseVisionAide"></p>
             <div class="analyse-table seulement-basse-vision"><table id="lecture-acuite" class="lecture-acuite"></table></div>
             <p class="discret seulement-basse-vision" data-t="vignettesPetites"></p>
