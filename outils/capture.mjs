@@ -14,9 +14,9 @@ const profil = await mkdtemp(join(tmpdir(), 'szh-capture-'));
 const proc = spawn(navigateur, [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profil}`,
   '--window-size=1280,1000', '--hide-scrollbars',
-  // CAPTURE_HORS_LIGNE : tout nom d'hôte autre que localhost est introuvable ; prouve que
-  // la page ne dépend d'aucun autre serveur.
-  ...(process.env.CAPTURE_HORS_LIGNE ? ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost'] : []),
+  // CAPTURE_HORS_LIGNE : tout nom d'hôte autre que celui de la page est introuvable ;
+  // prouve que la page ne dépend d'aucun autre serveur.
+  ...(process.env.CAPTURE_HORS_LIGNE ? [`--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(url).hostname}`] : []),
   'about:blank',
 ], { stdio: 'ignore' });
 

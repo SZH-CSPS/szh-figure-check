@@ -45,7 +45,7 @@ node outils/serveur.mjs          # http://localhost:8123/ ; les modules ES refus
 node --test test/*.test.mjs      # calculs : APCA, géométrie, contraste, verdicts, i18n
 node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
 node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
-CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que localhost introuvable
+CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que celui de la page introuvable
 ```
 
 `?exemple=png|svg` charge la figure d’exemple, `?figure=tmp/nom.png` une figure du dossier
