@@ -573,12 +573,13 @@ async function calculerBasseVision() {
   return simulations.cle === cle;
 }
 
-function vignettes(vues, decalage) {
-  return vues.map((v, i) => {
+// vues : éléments de vuesVision ; chaque vignette ouvre la fenêtre agrandie sur sa vue.
+function vignettes(vues) {
+  return vues.map((v) => {
     const bouton = element('button', { type: 'button', class: 'vignette', 'aria-label': t('agrandirVue', { vue: t(v.cle) }) },
       element('img', { src: v.src, alt: '', class: v.classe }),
       element('span', { class: 'vignette-titre' }, t(v.cle)));
-    bouton.addEventListener('click', () => ouvrirVue(decalage + i));
+    bouton.addEventListener('click', () => ouvrirVue(vuesVision.indexOf(v)));
     return element('li', {}, bouton);
   });
 }
@@ -587,15 +588,17 @@ function vignettes(vues, decalage) {
 // par les boutons ou les flèches du clavier.
 async function rendreCouleurs() {
   if (!etat.source) return;
+  // Fenêtre agrandie : l'original, puis la basse vision, puis les daltonismes.
   const daltonisme = VUES_DALTONISME.map(([cle, classe]) => ({ cle, classe, src: etat.source.url }));
+  const [originale, ...autres] = daltonisme;
   vuesVision = daltonisme;
-  $('couleurs').replaceChildren(...vignettes(daltonisme, 0));
+  $('couleurs').replaceChildren(...vignettes(daltonisme));
   $('basse-vision').replaceChildren(element('li', { class: 'discret' }, t('preparation')));
   const source = etat.source;
   if (!(await calculerBasseVision()) || source !== etat.source) return;
   const basse = VUES_BASSE_VISION.map(([cle, vue]) => ({ cle, classe: '', src: simulations.urls[vue] }));
-  vuesVision = [...daltonisme, ...basse];
-  $('basse-vision').replaceChildren(...vignettes(basse, daltonisme.length));
+  vuesVision = [originale, ...basse, ...autres];
+  $('basse-vision').replaceChildren(...vignettes(basse));
 }
 
 function ouvrirVue(depart) {
