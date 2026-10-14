@@ -35,6 +35,9 @@ contraste des textes, couleurs.
 
 La figure ne quitte pas le navigateur. Interface en français et en allemand.
 
+Pour faire produire des figures conformes par un agent d’IA, voir le méta-prompt
+`docs/meta-prompt-figures.md`.
+
 ## Héberger
 
 Aucun serveur applicatif ni build : copier le dossier sur n’importe quel hébergement de
