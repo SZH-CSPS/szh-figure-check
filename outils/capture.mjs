@@ -4,7 +4,7 @@
 //   node outils/capture.mjs <url> <capture.png> [navigateur]
 
 import { spawn } from 'node:child_process';
-import { writeFile, mkdtemp } from 'node:fs/promises';
+import { writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -19,6 +19,15 @@ const proc = spawn(navigateur, [
   ...(process.env.CAPTURE_HORS_LIGNE ? [`--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(url).hostname}`] : []),
   'about:blank',
 ], { stdio: 'ignore' });
+
+// Ferme le navigateur et efface son profil temporaire.
+async function fermer() {
+  ws.close();
+  proc.kill();
+  await new Promise((ok) => proc.once('exit', ok));
+  await rm(profil, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  process.exit(0);
+}
 
 const attendre = (ms) => new Promise((ok) => setTimeout(ok, ms));
 let cible;
@@ -68,9 +77,7 @@ if (sortie.endsWith('.pdf')) {
     document.getElementById('details-textes').open = true;`);
   const pdf = await cdp('Page.printToPDF', { preferCSSPageSize: true, printBackground: true });
   await writeFile(sortie, Buffer.from(pdf.result.data, 'base64'));
-  ws.close();
-  proc.kill();
-  process.exit(0);
+  await fermer();
 }
 const { cssContentSize } = (await cdp('Page.getLayoutMetrics')).result;
 const capture = await cdp('Page.captureScreenshot', {
@@ -80,6 +87,4 @@ const capture = await cdp('Page.captureScreenshot', {
     : { x: 0, y: 0, width: cssContentSize.width, height: cssContentSize.height, scale: 1 },
 });
 await writeFile(sortie, Buffer.from(capture.result.data, 'base64'));
-ws.close();
-proc.kill();
-process.exit(0);
+await fermer();
