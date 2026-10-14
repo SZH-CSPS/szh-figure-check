@@ -55,11 +55,21 @@ les requêtes de fichiers comme pour toute page web (journaux de GitHub Pages).
 
 ```
 node outils/serveur.mjs          # http://localhost:8123/ ; les modules ES refusent file://
-node --test test/*.test.mjs      # calculs : APCA, géométrie, contraste, verdicts, i18n
+node --test test/*.test.mjs      # calculs : APCA, géométrie, contraste, verdicts, i18n, versions
+node outils/version.mjs          # version des références internes, avant chaque publication
 node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
 node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
 CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que celui de la page introuvable
 ```
+
+**Avant chaque publication**, lancer `node outils/version.mjs` et commiter ce qu’il a
+modifié. GitHub Pages garde chaque fichier dix minutes en cache ; pour qu’un navigateur ne
+mélange pas une nouvelle page avec un ancien module, chaque référence interne à un fichier
+`.js`, `.mjs` ou `.css` (dans `index.html`, `style.css` et `js/`) porte le suffixe
+`?v=<version>`. La version est l’empreinte du contenu de ces fichiers et de
+`vendor/README.md` : l’outil ne change rien si rien n’a changé. `test/version.test.mjs`
+échoue tant qu’une référence n’a pas la version du contenu actuel. Une nouvelle référence
+s’écrit sans suffixe : l’outil l’ajoute.
 
 `?exemple=png|svg` charge la figure d’exemple, `?etape=2|3|4` ouvre une étape, `?vue=page|textes|couleurs` choisit la vue de l’analyse, `?lc=75` le seuil de contraste, `?figure=tmp/nom.png` une figure du dossier
 `tmp/` (non suivi : les figures d’auteurs ne vont pas dans le dépôt), `?langue=de` et `?format=livre` fixent la

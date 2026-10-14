@@ -2,15 +2,15 @@
 // SVG ou d'un PDF se lisent tels quels ; ceux d'une image passent par l'OCR (Tesseract.js),
 // une fois à l'endroit et une fois tournée d'un quart de tour, pour les axes verticaux.
 
-import { corpsDepuisSymboles, hauteurGlyphe, contrasteZone, depuisRotation, recouvrement, unionBoites, mediane } from './analyse.js';
+import { corpsDepuisSymboles, hauteurGlyphe, contrasteZone, depuisRotation, recouvrement, unionBoites, mediane } from './analyse.js?v=488abbcb2e';
 
 // Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
 // la page : rien n'est demandé à un autre serveur. Les chemins sont absolus, parce que le
 // travailleur les résout depuis sa propre adresse.
 const VENDOR = new URL('../vendor/', import.meta.url);
-const TESSERACT = new URL('tesseract/tesseract.min.js', VENDOR).href;
+const TESSERACT = new URL('tesseract/tesseract.min.js?v=488abbcb2e', VENDOR).href;
 const OPTIONS_TESSERACT = {
-  workerPath: new URL('tesseract/worker.min.js', VENDOR).href,
+  workerPath: new URL('tesseract/worker.min.js?v=488abbcb2e', VENDOR).href,
   workerBlobURL: false,
   corePath: new URL('tesseract-core/', VENDOR).href,
   langPath: new URL('tessdata/', VENDOR).href,

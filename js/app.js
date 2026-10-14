@@ -1,14 +1,14 @@
 // Interface : quatre étapes en accordéon (figure, paramètres, écran, analyse) ; l'analyse
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs).
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js';
-import { versHex } from './apca.js';
-import { ouvrir } from './sources.js';
-import { lire } from './lecture.js';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js';
-import { T, langueInitiale, nombre } from './i18n.js';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js?v=488abbcb2e';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=488abbcb2e';
+import { versHex } from './apca.js?v=488abbcb2e';
+import { ouvrir } from './sources.js?v=488abbcb2e';
+import { lire } from './lecture.js?v=488abbcb2e';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=488abbcb2e';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=488abbcb2e';
+import { T, langueInitiale, nombre } from './i18n.js?v=488abbcb2e';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
