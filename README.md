@@ -21,10 +21,12 @@ figure et on voit :
   réglage de l’écran), jugée selon la norme AVIXA DISCAS : la hauteur d’une minuscule doit
   atteindre 1/200 de la distance du dernier rang ;
 - **la figure vue par des personnes daltoniennes** (deutéranopie, protanopie, tritanopie)
-  et en niveaux de gris, et **par des personnes malvoyantes** : acuité 5/10 et 3/10 (flou
-  égal à l’angle minimal de résolution, à la taille imprimée lue à 40 cm), contraste perçu
-  affaibli, cataracte ; simulations indicatives ; un clic sur une vignette l’ouvre en grand, où l’on passe d’une
-  vue à l’autre par les boutons ou les flèches du clavier.
+  et en niveaux de gris ;
+- **la basse vision** (en révision, visible avec `?basseVision=1`) : approximations à but
+  de sensibilisation, à regarder en taille réelle à 40 cm. Acuité 5/10 et 3/10 (flou
+  gaussien), seuil et confort de lecture comparés aux textes de la figure (unité M, réserve
+  d’acuité de 2), contraste perçu affaibli et cataracte par la méthode du contraste local
+  par bandes de Peli. Les limites de chaque modèle sont dites dans la page ;
 
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
 (format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
@@ -71,7 +73,7 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 | `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
-| `js/vision.js` | flou et filtres de la basse vision, à l’échelle de la figure imprimée |
+| `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
 | `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
 | `js/i18n.js` | libellés fr et de |
 | `js/app.js` | interface |

@@ -204,12 +204,41 @@ test('projection : taille apparente et équivalent papier', async () => {
 });
 
 test('basse vision : flou à l’échelle de la figure imprimée', async () => {
-  const { flouMm, flouPx, filtreBasseVision, MM_PAR_MINUTE } = await import('../js/vision.js');
+  const { flouMm, flouPx, filtreFlou, MM_PAR_MINUTE } = await import('../js/vision.js');
   // 1 minute d'arc à 40 cm vaut 0,116 mm ; une acuité de 3/10 floute de 0,39 mm.
   assert.equal(MM_PAR_MINUTE.toFixed(3), '0.116');
   assert.equal(flouMm(0.3).toFixed(2), '0.39');
   // Image de 1600 px imprimée sur 172 mm : 9,3 px par mm.
   assert.equal(flouPx(0.3, 1600, 172).toFixed(1), '3.6');
-  assert.equal(filtreBasseVision('acuite5', 1600, 172), 'blur(2.16px)');
-  assert.equal(filtreBasseVision('autre', 1600, 172), 'none');
+  assert.equal(filtreFlou(0.5, 1600, 172), 'blur(2.16px)');
+});
+
+test('basse vision : seuil et confort de lecture à 40 cm', async () => {
+  const { lectureAcuite } = await import('../js/vision.js');
+  // 5/10 : hauteur d'x de 10 minutes d'arc, soit 1,16 mm, corps 6,3 pt ; confort 12,7 pt.
+  assert.equal(lectureAcuite(0.5).seuil.toFixed(1), '6.3');
+  assert.equal(lectureAcuite(0.5).confort.toFixed(1), '12.7');
+  assert.equal(lectureAcuite(0.3).seuil.toFixed(1), '10.6');
+});
+
+test('basse vision : CSF en log-parabole', async () => {
+  const { csf, PROFILS } = await import('../js/vision.js');
+  const s = csf(PROFILS.contraste);
+  assert.equal(s(1), 20);
+  assert.equal(s(3), 20);
+  assert.ok(Math.abs(s(3 * 2 ** 1.5) - 10) < 1e-9);  // moitié à largeur / 2 octaves
+});
+
+test('basse vision : un motif peu contrasté disparaît, un motif contrasté reste', async () => {
+  const { seuillerContraste, flouGaussien, csf, PROFILS } = await import('../js/vision.js');
+  const l = 128, h = 32;
+  const rayures = (amplitude) => Float32Array.from({ length: l * h }, (_, i) => 0.5 * (1 + amplitude * Math.sign(Math.sin((2 * Math.PI * (i % l)) / 16))));
+  const ecart = (c) => { let mn = 1, mx = 0; for (let x = 32; x < 96; x++) { mn = Math.min(mn, c[16 * l + x]); mx = Math.max(mx, c[16 * l + x]); } return (mx - mn) / (mx + mn); };
+  // 16 px par période et 64 px par degré : 4 cycles par degré, seuil de 5 % pour ce profil.
+  const sens = csf(PROFILS.contraste);
+  assert.ok(ecart(seuillerContraste(rayures(0.02), l, h, 64, sens)) < 0.005);
+  assert.ok(ecart(seuillerContraste(rayures(0.5), l, h, 64, sens)) > 0.4);
+  // Le flou garde la moyenne d'une image uniforme.
+  const uni = flouGaussien(new Float32Array(l * h).fill(0.3), l, h, 5);
+  assert.ok(Math.abs(uni[16 * l + 64] - 0.3) < 1e-6);
 });

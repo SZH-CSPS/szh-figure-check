@@ -6,7 +6,7 @@ import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConfo
 import { versHex } from './apca.js';
 import { ouvrir } from './sources.js';
 import { lire } from './lecture.js';
-import { filtreBasseVision } from './vision.js';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js';
 import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js';
 import { T, langueInitiale, nombre } from './i18n.js';
 
@@ -25,6 +25,7 @@ const etat = {
   seuil: SEUILS_LC.includes(Number(params.get('lc'))) ? Number(params.get('lc')) : SEUILS_LC[0],
   etape: 1,
   onglet: 'vue-page',
+  tailleVue: 'reelle',
   salle: 'petite',
   ecranCm: SALLES.petite.largeurCm,
   distanceCm: SALLES.petite.distanceCm,
@@ -69,7 +70,7 @@ function appliquerLangue() {
   document.title = t('titre');
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
   if (!BASSE_VISION) {
-    for (const el of document.querySelectorAll('[data-t="basseVisionAide"]')) el.hidden = true;
+    for (const el of document.querySelectorAll('.seulement-basse-vision')) el.hidden = true;
     for (const el of document.querySelectorAll('[data-t="descVision"]')) el.textContent = t('descVisionAVenir');
   }
   for (const el of document.querySelectorAll('[data-t-aria]')) el.setAttribute('aria-label', t(el.dataset.tAria));
@@ -522,6 +523,7 @@ function rendreAnalyse() {
   $('details-titre').textContent = t('tousTextes', { n: lignes.length });
   $('imprimer-rapport').hidden = !lignes.length;
   rendreProjection();
+  rendreLecture();
 
   const exact = lignes.length && lignes.every((l) => l.exact);
   $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: etat.seuil, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
@@ -550,6 +552,7 @@ const VUES_DALTONISME = [
 ];
 const VUES_BASSE_VISION = [['vueAcuite5', 'acuite5'], ['vueAcuite3', 'acuite3'], ['vueContraste', 'contraste'], ['vueCataracte', 'cataracte']];
 const LARGEUR_SIMULATION = 1600;
+const LARGEUR_SIMULATION_CONTRASTE = 900;
 // Basse vision en révision : masquée, sauf avec ?basseVision=1 pour la relire.
 const BASSE_VISION = params.get('basseVision') === '1';
 let simulations = { cle: null, urls: {} };
@@ -563,15 +566,31 @@ async function calculerBasseVision() {
   Object.values(simulations.urls).forEach((u) => URL.revokeObjectURL(u));
   simulations = { cle, urls: {} };
   const base = await s.dessiner(LARGEUR_SIMULATION);
+  // Les simulations de contraste (Peli) se calculent sur une image plus petite : elles
+  // traitent chaque pixel bande par bande.
+  const petite = await s.dessiner(LARGEUR_SIMULATION_CONTRASTE);
+  const petitesDonnees = petite.getContext('2d').getImageData(0, 0, petite.width, petite.height);
+  const pxParDegre = (petite.width / largeurMm) * MM_PAR_DEGRE;
   for (const [, vue] of VUES_BASSE_VISION) {
-    const c = document.createElement('canvas');
-    c.width = base.width;
-    c.height = base.height;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.filter = filtreBasseVision(vue, base.width, largeurMm);
-    ctx.drawImage(base, 0, 0);
+    let c;
+    if (vue === 'acuite5' || vue === 'acuite3') {
+      c = document.createElement('canvas');
+      c.width = base.width;
+      c.height = base.height;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.filter = filtreFlou(vue === 'acuite5' ? 0.5 : 0.3, base.width, largeurMm);
+      ctx.drawImage(base, 0, 0);
+    } else {
+      await new Promise((ok) => setTimeout(ok));   // laisse la page se redessiner
+      const options = vue === 'cataracte' ? { jaunissement: 0.35, voile: 0.08 } : {};
+      const pixels = simulerPerteContraste(petitesDonnees.data, petite.width, petite.height, pxParDegre, PROFILS[vue], options);
+      c = document.createElement('canvas');
+      c.width = petite.width;
+      c.height = petite.height;
+      c.getContext('2d').putImageData(new ImageData(pixels, petite.width, petite.height), 0, 0);
+    }
     const blob = await new Promise((ok) => c.toBlob(ok, 'image/png'));
     if (simulations.cle !== cle) return false;
     simulations.urls[vue] = URL.createObjectURL(blob);
@@ -592,6 +611,28 @@ function vignettes(vues) {
 
 // Vignettes ; un clic ouvre la vue en grand, où l'on passe d'une simulation à l'autre
 // par les boutons ou les flèches du clavier.
+// Seuil et confort de lecture pour deux acuités, comparés aux textes de la figure.
+function rendreLecture() {
+  const tableau = $('lecture-acuite');
+  if (!BASSE_VISION || !etat.lecture) { tableau.replaceChildren(); return; }
+  const tailles = mesures().map((l) => l.pt).filter((v) => v != null);
+  const lignes = [[0.5, 'vueAcuite5'], [0.3, 'vueAcuite3']].map(([acuite, cle]) => {
+    const { seuil, confort } = lectureAcuite(acuite);
+    const sousSeuil = tailles.filter((v) => v < seuil).length;
+    const sousConfort = tailles.filter((v) => v < confort).length;
+    return element('tr', {},
+      element('th', { scope: 'row' }, t(cle)),
+      element('td', {}, `${nombre(seuil)}\u00a0pt`),
+      element('td', {}, `${nombre(confort)}\u00a0pt`),
+      element('td', { class: sousSeuil ? 'corriger' : 'ok' }, t('lectureIllisibles', { n: sousSeuil, total: tailles.length })),
+      element('td', { class: sousConfort ? 'ameliorer' : 'ok' }, t('lecturePenibles', { n: sousConfort, total: tailles.length })));
+  });
+  tableau.replaceChildren(
+    element('caption', {}, t('lectureTitre')),
+    element('thead', {}, element('tr', {}, ...['lectureColAcuite', 'lectureColSeuil', 'lectureColConfort', 'lectureColIllisibles', 'lectureColPenibles'].map((k) => element('th', { scope: 'col' }, t(k))))),
+    element('tbody', {}, ...lignes));
+}
+
 async function rendreCouleurs() {
   if (!etat.source) return;
   // Fenêtre agrandie : l'original, puis la basse vision, puis les daltonismes.
@@ -603,12 +644,24 @@ async function rendreCouleurs() {
     $('basse-vision').replaceChildren(element('li', { class: 'a-venir' }, t('basseVisionAVenir')));
     return;
   }
+  rendreLecture();
   $('basse-vision').replaceChildren(element('li', { class: 'discret' }, t('preparation')));
   const source = etat.source;
   if (!(await calculerBasseVision()) || source !== etat.source) return;
   const basse = VUES_BASSE_VISION.map(([cle, vue]) => ({ cle, classe: '', src: simulations.urls[vue] }));
   vuesVision = [originale, ...basse, ...autres];
   $('basse-vision').replaceChildren(...vignettes(basse));
+}
+
+// Taille réelle : la figure à sa largeur imprimée, à regarder à environ 40 cm de l'écran,
+// condition pour que le flou et les seuils des simulations aient un sens.
+function appliquerTailleVue() {
+  const image = $('vue-grande');
+  const reelle = etat.tailleVue === 'reelle';
+  image.style.width = reelle ? `${figureSurPage().l * (etat.pxParMm || PX_PAR_MM_NOMINAL)}px` : '';
+  image.classList.toggle('taille-reelle', reelle);
+  for (const r of document.querySelectorAll('input[name="taille-vue"]')) r.checked = r.value === etat.tailleVue;
+  $('vue-consigne').textContent = reelle ? `${t('vueConsigne')} ${etat.pxParMm ? '' : t('calibrationNon')}` : '';
 }
 
 function ouvrirVue(depart) {
@@ -623,6 +676,7 @@ function ouvrirVue(depart) {
   const choisir = (i) => {
     image.src = vues[i].src;
     image.className = vues[i].classe;
+    appliquerTailleVue();
     boutons.forEach((b, k) => { b.setAttribute('aria-selected', String(k === i)); b.tabIndex = k === i ? 0 : -1; });
     d.dataset.vue = i;
   };
@@ -927,6 +981,9 @@ function brancher() {
     r.addEventListener('change', () => { etat.vue = r.value; zoomer(); });
   }
   $('vue-fermer').addEventListener('click', () => $('dialogue-couleurs').close());
+  for (const r of document.querySelectorAll('input[name="taille-vue"]')) {
+    r.addEventListener('change', () => { etat.tailleVue = r.value; appliquerTailleVue(); });
+  }
   $('dialogue-couleurs').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('imprimer').addEventListener('click', () => window.print());
   $('imprimer-rapport').addEventListener('click', imprimerRapport);

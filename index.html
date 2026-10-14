@@ -228,7 +228,23 @@
 
           <section id="vue-couleurs" class="vue" role="tabpanel" aria-labelledby="onglet-couleurs" hidden>
             <h3 data-t="titreBasseVision"></h3>
-            <p data-t="basseVisionAide"></p>
+            <div class="avertissement seulement-basse-vision" role="note">
+              <p class="avertissement-titre" data-t="avertissementTitre"></p>
+              <p data-t="avertissementTexte"></p>
+              <details>
+                <summary data-t="modelesTitre"></summary>
+                <ul>
+                  <li data-t="modeleAcuite"></li>
+                  <li data-t="modeleLecture"></li>
+                  <li data-t="modeleContraste"></li>
+                  <li data-t="modeleCataracte"></li>
+                  <li data-t="modeleNiveaux"></li>
+                </ul>
+              </details>
+            </div>
+            <p class="seulement-basse-vision" data-t="basseVisionAide"></p>
+            <div class="analyse-table seulement-basse-vision"><table id="lecture-acuite" class="lecture-acuite"></table></div>
+            <p class="discret seulement-basse-vision" data-t="vignettesPetites"></p>
             <ul id="basse-vision" class="couleurs"></ul>
             <h3 data-t="titreDaltonisme"></h3>
             <p data-t="couleursAide"></p>
@@ -247,6 +263,13 @@
       <button type="button" id="vue-fermer" data-t="fermer"></button>
     </div>
     <div id="vues-onglets" class="vues-onglets" role="tablist"></div>
+    <div class="vue-options">
+      <fieldset class="bascule">
+        <label><input type="radio" name="taille-vue" value="reelle" checked> <span data-t="tailleReelleVue"></span></label>
+        <label><input type="radio" name="taille-vue" value="ajustee"> <span data-t="tailleAjustee"></span></label>
+      </fieldset>
+      <span id="vue-consigne" class="discret"></span>
+    </div>
     <div class="vue-cadre"><img id="vue-grande" alt=""></div>
   </dialog>
 </body>
