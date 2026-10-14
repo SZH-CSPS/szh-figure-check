@@ -61,8 +61,9 @@ console.log(await evaluer(`[document.getElementById('dimensions').textContent,
 // CAPTURE_CLIP : sélecteur de l'élément à capturer seul.
 if (process.env.CAPTURE_JS) await evaluer(process.env.CAPTURE_JS);
 if (sortie.endsWith('.pdf')) {
-  // Rapport imprimé, tel que le donne le bouton « Imprimer le rapport ».
-  await evaluer(`document.body.dataset.impression = 'rapport';
+  // Rapport imprimé, tel que le donne le bouton « Imprimer le rapport » ; avec
+  // CAPTURE_IMPRESSION=page, la page simulée seule, comme le bouton « Imprimer à 100 % ».
+  if (process.env.CAPTURE_IMPRESSION !== 'page') await evaluer(`document.body.dataset.impression = 'rapport';
     document.getElementById('style-impression').textContent = '@page { size: A4; margin: 15mm; }';
     document.getElementById('details-textes').open = true;`);
   const pdf = await cdp('Page.printToPDF', { preferCSSPageSize: true, printBackground: true });
