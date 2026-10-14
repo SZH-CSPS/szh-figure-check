@@ -386,11 +386,13 @@ function rendreAnalyse() {
   }
   svg.append(neutres);
 
+  // Tous les textes d'un groupe prennent la couleur du groupe, celle de sa boîte et de sa
+  // carte, même si l'un d'eux, pris seul, est d'un degré moins grave.
   const calques = explorables.map((g) => {
     const calque = svgEl('g', { class: `groupe ${g.niveau}` });
     for (const l of g.membres) {
       const b = boite(l);
-      const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: `cadre ${l.niveau || 'inconnu'}` });
+      const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: `cadre ${g.niveau}` });
       calque.append(r);
       rectDe.set(l.id, r);
     }
