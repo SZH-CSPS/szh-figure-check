@@ -2,7 +2,10 @@
 // SVG ou d'un PDF se lisent tels quels ; ceux d'une image passent par l'OCR (Tesseract.js),
 // une fois à l'endroit et une fois tournée d'un quart de tour, pour les axes verticaux.
 
-import { corpsDepuisSymboles, hauteurGlyphe, contrasteZone, depuisRotation, recouvrement, unionBoites, mediane } from './analyse.js';
+import {
+  corpsDepuisSymboles, hauteurGlyphe, contrasteZone, bruitFond, ligneCourteFiable, BRUIT_FOND_MAX,
+  depuisRotation, recouvrement, unionBoites, mediane,
+} from './analyse.js';
 
 // Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
 // la page : rien n'est demandé à un autre serveur. Les chemins sont absolus, parce que le
@@ -18,6 +21,12 @@ const OPTIONS_TESSERACT = {
 const LANGUES = 'fra+deu+eng';
 const CONFIANCE_MIN = 55;
 const CONFIANCE_MIN_TOURNEE = 70;        // à l'envers, l'OCR invente davantage
+// Confiance moyenne exigée d'une ligne de trois caractères au plus (ligneCourteFiable).
+// Les graduations des graphiques sont lues à 88 au moins, les faux textes des photos à 76
+// et plus. Sur l'image tournée, qui ne porte guère que des titres d'axe de plusieurs mots,
+// un faux texte court atteint 91 (« Il »).
+const CONFIANCE_COURTE = 85;
+const CONFIANCE_COURTE_TOURNEE = 95;
 const PX_PAR_MM_OCR = 20;                // résolution de lecture, rapportée à la colonne de la Revue
 const LARGEUR_COLONNE_MM = 172;
 const PIXELS_MAX = 14e6;
@@ -84,20 +93,26 @@ function tourner(c) {
 
 function pixels(c) {
   const rgba = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;
-  return (bbox) => hauteurGlyphe(rgba, c.width, c.height, bbox);
+  return {
+    hauteur: (bbox) => hauteurGlyphe(rgba, c.width, c.height, bbox),
+    bruit: (bbox) => bruitFond(rgba, c.width, c.height, bbox),
+  };
 }
 
-function lignesOcr(data, confianceMin, mesurer) {
+// Garde les mots assez sûrs, qui portent une lettre ou un chiffre et dont le fond est uni
+// (bruitFond), puis écarte les lignes trop courtes pour leur confiance (ligneCourteFiable).
+function lignesOcr(data, { confiance, confianceCourte }, mesures) {
   const lignes = [];
   for (const ligne of data.lines || []) {
-    const mots = ligne.words.filter((m) => m.confidence >= confianceMin && /[\p{L}\p{N}]/u.test(m.text));
-    if (!mots.length) continue;
+    const mots = ligne.words.filter((m) => m.confidence >= confiance && /[\p{L}\p{N}]/u.test(m.text)
+      && !(mesures.bruit(m.bbox) > BRUIT_FOND_MAX));
+    if (!mots.length || !ligneCourteFiable(mots, confianceCourte)) continue;
     const symboles = mots.flatMap((m) => m.symbols || []);
     lignes.push({
       texte: mots.map((m) => m.text).join(' '),
       mots: mots.map((m) => m.bbox),
       bbox: unionBoites(mots.map((m) => m.bbox)),
-      corpsPx: corpsDepuisSymboles(symboles, mesurer),
+      corpsPx: corpsDepuisSymboles(symboles, mesures.hauteur),
       exact: false,
       vertical: false,
     });
@@ -109,10 +124,12 @@ async function lireOcr(c, progres) {
   const t = await ocr();
   suivre = (m) => m.status === 'recognizing text' && progres('ocr', m.progress / 2);
   const fonce = foncer(c);
-  const droit = lignesOcr((await t.recognize(fonce)).data, CONFIANCE_MIN, pixels(c));
+  const droit = lignesOcr((await t.recognize(fonce)).data,
+    { confiance: CONFIANCE_MIN, confianceCourte: CONFIANCE_COURTE }, pixels(c));
   suivre = (m) => m.status === 'recognizing text' && progres('ocr', 0.5 + m.progress / 2);
   const ct = tourner(c);
-  const tournees = lignesOcr((await t.recognize(tourner(fonce))).data, CONFIANCE_MIN_TOURNEE, pixels(ct));
+  const tournees = lignesOcr((await t.recognize(tourner(fonce))).data,
+    { confiance: CONFIANCE_MIN_TOURNEE, confianceCourte: CONFIANCE_COURTE_TOURNEE }, pixels(ct));
   suivre = () => {};
   for (const ligne of tournees) {
     ligne.mots = ligne.mots.map((b) => depuisRotation(b, c.height));

@@ -82,11 +82,10 @@ export function seuilOtsu(histogramme, total) {
   return seuil;
 }
 
-// Couleur du texte et du fond dans une boîte, et leur contraste APCA. Les pixels se
-// partagent en deux groupes par Otsu ; le plus nombreux est le fond. Le lissage des bords
-// tire le texte vers le fond : on ne garde que les 20 % de pixels du texte les plus
-// éloignés du fond.
-export function contrasteZone(rgba, largeur, hauteur, bbox, marge = 2) {
+// Pixels d'une boîte élargie de `marge`, partagés en deux groupes par Otsu : le plus
+// nombreux est le fond, l'autre le texte. Rend null si la boîte est trop petite ou si
+// l'un des groupes a moins de 4 pixels.
+function partagerZone(rgba, largeur, hauteur, bbox, marge) {
   const x0 = Math.max(0, Math.floor(bbox.x0) - marge), x1 = Math.min(largeur, Math.ceil(bbox.x1) + marge);
   const y0 = Math.max(0, Math.floor(bbox.y0) - marge), y1 = Math.min(hauteur, Math.ceil(bbox.y1) + marge);
   const n = (x1 - x0) * (y1 - y0);
@@ -103,10 +102,26 @@ export function contrasteZone(rgba, largeur, hauteur, bbox, marge = 2) {
     }
   }
   const seuil = seuilOtsu(histogramme, n);
+  const estSombre = new Uint8Array(n);
   const sombres = [], clairs = [];
-  for (let i = 0; i < n; i++) (Math.min(255, Math.round(lumas[i])) <= seuil ? sombres : clairs).push(i);
+  for (let i = 0; i < n; i++) {
+    estSombre[i] = Math.min(255, Math.round(lumas[i])) <= seuil ? 1 : 0;
+    (estSombre[i] ? sombres : clairs).push(i);
+  }
   if (Math.min(sombres.length, clairs.length) < 4) return null;
-  const [fond, texte] = sombres.length >= clairs.length ? [sombres, clairs] : [clairs, sombres];
+  const fondSombre = sombres.length >= clairs.length;
+  const [fond, texte] = fondSombre ? [sombres, clairs] : [clairs, sombres];
+  return { lumas, positions, fond, texte, largeur: x1 - x0, hauteur: y1 - y0, estFond: (i) => estSombre[i] === (fondSombre ? 1 : 0) };
+}
+
+// Couleur du texte et du fond dans une boîte, et leur contraste APCA. Les pixels se
+// partagent en deux groupes par Otsu ; le plus nombreux est le fond. Le lissage des bords
+// tire le texte vers le fond : on ne garde que les 20 % de pixels du texte les plus
+// éloignés du fond.
+export function contrasteZone(rgba, largeur, hauteur, bbox, marge = 2) {
+  const z = partagerZone(rgba, largeur, hauteur, bbox, marge);
+  if (!z) return null;
+  const { lumas, positions, fond, texte } = z;
 
   const canal = (indices, c) => mediane(indices.map((i) => rgba[positions[i] + c]));
   const couleurFond = [0, 1, 2].map((c) => canal(fond, c));
@@ -115,6 +130,47 @@ export function contrasteZone(rgba, largeur, hauteur, bbox, marge = 2) {
   const retenus = tries.slice(0, Math.max(1, Math.ceil(tries.length * 0.2)));
   const couleurTexte = [0, 1, 2].map((c) => retenus.reduce((s, i) => s + rgba[positions[i] + c], 0) / retenus.length);
   return { texte: couleurTexte, fond: couleurFond, lc: lc(couleurTexte, couleurFond) };
+}
+
+// Bruit du fond d'une boîte, rapporté à l'écart entre texte et fond. Seuls comptent les
+// pixels de fond dont les huit voisins sont aussi du fond : le lissage des bords des
+// lettres n'y entre pas. Sur un graphique, le fond est uni et le rapport reste petit ; sur
+// une photo ou une peinture, l'OCR prend pour des lettres des taches dont le fond varie
+// presque autant que l'écart qui les en sépare. Rend null si la boîte ne se mesure pas.
+// Mesuré : 0,14 au plus sur les textes de graphiques et de schémas, 0,19 au moins sur les
+// faux textes lus dans des photos.
+export const BRUIT_FOND_MAX = 0.17;
+
+export function bruitFond(rgba, largeur, hauteur, bbox, marge = 2) {
+  const z = partagerZone(rgba, largeur, hauteur, bbox, marge);
+  if (!z) return null;
+  const { lumas, fond, texte, largeur: l, hauteur: h, estFond } = z;
+  let n = 0, somme = 0, carres = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < l - 1; x++) {
+      const i = y * l + x;
+      let entoure = true;
+      for (let dy = -1; dy <= 1 && entoure; dy++) for (let dx = -1; dx <= 1; dx++) if (!estFond(i + dy * l + dx)) { entoure = false; break; }
+      if (!entoure) continue;
+      n++; somme += lumas[i]; carres += lumas[i] ** 2;
+    }
+  }
+  if (!n) return null;
+  const moyenne = (indices) => indices.reduce((s, i) => s + lumas[i], 0) / indices.length;
+  const ecart = Math.abs(moyenne(texte) - moyenne(fond));
+  if (!ecart) return null;
+  return Math.sqrt(Math.max(0, carres / n - (somme / n) ** 2)) / ecart;
+}
+
+// Une ligne de trois lettres ou chiffres au plus (« EN », « Il », « 525 ») ne se garde
+// que si la confiance moyenne de ses mots atteint `confianceMin` : sur une photo, l'OCR
+// lit volontiers une tache comme une lettre isolée. `mots` : [{ text, confidence }].
+export const CARACTERES_COURT = 3;
+
+export function ligneCourteFiable(mots, confianceMin) {
+  const caracteres = mots.reduce((n, m) => n + (m.text.match(/[\p{L}\p{N}]/gu) || []).length, 0);
+  if (caracteres > CARACTERES_COURT) return true;
+  return mots.reduce((s, m) => s + m.confidence, 0) / mots.length >= confianceMin;
 }
 
 // L'image tournée d'un quart de tour horaire, de hauteur d'origine `hauteur`, ramène son
