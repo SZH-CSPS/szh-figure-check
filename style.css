@@ -193,7 +193,20 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 @media (max-width: 900px) { .explorateur { grid-template-columns: minmax(0, 1fr); } }
 .explorateur-panneau { position: sticky; top: 16px; }
 .explorateur-panneau .zone { margin: 0; list-style: none; }
-.puces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; }
+.puces { margin-bottom: 14px; }
+.boites-niveaux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .boites-niveaux { grid-template-columns: minmax(0, 1fr); } }
+.boite-niveau { background: var(--surface); border: 1px solid var(--filet); border-top: 4px solid var(--inconnu); border-radius: 8px; padding: 10px 12px 12px; display: grid; gap: 4px; align-content: start; }
+.boite-niveau.corriger { border-top-color: var(--corriger); }
+.boite-niveau.ameliorer { border-top-color: var(--ameliorer); }
+.boite-niveau.ok { border-top-color: var(--ok); }
+.boite-niveau p { margin: 0; }
+.boite-niveau.corriger .boite-titre b { color: var(--corriger); }
+.boite-niveau.ameliorer .boite-titre b { color: var(--ameliorer); }
+.boite-niveau.ok .boite-titre b { color: var(--ok); }
+.boite-legende { font-size: 0.85rem; }
+.boite-puces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; min-height: 2.4em; }
+@media screen { #niveaux { display: none !important; } }
 .puces-rangee { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .puce {
   min-width: 2.2em; height: 2.2em; padding: 0 6px; border-radius: 999px; font-weight: 700;
@@ -203,9 +216,12 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .puce { position: relative; }
 .puce.apercu { background: color-mix(in srgb, var(--corriger) 14%, var(--surface)); }
 .puce.ameliorer.apercu { background: color-mix(in srgb, var(--ameliorer) 14%, var(--surface)); }
-.puce[aria-selected="true"] { background: var(--corriger); color: #fff; }
-.puce.ameliorer[aria-selected="true"] { background: var(--ameliorer); }
-.puce[aria-selected="true"]::after {
+.puce.ok { border-color: var(--ok); color: var(--ok); }
+.puce.ok.apercu { background: color-mix(in srgb, var(--ok) 14%, var(--surface)); }
+.puce[aria-pressed="true"] { background: var(--corriger); color: #fff; }
+.puce.ameliorer[aria-pressed="true"] { background: var(--ameliorer); }
+.puce.ok[aria-pressed="true"] { background: var(--ok); }
+.puce[aria-pressed="true"]::after {
   content: ''; position: absolute; left: 15%; right: 15%; bottom: -7px; height: 3px; border-radius: 2px;
   background: var(--encre);
 }
@@ -222,6 +238,7 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .groupe.choisi .cadre, .analyse-figure rect.actif { display: inline; }
 .groupe .cadre.corriger { stroke: #d0021b; stroke-width: 3px; }
 .groupe .cadre.ameliorer { stroke: #c76a00; stroke-width: 3px; }
+.groupe .cadre.ok { stroke: #1d7a3a; stroke-width: 3px; }
 .analyse-figure rect.actif { stroke: #0b5cad; stroke-width: 3px; }
 @media screen { .cartes-impression { display: none; } }
 
@@ -230,8 +247,11 @@ h3 { font-size: 1.1rem; margin: 24px 0 12px; }
 .zone { background: var(--surface); border-radius: 8px; box-shadow: var(--ombre); padding: 12px 16px 8px; border-top: 5px solid var(--inconnu); break-inside: avoid; }
 .zone.corriger { border-top-color: var(--corriger); }
 .zone.ameliorer { border-top-color: var(--ameliorer); }
+.zone.ok { border-top-color: var(--ok); }
 .zone-tete { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
 .numero { display: inline-grid; place-items: center; min-width: 1.8em; height: 1.8em; border-radius: 50%; background: #d0021b; color: #fff; font-weight: 700; }
+.zone.ameliorer .numero { background: var(--ameliorer); }
+.zone.ok .numero { background: var(--ok); }
 .zone img { display: block; max-width: 100%; height: auto; border: 1px solid var(--filet); background: #fff; margin-bottom: 8px; }
 .zone dl { margin: 0; font-size: 0.92rem; }
 .mesure { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--filet); }

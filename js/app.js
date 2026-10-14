@@ -240,6 +240,7 @@ function conseils(l, plusieurs) {
 
 const TEXTES_PAR_CARTE = 6;
 const CARTES_MAX = 8;
+const CONFORMES_MAX = 6;
 
 // « 3,0 pt » ou « 3,0 à 4,2 pt » selon l'étendue des valeurs.
 function plage(valeurs, formater) {
@@ -289,8 +290,10 @@ function carteZone(groupe, numero, canevas, sansTaille = false) {
       ligneMesure('zoneTaille', r.taille, r.pour.nt, t('minimumTaille', { min: TAILLE_MIN_PT })),
       ligneMesure('zoneContraste', r.contraste, r.pour.nc, t('minimumContraste', { lc: etat.seuil }),
         r.pour.contraste ? nuancier(r.pour.contraste.texte, r.pour.contraste.fond) : null)),
-    element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
-    element('ul', {}, ...conseils(sansTaille ? { ...r.pour, nt: null } : r.pour, n > 1)));
+    ...(groupe.niveau === 'ok'
+      ? [element('p', { class: 'que-faire' }, t('conformeRien'))]
+      : [element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
+        element('ul', {}, ...conseils(sansTaille ? { ...r.pour, nt: null } : r.pour, n > 1))]));
   return carte;
 }
 
@@ -346,15 +349,18 @@ function rendreAnalyse() {
   const souple = Boolean(diag) || groupes.length > CARTES_MAX;
   if (souple) groupes = regrouper(fautifs, { souple: true });
   const affiches = groupes.slice(0, CARTES_MAX);
+  // Les textes conformes forment eux aussi des groupes, par style, pour pouvoir les montrer.
+  const conformes = regrouper(lignes.filter((l) => l.niveau === 'ok'), { souple: true }).slice(0, CONFORMES_MAX);
+  const explorables = [...affiches, ...conformes];
   etat.endroits = groupes.length;
   rendreResumes();
 
   // Figure annotée : rien n'y est dessiné par défaut, et on n'agit pas sur elle. Les puces
   // numérotées choisissent le groupe mis en évidence, un seul à la fois : le survol
   // l'affiche, le clic le rend actif ; sortir de la rangée de puces revient au groupe actif.
-  // Le groupe 1 est actif au départ. Sa carte s'affiche dans le panneau. Les puces suivent
-  // le motif des onglets : la puce active est pleine et soulignée, celle qu'on survole
-  // n'est que teintée, et le panneau dit s'il montre l'endroit actif ou un aperçu.
+  // Le groupe 1 est actif au départ. Sa carte s'affiche dans le panneau. La puce active est
+  // pleine et soulignée, celle qu'on survole n'est que teintée, et le panneau dit s'il
+  // montre l'endroit actif ou un aperçu. Les groupes conformes s'encadrent en vert.
   const ns = 'http://www.w3.org/2000/svg';
   const svgEl = (nom, attributs = {}) => {
     const el = document.createElementNS(ns, nom);
@@ -371,7 +377,7 @@ function rendreAnalyse() {
   // Cadres des textes sans carte : invisibles, montrés un par un depuis la liste des textes.
   const rectDe = new Map();
   const groupeDe = new Map();
-  affiches.forEach((g, i) => g.membres.forEach((l) => groupeDe.set(l.id, i)));
+  explorables.forEach((g, i) => g.membres.forEach((l) => groupeDe.set(l.id, i)));
   const neutres = svgEl('g', { class: 'neutres' });
   for (const l of lignes) {
     if (groupeDe.has(l.id)) continue;
@@ -382,7 +388,7 @@ function rendreAnalyse() {
   }
   svg.append(neutres);
 
-  const calques = affiches.map((g) => {
+  const calques = explorables.map((g) => {
     const calque = svgEl('g', { class: `groupe ${g.niveau}` });
     for (const l of g.membres) {
       const b = boite(l);
@@ -394,41 +400,58 @@ function rendreAnalyse() {
     return calque;
   });
 
+  // Trois boîtes identiques, une par degré, chacune avec ses numéros.
   const puces = $('puces');
-  const boutons = affiches.map((g, i) => element('button', {
-    type: 'button', role: 'tab', 'aria-controls': 'panneau', class: `puce ${g.niveau}`,
+  const boutons = explorables.map((g, i) => element('button', {
+    type: 'button', 'aria-pressed': 'false', 'aria-controls': 'panneau', class: `puce ${g.niveau}`,
     'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
   }, String(i + 1)));
-  const rangee = element('span', { class: 'puces-rangee', role: 'tablist', 'aria-label': t('puces') }, ...boutons);
-  puces.replaceChildren(...(affiches.length ? [element('span', { class: 'discret' }, t('puces')), rangee] : []));
+  const rangee = element('div', { class: 'boites-niveaux' }, ...['corriger', 'ameliorer', 'ok'].map((niveau) => {
+    const ici = boutons.filter((b, i) => explorables[i].niveau === niveau);
+    return element('section', { class: `boite-niveau ${niveau}`, 'aria-label': t(`niveau_${niveau}`) },
+      element('p', { class: 'boite-titre' },
+        element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[niveau]), ' ',
+        element('b', {}, t(`niveau_${niveau}`)), ' ',
+        element('span', { class: 'discret' }, t('nEndroits', { n: ici.length }))),
+      element('p', { class: 'boite-legende discret' }, t(`legende_${niveau}`)),
+      element('div', { class: 'boite-puces' }, ...(ici.length ? ici : [element('span', { class: 'discret' }, t('aucunEndroit'))])));
+  }));
+  puces.replaceChildren(rangee);
 
   const cartes = new Map();
   const carteDe = (i) => {
-    if (!cartes.has(i)) cartes.set(i, carteZone(affiches[i], i + 1, canevas, Boolean(diag)));
+    if (!cartes.has(i)) cartes.set(i, carteZone(explorables[i], i + 1, canevas, Boolean(diag)));
     return cartes.get(i);
   };
-  const choix = { epingle: affiches.length ? 0 : null };
+  const choix = { epingle: explorables.length ? 0 : null };
+  let hauteurPanneau = 0;
+  $('panneau').style.minHeight = '';
   const montrer = (i) => {
     svg.classList.toggle('focus', i != null);
     calques.forEach((c, k) => c.classList.toggle('choisi', k === i));
     boutons.forEach((b, k) => {
       const actif = k === choix.epingle;
-      b.setAttribute('aria-selected', String(actif));
+      b.setAttribute('aria-pressed', String(actif));
       b.tabIndex = actif ? 0 : -1;
       b.classList.toggle('apercu', k === i && !actif);
     });
     if (i == null) {
       voile.setAttribute('d', '');
-      $('panneau').replaceChildren(element('p', { class: 'discret' }, t(affiches.length ? 'panneauAide' : 'panneauVide')));
+      $('panneau').replaceChildren(element('p', { class: 'discret' }, t(explorables.length ? 'panneauAide' : 'panneauVide')));
       return;
     }
-    const trous = affiches[i].membres.map((l) => { const b = boite(l); return `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`; }).join('');
+    const trous = explorables[i].membres.map((l) => { const b = boite(l); return `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`; }).join('');
     voile.setAttribute('d', `M0 0H${W}V${H}H0Z${trous}`);
     const apercu = i !== choix.epingle;
     const etatPanneau = element('p', { class: `panneau-etat${apercu ? ' apercu' : ''}` },
-      apercu ? t('panneauApercu', { n: i + 1, actif: choix.epingle + 1 }) : t('panneauActif', { n: i + 1, total: affiches.length }));
+      apercu ? t('panneauApercu', { n: i + 1, actif: choix.epingle + 1 }) : t('panneauActif', { n: i + 1, total: explorables.length }));
     $('panneau').classList.toggle('apercu', apercu);
     $('panneau').replaceChildren(etatPanneau, carteDe(i));
+    // Le panneau ne rapetisse jamais pendant qu'on passe d'un numéro à l'autre : en bas de
+    // page, un panneau plus court ferait remonter la page, le numéro sortirait de sous la
+    // souris et l'affichage clignoterait.
+    hauteurPanneau = Math.max(hauteurPanneau, $('panneau').offsetHeight);
+    $('panneau').style.minHeight = `${hauteurPanneau}px`;
   };
   const survoler = (i) => montrer(i);
   const epingler = (i) => { choix.epingle = i; montrer(i); };
