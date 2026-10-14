@@ -12,6 +12,7 @@
   --encre-2: #55554f;
   --filet: #d6d6cf;
   --accent: #0b5cad;
+  --accent-pale: #e3eef9;
   --ok: #1d7a3a;
   --echec: #b3261e;
   --corriger: #b3261e;
@@ -23,14 +24,14 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --fond: #1a1a19; --surface: #252523; --encre: #ecece6; --encre-2: #b0b0a8;
-    --filet: #3d3d39; --accent: #7ab4f0; --ok: #6cc785; --echec: #f2867d; --inconnu: #9a9a92;
+    --filet: #3d3d39; --accent: #7ab4f0; --accent-pale: #1d3048; --ok: #6cc785; --echec: #f2867d; --inconnu: #9a9a92;
     --corriger: #f2867d; --ameliorer: #f0b060;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --fond: #1a1a19; --surface: #252523; --encre: #ecece6; --encre-2: #b0b0a8;
-  --filet: #3d3d39; --accent: #7ab4f0; --ok: #6cc785; --echec: #f2867d; --inconnu: #9a9a92;
+  --filet: #3d3d39; --accent: #7ab4f0; --accent-pale: #1d3048; --ok: #6cc785; --echec: #f2867d; --inconnu: #9a9a92;
   --corriger: #f2867d; --ameliorer: #f0b060;
   color-scheme: dark;
 }
@@ -117,16 +118,24 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 /* Étape 3 : écran */
 .calibration-pourquoi { background: var(--fond); border-left: 4px solid var(--accent); padding: 8px 12px; border-radius: 0 6px 6px 0; max-width: 70ch; }
 
-/* Étape 4 : une vue à la fois, onglets collés en haut */
+/* Étape 4 : une vue à la fois, choisie par quatre tuiles qui disent à quoi sert chaque vue.
+   Collées en haut sur un écran large ; sur un écran étroit, elles prendraient trop de place. */
 .onglets-analyse {
-  position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px;
-  background: var(--surface); border-bottom: 1px solid var(--filet); margin: 0 -16px 16px; padding: 4px 16px 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+  background: var(--surface); margin: 0 -16px 16px; padding: 8px 16px 12px; border-bottom: 1px solid var(--filet);
 }
+@media (min-width: 900px) { .onglets-analyse { position: sticky; top: 0; z-index: 3; } }
+@media (max-width: 760px) { .onglets-analyse { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .onglets-analyse button {
-  background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0;
-  padding: 10px 12px; font-weight: 700; color: var(--encre-2);
+  display: grid; gap: 2px; align-content: start; text-align: left;
+  background: var(--surface); border: 2px solid var(--filet); border-radius: 10px; padding: 10px 12px;
 }
-.onglets-analyse button[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--accent); }
+.onglets-analyse button b { display: flex; gap: 8px; align-items: center; }
+.onglets-analyse .icone { width: 20px; height: 20px; flex: none; }
+.tuile-desc { color: var(--encre-2); font-size: 0.85rem; }
+.onglets-analyse button:hover { border-color: var(--encre-2); }
+.onglets-analyse button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-pale); }
+.onglets-analyse button[aria-selected="true"] b { color: var(--accent); }
 .vue h3 { margin-top: 0; }
 
 /* Projection : la diapositive sur le mur d'une salle */

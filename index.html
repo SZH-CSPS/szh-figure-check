@@ -134,10 +134,22 @@
         <div class="etape-corps" id="etape-4-corps">
           <!-- Une seule vue de l'analyse à la fois ; la barre d'onglets reste en haut. -->
           <div class="onglets-analyse" role="tablist" data-t-aria="vuesAnalyse">
-            <button type="button" role="tab" id="onglet-page" data-vue="vue-page" aria-controls="vue-page" data-t="navPage"></button>
-            <button type="button" role="tab" id="onglet-textes" data-vue="rapport" aria-controls="rapport" data-t="sectionTextes"></button>
-            <button type="button" role="tab" id="onglet-couleurs" data-vue="vue-couleurs" aria-controls="vue-couleurs" data-t="navVision"></button>
-            <button type="button" role="tab" id="onglet-projection" data-vue="vue-projection" aria-controls="vue-projection" data-t="navProjection"></button>
+            <button type="button" role="tab" id="onglet-page" data-vue="vue-page" aria-controls="vue-page">
+              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 2.5h7l3.5 3.5v11.5H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 9h5M7.5 11.5h5M7.5 14h3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span data-t="navPage"></span></b>
+              <span class="tuile-desc" data-t="descPage"></span>
+            </button>
+            <button type="button" role="tab" id="onglet-textes" data-vue="rapport" aria-controls="rapport">
+              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><text x="1.5" y="15.5" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="currentColor">A</text><text x="11" y="15.5" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="currentColor">a</text></svg><span data-t="sectionTextes"></span></b>
+              <span class="tuile-desc" data-t="descTextes"></span>
+            </button>
+            <button type="button" role="tab" id="onglet-couleurs" data-vue="vue-couleurs" aria-controls="vue-couleurs">
+              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M1.5 10s3.2-5.5 8.5-5.5S18.5 10 18.5 10s-3.2 5.5-8.5 5.5S1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.6" fill="currentColor"/></svg><span data-t="navVision"></span></b>
+              <span class="tuile-desc" data-t="descVision"></span>
+            </button>
+            <button type="button" role="tab" id="onglet-projection" data-vue="vue-projection" aria-controls="vue-projection">
+              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="2.5" y="3" width="15" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 13v3.5M6.5 17.5h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span data-t="navProjection"></span></b>
+              <span class="tuile-desc" data-t="descProjection"></span>
+            </button>
           </div>
 
           <section id="vue-page" class="vue" role="tabpanel" aria-labelledby="onglet-page">
