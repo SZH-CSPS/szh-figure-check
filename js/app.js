@@ -68,6 +68,10 @@ function appliquerLangue() {
   document.documentElement.lang = etat.langue;
   document.title = t('titre');
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
+  if (!BASSE_VISION) {
+    for (const el of document.querySelectorAll('[data-t="basseVisionAide"]')) el.hidden = true;
+    for (const el of document.querySelectorAll('[data-t="descVision"]')) el.textContent = t('descVisionAVenir');
+  }
   for (const el of document.querySelectorAll('[data-t-aria]')) el.setAttribute('aria-label', t(el.dataset.tAria));
   rendreResumes();
   $('langue').textContent = t('autreLangue');
@@ -546,6 +550,8 @@ const VUES_DALTONISME = [
 ];
 const VUES_BASSE_VISION = [['vueAcuite5', 'acuite5'], ['vueAcuite3', 'acuite3'], ['vueContraste', 'contraste'], ['vueCataracte', 'cataracte']];
 const LARGEUR_SIMULATION = 1600;
+// Basse vision en révision : masquée, sauf avec ?basseVision=1 pour la relire.
+const BASSE_VISION = params.get('basseVision') === '1';
 let simulations = { cle: null, urls: {} };
 let vuesVision = [];
 
@@ -593,6 +599,10 @@ async function rendreCouleurs() {
   const [originale, ...autres] = daltonisme;
   vuesVision = daltonisme;
   $('couleurs').replaceChildren(...vignettes(daltonisme));
+  if (!BASSE_VISION) {
+    $('basse-vision').replaceChildren(element('li', { class: 'a-venir' }, t('basseVisionAVenir')));
+    return;
+  }
   $('basse-vision').replaceChildren(element('li', { class: 'discret' }, t('preparation')));
   const source = etat.source;
   if (!(await calculerBasseVision()) || source !== etat.source) return;
