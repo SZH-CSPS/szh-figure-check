@@ -6,6 +6,7 @@ import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConfo
 import { versHex } from './apca.js';
 import { ouvrir } from './sources.js';
 import { lire } from './lecture.js';
+import { filtreBasseVision } from './vision.js';
 import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js';
 import { T, langueInitiale, nombre } from './i18n.js';
 
@@ -514,34 +515,78 @@ window.addEventListener('afterprint', () => {
 
 // ── Couleurs ────────────────────────────────────────────────────────────────────
 
-const VUES = [
+// Daltonismes : filtres SVG appliqués à l'image d'origine. Basse vision : images calculées
+// sur un canevas, à l'échelle de la figure imprimée (le flou dépend de sa largeur).
+const VUES_DALTONISME = [
   ['vueOriginale', ''], ['vueDeuteranopie', 'f-deuteranopie'], ['vueProtanopie', 'f-protanopie'],
   ['vueTritanopie', 'f-tritanopie'], ['vueGris', 'f-gris'],
 ];
+const VUES_BASSE_VISION = [['vueAcuite5', 'acuite5'], ['vueAcuite3', 'acuite3'], ['vueContraste', 'contraste'], ['vueCataracte', 'cataracte']];
+const LARGEUR_SIMULATION = 1600;
+let simulations = { cle: null, urls: {} };
+let vuesVision = [];
+
+async function calculerBasseVision() {
+  const s = etat.source;
+  const largeurMm = figureSurPage().l;
+  const cle = `${s.url}|${largeurMm.toFixed(1)}`;
+  if (simulations.cle === cle) return true;
+  Object.values(simulations.urls).forEach((u) => URL.revokeObjectURL(u));
+  simulations = { cle, urls: {} };
+  const base = await s.dessiner(LARGEUR_SIMULATION);
+  for (const [, vue] of VUES_BASSE_VISION) {
+    const c = document.createElement('canvas');
+    c.width = base.width;
+    c.height = base.height;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.filter = filtreBasseVision(vue, base.width, largeurMm);
+    ctx.drawImage(base, 0, 0);
+    const blob = await new Promise((ok) => c.toBlob(ok, 'image/png'));
+    if (simulations.cle !== cle) return false;
+    simulations.urls[vue] = URL.createObjectURL(blob);
+  }
+  return simulations.cle === cle;
+}
+
+function vignettes(vues, decalage) {
+  return vues.map((v, i) => {
+    const bouton = element('button', { type: 'button', class: 'vignette', 'aria-label': t('agrandirVue', { vue: t(v.cle) }) },
+      element('img', { src: v.src, alt: '', class: v.classe }),
+      element('span', { class: 'vignette-titre' }, t(v.cle)));
+    bouton.addEventListener('click', () => ouvrirVue(decalage + i));
+    return element('li', {}, bouton);
+  });
+}
 
 // Vignettes ; un clic ouvre la vue en grand, où l'on passe d'une simulation à l'autre
 // par les boutons ou les flèches du clavier.
-function rendreCouleurs() {
-  $('couleurs').replaceChildren(...VUES.map(([cle, classe], i) => {
-    const bouton = element('button', { type: 'button', class: 'vignette', 'aria-label': t('agrandirVue', { vue: t(cle) }) },
-      element('img', { src: etat.source.url, alt: '', class: classe }),
-      element('span', { class: 'vignette-titre' }, t(cle)));
-    bouton.addEventListener('click', () => ouvrirVue(i));
-    return element('li', {}, bouton);
-  }));
+async function rendreCouleurs() {
+  if (!etat.source) return;
+  const daltonisme = VUES_DALTONISME.map(([cle, classe]) => ({ cle, classe, src: etat.source.url }));
+  vuesVision = daltonisme;
+  $('couleurs').replaceChildren(...vignettes(daltonisme, 0));
+  $('basse-vision').replaceChildren(element('li', { class: 'discret' }, t('preparation')));
+  const source = etat.source;
+  if (!(await calculerBasseVision()) || source !== etat.source) return;
+  const basse = VUES_BASSE_VISION.map(([cle, vue]) => ({ cle, classe: '', src: simulations.urls[vue] }));
+  vuesVision = [...daltonisme, ...basse];
+  $('basse-vision').replaceChildren(...vignettes(basse, daltonisme.length));
 }
 
 function ouvrirVue(depart) {
   const d = $('dialogue-couleurs');
   const image = $('vue-grande');
-  image.src = etat.source.url;
-  const boutons = VUES.map(([cle], i) => {
-    const b = element('button', { type: 'button', role: 'tab', 'aria-controls': 'vue-grande' }, t(cle));
+  const vues = vuesVision;
+  const boutons = vues.map((v, i) => {
+    const b = element('button', { type: 'button', role: 'tab', 'aria-controls': 'vue-grande' }, t(v.cle));
     b.addEventListener('click', () => choisir(i));
     return b;
   });
   const choisir = (i) => {
-    image.className = VUES[i][1];
+    image.src = vues[i].src;
+    image.className = vues[i].classe;
     boutons.forEach((b, k) => { b.setAttribute('aria-selected', String(k === i)); b.tabIndex = k === i ? 0 : -1; });
     d.dataset.vue = i;
   };
@@ -550,7 +595,7 @@ function ouvrirVue(depart) {
     const sens = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
     if (!sens) return;
     e.preventDefault();
-    const i = (Number(d.dataset.vue) + sens + VUES.length) % VUES.length;
+    const i = (Number(d.dataset.vue) + sens + vues.length) % vues.length;
     choisir(i);
     boutons[i].focus();
   };
@@ -752,6 +797,7 @@ function reglagesChanges() {
   rendreResumes();
   if (!etat.source) return;
   rendrePage();
+  rendreCouleurs();
   if (etat.lecture) rendreAnalyse();
 }
 

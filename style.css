@@ -267,6 +267,8 @@ tr.actif td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .vignette:hover img { transform: scale(1.02); }
 .vignette-titre { display: block; margin-top: 6px; font-size: 0.9rem; font-weight: 700; }
 .vignette-titre::after { content: ' ⤢'; color: var(--encre-2); font-weight: 400; }
+#vue-couleurs h3 { margin: 24px 0 8px; }
+#vue-couleurs h3:first-child { margin-top: 0; }
 .dialogue-vue { max-width: calc(100vw - 32px); width: 1400px; }
 .vue-entete { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .vues-onglets { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }

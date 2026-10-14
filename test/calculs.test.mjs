@@ -202,3 +202,14 @@ test('projection : taille apparente et équivalent papier', async () => {
   const haute = cadreFigure(1);
   assert.ok(Math.abs(haute.h - DIAPO.hauteur * (1 - DIAPO.titre - DIAPO.bas)) < 1e-9);
 });
+
+test('basse vision : flou à l’échelle de la figure imprimée', async () => {
+  const { flouMm, flouPx, filtreBasseVision, MM_PAR_MINUTE } = await import('../js/vision.js');
+  // 1 minute d'arc à 40 cm vaut 0,116 mm ; une acuité de 3/10 floute de 0,39 mm.
+  assert.equal(MM_PAR_MINUTE.toFixed(3), '0.116');
+  assert.equal(flouMm(0.3).toFixed(2), '0.39');
+  // Image de 1600 px imprimée sur 172 mm : 9,3 px par mm.
+  assert.equal(flouPx(0.3, 1600, 172).toFixed(1), '3.6');
+  assert.equal(filtreBasseVision('acuite5', 1600, 172), 'blur(2.16px)');
+  assert.equal(filtreBasseVision('autre', 1600, 172), 'none');
+});
