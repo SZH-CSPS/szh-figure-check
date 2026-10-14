@@ -268,9 +268,7 @@ function resumeGroupe(groupe) {
   };
 }
 
-// `sansTaille` : la taille est traitée par le diagnostic d'ensemble, la carte ne conseille
-// que sur le contraste.
-function carteZone(groupe, numero, canevas, sansTaille = false) {
+function carteZone(groupe, numero, canevas) {
   const l = groupe.representant;
   const r = resumeGroupe(groupe);
   const n = groupe.membres.length;
@@ -293,7 +291,7 @@ function carteZone(groupe, numero, canevas, sansTaille = false) {
     ...(groupe.niveau === 'ok'
       ? [element('p', { class: 'que-faire' }, t('conformeRien'))]
       : [element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
-        element('ul', {}, ...conseils(sansTaille ? { ...r.pour, nt: null } : r.pour, n > 1))]));
+        element('ul', {}, ...conseils(r.pour, n > 1))]));
   return carte;
 }
 
@@ -420,7 +418,7 @@ function rendreAnalyse() {
 
   const cartes = new Map();
   const carteDe = (i) => {
-    if (!cartes.has(i)) cartes.set(i, carteZone(explorables[i], i + 1, canevas, Boolean(diag)));
+    if (!cartes.has(i)) cartes.set(i, carteZone(explorables[i], i + 1, canevas));
     return cartes.get(i);
   };
   const choix = { epingle: explorables.length ? 0 : null };
@@ -493,7 +491,7 @@ function rendreAnalyse() {
   $('ensemble').replaceChildren(...(diag ? [carteEnsemble(diag)] : []));
   $('zones-titre').hidden = !groupes.length;
   $('zones-titre').textContent = t(diag ? 'contrastesTitre' : souple ? 'stylesTitre' : 'zonesTitre', { n: groupes.length });
-  $('zones').replaceChildren(...affiches.map((g, i) => carteZone(g, i + 1, canevas, Boolean(diag))));
+  $('zones').replaceChildren(...affiches.map((g, i) => carteZone(g, i + 1, canevas)));
   $('zones-reste').textContent = groupes.length > affiches.length ? t('autresGroupes', { n: groupes.length - affiches.length }) : '';
 
   // Tous les textes

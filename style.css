@@ -194,9 +194,10 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .explorateur-panneau { position: sticky; top: 16px; }
 .explorateur-panneau .zone { margin: 0; list-style: none; }
 .puces { margin-bottom: 14px; }
-.boites-niveaux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+/* Sous-grille : titres, définitions et numéros alignés d'une boîte à l'autre. */
+.boites-niveaux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; column-gap: 12px; row-gap: 12px; }
 @media (max-width: 760px) { .boites-niveaux { grid-template-columns: minmax(0, 1fr); } }
-.boite-niveau { background: var(--surface); border: 1px solid var(--filet); border-top: 4px solid var(--inconnu); border-radius: 8px; padding: 10px 12px 12px; display: grid; gap: 4px; align-content: start; }
+.boite-niveau { background: var(--surface); border: 1px solid var(--filet); border-top: 4px solid var(--inconnu); border-radius: 8px; padding: 10px 12px 12px; display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 4px; align-content: start; }
 .boite-niveau.corriger { border-top-color: var(--corriger); }
 .boite-niveau.ameliorer { border-top-color: var(--ameliorer); }
 .boite-niveau.ok { border-top-color: var(--ok); }
