@@ -4,8 +4,8 @@
 // Les fonctions de calcul n'ont pas besoin du DOM ; rendreCouleursGraphique() dessine le bloc
 // du rapport.
 
-import { lc, luminanceApca, rapportWcag, versHex } from './apca.js';
-import { T, nombre } from './i18n.js';
+import { lc, luminanceApca, rapportWcag, versHex } from './apca.js?v=fc46882b66';
+import { T, nombre } from './i18n.js?v=fc46882b66';
 
 // ── Seuils ──────────────────────────────────────────────────────────────────────
 

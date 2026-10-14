@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const racine = fileURLToPath(new URL('..', import.meta.url));
 const lire = (chemin) => readFileSync(join(racine, chemin), 'utf8');
-const servis = ['index.html', 'style.css', ...readdirSync(join(racine, 'js')).map((f) => `js/${f}`)];
+const servis = ['index.html', ...readdirSync(racine).filter((f) => f.endsWith('.css')), ...readdirSync(join(racine, 'js')).map((f) => `js/${f}`)];
 
 test('aucune URL externe dans les fichiers de la page', () => {
   for (const f of servis) {
