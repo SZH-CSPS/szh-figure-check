@@ -76,6 +76,7 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 | `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste et bruit du fond d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
+| `js/couleurs-graphique.js` | couleurs des éléments graphiques : aplats dominants, contraste avec le fond, écart entre deux couleurs selon la vision ; bloc du rapport (styles dans `couleurs-graphique.css`) |
 | `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
 | `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
 | `js/i18n.js` | libellés fr et de |
@@ -126,6 +127,21 @@ contraste, regroupées par style de texte (mêmes couleurs de texte et de fond, 
 20 % près). Au-delà de 8 groupes, les cartes passent aussi par style ; les suivants
 restent dans la liste de tous les textes. La couleur proposée
 est la plus proche de l’actuelle qui atteint le seuil plus 10 de marge (Lc 85 ou 100), ou à défaut le seuil.
+
+**Couleurs du graphique.** Les grandes surfaces d’une seule couleur (barres, secteurs,
+aplats) sont repérées sur l’image d’analyse : le fond est la couleur la plus fréquente du
+pourtour ; les textes lus, avec une marge, et les pixels de bord (un voisin qui diffère de
+plus de 16 sur un canal) sont écartés ; les nuances à moins de 12 unités Lab se regroupent.
+Une couleur compte si elle couvre au moins 0,5 % de l’image (8 au plus). Une photo ou un
+dégradé, dont les pixels unis s’étalent sur des dizaines de nuances, n’a pas de couleur
+dominante. Pour chaque couleur, le contraste avec le fond doit atteindre 3:1 (WCAG 2.2,
+critère 1.4.11) et Lc 30 (APCA, élément non textuel) ; « à corriger » commence sous 2:1 ou
+Lc 15. Pour chaque paire, l’écart CIEDE2000 est calculé en vision normale, après simulation
+de la deutéranopie, de la protanopie et de la tritanopie (Machado, Oliveira et Fernandes,
+2009, sévérité 1) et en niveaux de gris : sous 12, deux séries se distinguent mal ; sous 5,
+elles se confondent. Sur la figure d’exemple, le rouge et le vert se distinguent mal en noir
+et blanc (écart 7) et pour une personne deutéranope (écart 11), et le jaune n’a qu’un
+contraste de 1,6:1 avec le fond blanc.
 
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression
 peut échapper à l’OCR. Le « taille réelle » de l’écran n’est juste qu’après le réglage par

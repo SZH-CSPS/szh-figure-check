@@ -1,0 +1,32 @@
+/* Bloc « Couleurs du graphique » du rapport (js/couleurs-graphique.js). */
+.cg { margin-top: 28px; break-inside: auto; }
+.cg h4 { font-size: 1.05rem; margin: 0 0 12px; }
+.cg h5 { font-size: 1rem; margin: 20px 0 10px; }
+.cg-fond { display: flex; gap: 8px; align-items: center; font-size: 0.92rem; }
+.cg-pastille { display: inline-block; flex: none; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--filet); vertical-align: middle; }
+.cg-pastille.petite { width: 18px; height: 18px; border-radius: 4px; }
+.cg-duo { display: inline-flex; flex: none; }
+.cg-duo .cg-pastille + .cg-pastille { margin-left: -1px; }
+.cg-duo .cg-pastille:first-child { border-radius: 6px 0 0 6px; }
+.cg-duo .cg-pastille:last-child { border-radius: 0 6px 6px 0; }
+
+.cg-couleurs, .cg-paires { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.cg-couleurs { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.cg-paires { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+.cg-couleur, .cg-paire { background: var(--surface); border-radius: 8px; box-shadow: var(--ombre); padding: 10px 14px; border-top: 5px solid var(--inconnu); break-inside: avoid; font-size: 0.92rem; }
+.cg-couleur.ok, .cg-paire.ok { border-top-color: var(--ok); }
+.cg-couleur.ameliorer, .cg-paire.ameliorer { border-top-color: var(--ameliorer); }
+.cg-couleur.corriger, .cg-paire.corriger { border-top-color: var(--corriger); }
+.cg-couleur p { margin: 6px 0; }
+.cg-tete { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 4px; }
+.cg-paire .badge { margin-left: auto; }
+.cg-visions { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+.cg-visions li { display: flex; gap: 10px; align-items: center; }
+.cg-visions .cg-pastille { width: 28px; height: 28px; }
+.cg-paire > ul:last-child { margin: 0 0 6px; padding-left: 1.2em; }
+
+@media print {
+  .cg-couleur, .cg-paire { box-shadow: none; border: 1px solid #d6d6cf; border-top-width: 5px; }
+  .cg-couleurs { grid-template-columns: 1fr 1fr 1fr; }
+  .cg-paires { grid-template-columns: 1fr; }
+}

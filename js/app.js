@@ -9,6 +9,7 @@ import { lire } from './lecture.js';
 import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js';
 import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js';
 import { T, langueInitiale, nombre } from './i18n.js';
+import { rendreCouleursGraphique } from './couleurs-graphique.js';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -325,6 +326,7 @@ function rendreAnalyse() {
   const cadre = $('analyse-figure');
   const tbody = document.querySelector('#table-textes tbody');
   const f = FORMATS[etat.format];
+  rendreCouleursGraphique($('couleurs-graphique'), etat.lecture, etat.langue);
   $('rapport-fichier').textContent = t('rapportFichier', {
     nom: etat.source.nom, format: t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre'),
   });
