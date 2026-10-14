@@ -137,6 +137,7 @@
             <button type="button" role="tab" id="onglet-page" data-vue="vue-page" aria-controls="vue-page" data-t="navPage"></button>
             <button type="button" role="tab" id="onglet-textes" data-vue="rapport" aria-controls="rapport" data-t="sectionTextes"></button>
             <button type="button" role="tab" id="onglet-couleurs" data-vue="vue-couleurs" aria-controls="vue-couleurs" data-t="navCouleurs"></button>
+            <button type="button" role="tab" id="onglet-projection" data-vue="vue-projection" aria-controls="vue-projection" data-t="navProjection"></button>
           </div>
 
           <section id="vue-page" class="vue" role="tabpanel" aria-labelledby="onglet-page">
@@ -196,6 +197,21 @@
               </div>
             </details>
             <p id="note-mesure" class="discret"></p>
+          </section>
+
+          <section id="vue-projection" class="vue" role="tabpanel" aria-labelledby="onglet-projection" hidden>
+            <div class="commandes">
+              <fieldset class="bascule">
+                <label><input type="radio" name="salle" value="petite" checked> <span data-t="sallePetite"></span></label>
+                <label><input type="radio" name="salle" value="grande"> <span data-t="salleGrande"></span></label>
+              </fieldset>
+              <label class="champ-nombre"><span data-t="largeurEcran"></span> <input type="number" id="salle-largeur" min="0.5" max="20" step="0.05"> m</label>
+              <label class="champ-nombre"><span data-t="distanceRang"></span> <input type="number" id="salle-distance" min="1" max="60" step="0.5"> m</label>
+            </div>
+            <p id="projection-consigne"></p>
+            <div class="salle"><div class="diapo" id="diapo"></div></div>
+            <div id="projection-bilan" class="bilan"></div>
+            <p class="discret" data-t="projectionNote"></p>
           </section>
 
           <section id="vue-couleurs" class="vue" role="tabpanel" aria-labelledby="onglet-couleurs" hidden>

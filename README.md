@@ -16,6 +16,9 @@ figure et on voit :
   rouge, la taille et le contraste mesurés, un degré de non-conformité et ce qu’il faut
   faire (agrandir de tant de %, prendre telle couleur). Le rapport s’imprime ou
   s’enregistre en PDF pour l’envoyer à la rédaction ;
+- **la figure projetée** sur une diapositive, dans une petite salle avec écran ou une grande
+  salle avec projecteur, à la taille apparente qu’elle a au dernier rang, avec le corps
+  imprimé équivalent de chaque texte (approché, sans réglage de l’écran) ;
 - **la figure vue par des personnes daltoniennes** (deutéranopie, protanopie, tritanopie)
   et en niveaux de gris ; un clic sur une vignette l’ouvre en grand, où l’on passe d’une
   vue à l’autre par les boutons ou les flèches du clavier.
@@ -64,7 +67,8 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 | `js/sources.js` | ouverture d’une image, d’un SVG ou de la première page d’un PDF |
 | `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste d’une zone, degré de non-conformité, couleur proposée, regroupement |
-| `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto |
+| `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
+| `js/projection.js` | diapositive 16:9, salles types, taille apparente et corps équivalent |
 | `js/i18n.js` | libellés fr et de |
 | `js/app.js` | interface |
 

@@ -183,3 +183,16 @@ test('diagnostic d’ensemble : seulement si la moitié des textes est trop peti
   assert.equal(diagnosticEnsemble([3, 3, 3, 3, 3, 9, 9, 9, 9, 9, 9].map(l)), null); // moins de la moitié
   assert.equal(quantile([1, 2, 3, 4], 0.25), 1.75);
 });
+
+test('projection : taille apparente et équivalent papier', async () => {
+  const { cadreFigure, largeurApparenteCm, ptEquivalent, DIAPO, SALLES, CM_PAR_PT } = await import('../js/projection.js');
+  // Un écran de 145 cm vu à 5 m paraît aussi large que 17,4 cm vus à 60 cm.
+  assert.equal(largeurApparenteCm(145, 500).toFixed(1), '17.4');
+  // Un texte de 24 pt sur la diapositive, dans la petite salle, se lit comme 8,2 pt sur papier.
+  const corpsCm = 24 * CM_PAR_PT / DIAPO.largeurCm * SALLES.petite.largeurCm;
+  assert.equal(ptEquivalent(corpsCm, SALLES.petite.distanceCm).toFixed(1), '8.2');
+  // Une figure large est limitée par la largeur, une figure haute par la hauteur.
+  assert.equal(cadreFigure(0.25).l.toFixed(2), '0.92');
+  const haute = cadreFigure(1);
+  assert.ok(Math.abs(haute.h - DIAPO.hauteur * (1 - DIAPO.titre - DIAPO.bas)) < 1e-9);
+});

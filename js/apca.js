@@ -1,5 +1,7 @@
 // Contraste APCA-W3 0.1.9, mêmes constantes que pipeline/apca.py de Pronto, et rapport
 // WCAG 2 pour mémoire. Les couleurs sont des triplets [r, g, b] de 0 à 255.
+// lc() rend les mêmes valeurs que APCAcontrast(sRGBtoY(texte), sRGBtoY(fond)) du paquet
+// officiel apca-w3 0.1.9 (test/apca-reference.test.mjs).
 
 const EXP_CANAL = 2.4;
 const COEFF = [0.2126729, 0.7151522, 0.0721750];

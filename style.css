@@ -129,6 +129,17 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .onglets-analyse button[aria-selected="true"] { color: var(--encre); border-bottom-color: var(--accent); }
 .vue h3 { margin-top: 0; }
 
+/* Projection : la diapositive sur le mur d'une salle */
+.champ-nombre { display: flex; gap: 6px; align-items: center; }
+.champ-nombre input { width: 5.5em; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--filet); border-radius: 6px; padding: 4px 6px; }
+.salle { background: #3b3e42; border-radius: 8px; padding: 32px 16px; display: grid; place-items: center; overflow-x: auto; margin-bottom: 12px; }
+.diapo { position: relative; background: #fff; color: #1d1d1b; display: flex; flex-direction: column; align-items: center; box-shadow: 0 0 24px rgb(0 0 0 / 0.5); flex: none; }
+.diapo-titre { align-self: stretch; display: flex; align-items: center; font-family: 'Open Sans', sans-serif; font-weight: 700; line-height: 1.1; overflow: hidden; }
+.diapo img { display: block; }
+.diapo-voile { position: absolute; inset: 0; background: #fff; pointer-events: none; }
+.bilan.ok { border-color: var(--ok); }
+.bilan.ok .bilan-titre { color: var(--ok); }
+
 /* Commandes */
 .commandes { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-bottom: 12px; }
 .bascule { display: flex; gap: 12px; border: 0; padding: 0; margin: 0; align-items: center; }

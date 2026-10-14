@@ -6,6 +6,7 @@ import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConfo
 import { versHex } from './apca.js';
 import { ouvrir } from './sources.js';
 import { lire } from './lecture.js';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, ptEquivalent } from './projection.js';
 import { T, langueInitiale, nombre } from './i18n.js';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
@@ -23,6 +24,9 @@ const etat = {
   seuil: SEUILS_LC.includes(Number(params.get('lc'))) ? Number(params.get('lc')) : SEUILS_LC[0],
   etape: 1,
   onglet: 'vue-page',
+  salle: 'petite',
+  ecranCm: SALLES.petite.largeurCm,
+  distanceCm: SALLES.petite.distanceCm,
   vue: 'reelle',
   pxParMm: lireCalibration(),
   source: null,
@@ -489,6 +493,7 @@ function rendreAnalyse() {
   $('details-textes').hidden = !lignes.length;
   $('details-titre').textContent = t('tousTextes', { n: lignes.length });
   $('imprimer-rapport').hidden = !lignes.length;
+  rendreProjection();
 
   const exact = lignes.length && lignes.every((l) => l.exact);
   $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: etat.seuil, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
@@ -630,7 +635,7 @@ function validerCalibration() {
   const v = parseFloat($('carte-curseur').value);
   etat.pxParMm = Math.abs(v - PX_PAR_MM_NOMINAL) < 0.005 ? null : v;
   ecrireCalibration(etat.pxParMm);
-  if (etat.source) rendrePage();
+  if (etat.source) { rendrePage(); rendreProjection(); }
   ouvrirEtape(4);
 }
 
@@ -681,6 +686,56 @@ function montrerVue(id) {
     $(b.dataset.vue).hidden = !actif;
   }
   if (id === 'vue-page' && etat.source) zoomer();
+  if (id === 'vue-projection') rendreProjection();
+}
+
+// ── Projection ──────────────────────────────────────────────────────────────────
+
+// La diapositive est affichée à la taille apparente qu'elle aurait au dernier rang. Le
+// bilan donne, pour chaque texte lu, le corps imprimé qui paraîtrait aussi grand.
+function rendreProjection() {
+  $('salle-largeur').value = String(Math.round(etat.ecranCm) / 100);
+  $('salle-distance').value = String(Math.round(etat.distanceCm) / 100);
+  for (const r of document.querySelectorAll('input[name="salle"]')) r.checked = r.value === etat.salle;
+  if (!etat.source) return;
+  const apparenteCm = largeurApparenteCm(etat.ecranCm, etat.distanceCm);
+  const lPx = apparenteCm * (etat.pxParMm || PX_PAR_MM_NOMINAL) * 10;
+  const cadre = cadreFigure(etat.source.ratio);
+  const diapo = $('diapo');
+  Object.assign(diapo.style, { width: `${lPx}px`, height: `${lPx * DIAPO.hauteur}px` });
+  diapo.replaceChildren(
+    element('div', { class: 'diapo-titre', style: {
+      fontSize: `${32 * CM_PAR_PT / DIAPO.largeurCm * lPx}px`,
+      height: `${DIAPO.titre * DIAPO.hauteur * lPx}px`,
+      padding: `0 ${DIAPO.marge * lPx}px`,
+    } }, t('diapoTitre')),
+    element('img', { src: etat.source.url, alt: '', style: { width: `${cadre.l * lPx}px`, height: `${cadre.h * lPx}px` } }),
+    element('div', { class: 'diapo-voile', style: { opacity: String(SALLES[etat.salle].voile) } }),
+  );
+  $('projection-consigne').textContent = `${t('projectionConsigne', {
+    l: nombre(etat.ecranCm / 100, 2).replace(/,?0+$/, ''), d: nombre(etat.distanceCm / 100).replace(/,0$/, ''),
+  })} ${etat.pxParMm ? '' : t('calibrationNon')}`;
+
+  const bilan = $('projection-bilan');
+  if (!etat.lecture) {
+    bilan.className = 'bilan';
+    bilan.replaceChildren(element('p', {}, t('projectionAttente')));
+    return;
+  }
+  const { canevas, lignes } = etat.lecture;
+  const figureCm = cadre.l * etat.ecranCm;
+  const equivalents = lignes.filter((l) => l.corpsPx).map((l) => ptEquivalent(l.corpsPx / canevas.width * figureCm, etat.distanceCm));
+  if (!equivalents.length) {
+    bilan.className = 'bilan';
+    bilan.replaceChildren(element('p', {}, t('aucunTexte')));
+    return;
+  }
+  const petits = equivalents.filter((v) => Math.round(v * 10) / 10 < TAILLE_MIN_PT).length;
+  const min = Math.min(...equivalents);
+  bilan.className = `bilan ${petits ? 'corriger' : 'ok'}`;
+  bilan.replaceChildren(element('p', {}, petits
+    ? t('projectionPetit', { pt: nombre(min), min: TAILLE_MIN_PT, n: petits, total: equivalents.length })
+    : t('projectionOk', { min: TAILLE_MIN_PT })));
 }
 
 function synchroniserReglages() {
@@ -753,6 +808,22 @@ function brancher() {
   $('carte-passer').addEventListener('click', () => ouvrirEtape(4));
   $('calibrer').addEventListener('click', () => ouvrirEtape(3));
 
+  // Projection : une salle type remplit la largeur et la distance, modifiables ensuite.
+  for (const r of document.querySelectorAll('input[name="salle"]')) {
+    r.addEventListener('change', () => {
+      etat.salle = r.value;
+      etat.ecranCm = SALLES[r.value].largeurCm;
+      etat.distanceCm = SALLES[r.value].distanceCm;
+      rendreProjection();
+    });
+  }
+  const metres = (id, cle, min) => $(id).addEventListener('input', (e) => {
+    const v = parseFloat(String(e.target.value).replace(',', '.'));
+    if (v >= min) { etat[cle] = v * 100; rendreProjection(); }
+  });
+  metres('salle-largeur', 'ecranCm', 0.5);
+  metres('salle-distance', 'distanceCm', 1);
+
   // Vues de l'analyse, onglets au clavier compris
   const onglets = [...document.querySelectorAll('.onglets-analyse [role="tab"]')];
   onglets.forEach((b, i) => {
@@ -779,7 +850,7 @@ function brancher() {
 brancher();
 appliquerLangue();
 ouvrirEtape(1);
-const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs' }[params.get('vue')];
+const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs', projection: 'vue-projection' }[params.get('vue')];
 if (vueDemandee) etat.onglet = vueDemandee;
 if (params.get('exemple')) chargerExemple(params.get('exemple'));
 else if (/^tmp\/[\w.-]+$/.test(params.get('figure') || '')) chargerUrl(params.get('figure'));
