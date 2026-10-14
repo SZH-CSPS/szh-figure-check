@@ -1,0 +1,86 @@
+{
+  "version": 2,
+  "notes": "Vérité de terrain des deux figures d'exemple (exemples/, données fictives). Références au format Revue, figure en pleine largeur (171,9 mm : 1 px = 0,406 pt), seuil Lc 75. Boîtes : bornes d'encre mesurées sur le PNG (fond = couleur la plus fréquente du pourtour, encre = pixel à plus de 60 du fond, somme des écarts RVB) ; le SVG a les mêmes coordonnées. Objets : barres et carrés de légende ; les lignes de grille et l'axe ne sont pas listés.",
+  "figures": [
+    {
+      "fichier": "figure-exemple.png",
+      "provenance": "exemples/figure-exemple.svg rendu en 1200 × 800 px",
+      "type": "bitmap",
+      "largeurPx": 1200,
+      "hauteurPx": 800,
+      "verdictAttendu": "corriger",
+      "listeComplete": true,
+      "fond": "#FFFFFF",
+      "textes": [
+        { "texte": "Participation aux mesures de soutien", "boite": { "x0": 82, "y0": 39, "x1": 681, "y1": 71 }, "corpsPt": 13.81, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "2024", "boite": { "x0": 792, "y0": 98, "x1": 841, "y1": 114 }, "corpsPt": 8.93, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "2025", "boite": { "x0": 912, "y0": 98, "x1": 961, "y1": 114 }, "corpsPt": 8.93, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "100 %", "boite": { "x0": 84, "y0": 154, "x1": 125, "y1": 165 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "75 %", "boite": { "x0": 91, "y0": 284, "x1": 125, "y1": 295 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "Part des élèves", "boite": { "x0": 39, "y0": 366, "x1": 53, "y1": 474 }, "corpsPt": 6.5, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "50 %", "boite": { "x0": 91, "y0": 414, "x1": 125, "y1": 425 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "42 %", "boite": { "x0": 992, "y0": 485, "x1": 1037, "y1": 501 }, "corpsPt": 8.12, "couleurTexte": "#FFFFFF", "couleurFond": "#F2C53D", "dansAplat": true, "problematique": true },
+        { "texte": "25 %", "boite": { "x0": 91, "y0": 544, "x1": 125, "y1": 555 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "0 %", "boite": { "x0": 100, "y0": 674, "x1": 125, "y1": 685 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "Berne", "boite": { "x0": 254, "y0": 699, "x1": 317, "y1": 716 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Vaud", "boite": { "x0": 518, "y0": 699, "x1": 571, "y1": 716 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Zurich", "boite": { "x0": 772, "y0": 699, "x1": 837, "y1": 716 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Moyenne", "boite": { "x0": 1002, "y0": 699, "x1": 1099, "y1": 721 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Source : enquête fictive, 2026", "boite": { "x0": 80, "y0": 762, "x1": 252, "y1": 775 }, "corpsPt": 5.28, "couleurTexte": "#BDBDBD", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true }
+      ],
+      "objets": [
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 760, "y0": 96, "x1": 782, "y1": 118 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 880, "y0": 96, "x1": 902, "y1": 118 } },
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 190, "y0": 342, "x1": 280, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 290, "y0": 420, "x1": 380, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 450, "y0": 290, "x1": 540, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 550, "y0": 368, "x1": 640, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 710, "y0": 238, "x1": 800, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 810, "y0": 342, "x1": 900, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#F2C53D", "boite": { "x0": 970, "y0": 461, "x1": 1060, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#F2C53D", "boite": { "x0": 1070, "y0": 498, "x1": 1130, "y1": 680 } }
+      ],
+      "notes": "Graduations 15 px (6,09 pt, gris #A6A6A6) et source 13 px (5,28 pt) à corriger ; titre d'axe vertical 16 px (6,50 pt, à la limite entre « à corriger » et « à améliorer ») ; « 42 % » blanc sur jaune à corriger pour le contraste. Corps en points à 2 décimales."
+    },
+    {
+      "fichier": "figure-exemple.svg",
+      "provenance": "exemples/figure-exemple.svg, 1200 × 800 unités utilisateur",
+      "type": "svg",
+      "largeurPx": 1200,
+      "hauteurPx": 800,
+      "verdictAttendu": "corriger",
+      "listeComplete": true,
+      "fond": "#FFFFFF",
+      "textes": [
+        { "texte": "Participation aux mesures de soutien", "boite": { "x0": 82, "y0": 39, "x1": 681, "y1": 71 }, "corpsPt": 13.81, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "2024", "boite": { "x0": 792, "y0": 98, "x1": 841, "y1": 114 }, "corpsPt": 8.93, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "2025", "boite": { "x0": 912, "y0": 98, "x1": 961, "y1": 114 }, "corpsPt": 8.93, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "100 %", "boite": { "x0": 84, "y0": 154, "x1": 125, "y1": 165 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "75 %", "boite": { "x0": 91, "y0": 284, "x1": 125, "y1": 295 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "Part des élèves", "boite": { "x0": 39, "y0": 366, "x1": 53, "y1": 474 }, "corpsPt": 6.5, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "50 %", "boite": { "x0": 91, "y0": 414, "x1": 125, "y1": 425 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "42 %", "boite": { "x0": 992, "y0": 485, "x1": 1037, "y1": 501 }, "corpsPt": 8.12, "couleurTexte": "#FFFFFF", "couleurFond": "#F2C53D", "dansAplat": true, "problematique": true },
+        { "texte": "25 %", "boite": { "x0": 91, "y0": 544, "x1": 125, "y1": 555 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "0 %", "boite": { "x0": 100, "y0": 674, "x1": 125, "y1": 685 }, "corpsPt": 6.09, "couleurTexte": "#A6A6A6", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true },
+        { "texte": "Berne", "boite": { "x0": 254, "y0": 699, "x1": 317, "y1": 716 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Vaud", "boite": { "x0": 518, "y0": 699, "x1": 571, "y1": 716 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Zurich", "boite": { "x0": 772, "y0": 699, "x1": 837, "y1": 716 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Moyenne", "boite": { "x0": 1002, "y0": 699, "x1": 1099, "y1": 721 }, "corpsPt": 9.75, "couleurTexte": "#1D1D1B", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": false },
+        { "texte": "Source : enquête fictive, 2026", "boite": { "x0": 80, "y0": 762, "x1": 252, "y1": 775 }, "corpsPt": 5.28, "couleurTexte": "#BDBDBD", "couleurFond": "#FFFFFF", "dansAplat": false, "problematique": true }
+      ],
+      "objets": [
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 760, "y0": 96, "x1": 782, "y1": 118 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 880, "y0": 96, "x1": 902, "y1": 118 } },
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 190, "y0": 342, "x1": 280, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 290, "y0": 420, "x1": 380, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 450, "y0": 290, "x1": 540, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 550, "y0": 368, "x1": 640, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#D7301F", "boite": { "x0": 710, "y0": 238, "x1": 800, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#1A9850", "boite": { "x0": 810, "y0": 342, "x1": 900, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#F2C53D", "boite": { "x0": 970, "y0": 461, "x1": 1060, "y1": 680 } },
+        { "type": "rectangle", "couleur": "#F2C53D", "boite": { "x0": 1070, "y0": 498, "x1": 1130, "y1": 680 } }
+      ],
+      "notes": "Mêmes textes et objets que le PNG ; les corps et les couleurs y sont exacts (lus dans le fichier), les boîtes de l'outil sont des boîtes de police, plus hautes que l'encre."
+    }
+  ]
+}

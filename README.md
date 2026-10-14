@@ -63,6 +63,7 @@ node outils/version.mjs          # version des références internes, avant chaq
 node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
 node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
 CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que celui de la page introuvable
+node outils/banc.mjs test/verite-exemples.json exemples --json resultats.json   # banc d'essai (docs/BANC.md)
 ```
 
 **Avant chaque publication**, lancer `node outils/version.mjs` et commiter ce qu’il a
