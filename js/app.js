@@ -1,6 +1,7 @@
-// Interface : dépôt, page simulée, tableau des textes, aperçus des couleurs.
+// Interface : quatre étapes en accordéon (figure, paramètres, écran, analyse) ; l'analyse
+// montre une vue à la fois (aperçu à taille réelle, textes, couleurs).
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, LC_MIN, MM_PAR_PX } from './formats.js';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js';
 import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble } from './analyse.js';
 import { versHex } from './apca.js';
 import { ouvrir } from './sources.js';
@@ -19,6 +20,9 @@ const etat = {
   langue: langueInitiale(params.get('langue'), navigator.language),
   format: FORMATS[params.get('format')] ? params.get('format') : 'revue',
   proportion: null,
+  seuil: SEUILS_LC.includes(Number(params.get('lc'))) ? Number(params.get('lc')) : SEUILS_LC[0],
+  etape: 1,
+  onglet: 'vue-page',
   vue: 'reelle',
   pxParMm: lireCalibration(),
   source: null,
@@ -59,6 +63,8 @@ function appliquerLangue() {
   document.documentElement.lang = etat.langue;
   document.title = t('titre');
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
+  for (const el of document.querySelectorAll('[data-t-aria]')) el.setAttribute('aria-label', t(el.dataset.tAria));
+  rendreResumes();
   $('langue').textContent = t('autreLangue');
   $('langue').lang = etat.langue === 'fr' ? 'de' : 'fr';
   if (etat.source) { rendrePage(); rendreAnalyse(); rendreCouleurs(); }
@@ -135,6 +141,7 @@ function statut(cle, valeurs) {
 async function analyser() {
   const jeton = ++etat.jeton;
   etat.lecture = null;
+  etat.endroits = null;
   rendreAnalyse();
   try {
     const lecture = await lire(etat.source, (etape, p) => {
@@ -163,7 +170,7 @@ function mesures() {
     const lcv = l.contraste ? l.contraste.lc : null;
     // Le degré se décide sur la valeur affichée, arrondie comme elle s'écrit.
     const nt = niveauTaille(pt == null ? null : Math.round(pt * 10) / 10);
-    const nc = niveauContraste(lcv == null ? null : Math.round(lcv));
+    const nc = niveauContraste(lcv == null ? null : Math.round(lcv), etat.seuil);
     return { ...l, id, pt, lc: lcv, nt, nc, niveau: pireNiveau(nt, nc) };
   });
 }
@@ -212,7 +219,9 @@ function conseils(l, plusieurs) {
   const liste = [];
   if (l.nt && l.nt !== 'ok') liste.push(element('li', {}, t(plusieurs ? 'conseilTailles' : 'conseilTaille', { p: agrandissement(l.pt) })));
   if (l.nc && l.nc !== 'ok') {
-    const proposition = couleurConforme(l.contraste.texte, l.contraste.fond);
+    // Avec 10 de marge si possible, sinon juste au seuil.
+    const proposition = couleurConforme(l.contraste.texte, l.contraste.fond, etat.seuil + 10)
+      || couleurConforme(l.contraste.texte, l.contraste.fond, etat.seuil);
     if (!proposition) {
       liste.push(element('li', {}, t('conseilFond')));
     } else {
@@ -273,7 +282,7 @@ function carteZone(groupe, numero, canevas, sansTaille = false) {
     element('dl', {},
       element('div', { class: 'mesure' }, element('dt', {}, t(n > 1 ? 'zoneTextesLus' : 'zoneTexteLu')), element('dd', {}, cites)),
       ligneMesure('zoneTaille', r.taille, r.pour.nt, t('minimumTaille', { min: TAILLE_MIN_PT })),
-      ligneMesure('zoneContraste', r.contraste, r.pour.nc, t('minimumContraste', { lc: LC_MIN }),
+      ligneMesure('zoneContraste', r.contraste, r.pour.nc, t('minimumContraste', { lc: etat.seuil }),
         r.pour.contraste ? nuancier(r.pour.contraste.texte, r.pour.contraste.fond) : null)),
     element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
     element('ul', {}, ...conseils(sansTaille ? { ...r.pour, nt: null } : r.pour, n > 1)));
@@ -332,6 +341,8 @@ function rendreAnalyse() {
   const souple = Boolean(diag) || groupes.length > CARTES_MAX;
   if (souple) groupes = regrouper(fautifs, { souple: true });
   const affiches = groupes.slice(0, CARTES_MAX);
+  etat.endroits = groupes.length;
+  rendreResumes();
 
   // Figure annotée : rien n'y est dessiné par défaut, et on n'agit pas sur elle. Les puces
   // numérotées choisissent le groupe mis en évidence, un seul à la fois : le survol
@@ -480,7 +491,7 @@ function rendreAnalyse() {
   $('imprimer-rapport').hidden = !lignes.length;
 
   const exact = lignes.length && lignes.every((l) => l.exact);
-  $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: LC_MIN, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
+  $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: etat.seuil, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
 }
 
 function imprimerRapport() {
@@ -563,10 +574,34 @@ async function charger(fichier) {
   }
   if (etat.source) URL.revokeObjectURL(etat.source.url);
   etat.source = source;
-  $('resultats').hidden = false;
+  $('choix-figure').hidden = true;
+  $('figure-choisie').hidden = false;
+  $('figure-miniature').src = source.url;
+  $('figure-nom').textContent = source.nom;
+  $('figure-taille').textContent = source.pixels ? t('figureTaille', { l: source.pixels.l, h: source.pixels.h }) : '';
+  for (const b of document.querySelectorAll('.etape-bouton')) b.disabled = false;
   rendrePage();
   rendreCouleurs();
   analyser();
+  const demandee = Number(params.get('etape'));
+  ouvrirEtape(demandee >= 2 && demandee <= 4 ? demandee : 2);
+}
+
+// Retour à l'étape 1 : la figure est oubliée, les réglages sont gardés.
+function autreFigure() {
+  etat.jeton++;
+  if (etat.source) URL.revokeObjectURL(etat.source.url);
+  etat.source = null;
+  etat.lecture = null;
+  etat.endroits = null;
+  $('fichier').value = '';
+  $('choix-figure').hidden = false;
+  $('figure-choisie').hidden = true;
+  $('erreur').hidden = true;
+  statut(null);
+  rendreResumes();
+  ouvrirEtape(1);
+  $('depot').focus();
 }
 
 // Charge une figure servie à côté de la page : un exemple, ou `?figure=chemin` en
@@ -582,25 +617,83 @@ function chargerExemple(type) {
 
 // ── Calibration ─────────────────────────────────────────────────────────────────
 
-function ouvrirCalibration() {
-  const d = $('dialogue-calibration');
-  const curseur = $('carte-curseur');
-  curseur.value = etat.pxParMm || PX_PAR_MM_NOMINAL;
-  const montrer = () => { $('carte').style.width = `${curseur.value * CARTE_MM}px`; };
-  curseur.oninput = montrer;
-  $('carte-moins').onclick = () => { curseur.value = parseFloat(curseur.value) - 0.02; montrer(); };
-  $('carte-plus').onclick = () => { curseur.value = parseFloat(curseur.value) + 0.02; montrer(); };
-  $('carte-annuler').onclick = () => d.close();
-  $('carte-reinitialiser').onclick = () => { curseur.value = PX_PAR_MM_NOMINAL; montrer(); };
-  $('carte-valider').onclick = () => {
-    const v = parseFloat(curseur.value);
-    etat.pxParMm = Math.abs(v - PX_PAR_MM_NOMINAL) < 0.005 ? null : v;
-    ecrireCalibration(etat.pxParMm);
-    d.close();
-    if (etat.source) rendrePage();
-  };
-  montrer();
-  d.showModal();
+function montrerCarte() {
+  $('carte').style.width = `${$('carte-curseur').value * CARTE_MM}px`;
+}
+
+function preparerCalibration() {
+  $('carte-curseur').value = etat.pxParMm || PX_PAR_MM_NOMINAL;
+  montrerCarte();
+}
+
+function validerCalibration() {
+  const v = parseFloat($('carte-curseur').value);
+  etat.pxParMm = Math.abs(v - PX_PAR_MM_NOMINAL) < 0.005 ? null : v;
+  ecrireCalibration(etat.pxParMm);
+  if (etat.source) rendrePage();
+  ouvrirEtape(4);
+}
+
+// ── Étapes et vues ──────────────────────────────────────────────────────────────
+
+const RESUMES = {
+  1: () => (etat.source ? etat.source.nom : ''),
+  2: () => (etat.source ? `${t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre')} · Lc\u00a0${etat.seuil}` : ''),
+  3: () => (etat.source ? t(etat.pxParMm ? 'resumeEcranOui' : 'resumeEcranNon') : ''),
+  4: () => {
+    if (!etat.source) return '';
+    if (etat.endroits == null) return t('resumeAnalyseEnCours');
+    return etat.endroits ? t('resumeAnalyse', { n: etat.endroits }) : t('resumeAnalyseOk');
+  },
+};
+
+function rendreResumes() {
+  for (const n of [1, 2, 3, 4]) $(`resume-${n}`).textContent = RESUMES[n]();
+}
+
+// Une seule étape ouverte. Les étapes passées portent une coche.
+function ouvrirEtape(n) {
+  etat.etape = n;
+  for (const k of [1, 2, 3, 4]) {
+    const ouverte = k === n;
+    $(`etape-${k}-corps`).hidden = !ouverte;
+    const bouton = document.querySelector(`.etape-bouton[data-etape="${k}"]`);
+    bouton.setAttribute('aria-expanded', String(ouverte));
+    $(`etape-${k}`).classList.toggle('ouverte', ouverte);
+    const faite = Boolean(etat.source) && !ouverte && k < 4;
+    $(`etape-${k}`).classList.toggle('faite', faite);
+    bouton.querySelector('.etape-num').textContent = faite ? '✓' : String(k);
+  }
+  if (n === 3) preparerCalibration();
+  if (n === 4 && etat.source) montrerVue(etat.onglet);
+  rendreResumes();
+  const li = $(`etape-${n}`);
+  if (li.getBoundingClientRect().top < 0) li.scrollIntoView({ block: 'start' });
+}
+
+// Une seule vue de l'analyse à la fois.
+function montrerVue(id) {
+  etat.onglet = id;
+  for (const b of document.querySelectorAll('.onglets-analyse [role="tab"]')) {
+    const actif = b.dataset.vue === id;
+    b.setAttribute('aria-selected', String(actif));
+    b.tabIndex = actif ? 0 : -1;
+    $(b.dataset.vue).hidden = !actif;
+  }
+  if (id === 'vue-page' && etat.source) zoomer();
+}
+
+function synchroniserReglages() {
+  for (const r of document.querySelectorAll('input[name="format"]')) r.checked = r.value === etat.format;
+  for (const r of document.querySelectorAll('input[name="seuil"]')) r.checked = Number(r.value) === etat.seuil;
+  $('proportion').value = etat.proportion ? String(etat.proportion) : '';
+}
+
+function reglagesChanges() {
+  rendreResumes();
+  if (!etat.source) return;
+  rendrePage();
+  if (etat.lecture) rendreAnalyse();
 }
 
 // ── Branchements ────────────────────────────────────────────────────────────────
@@ -624,20 +717,58 @@ function brancher() {
   window.addEventListener('drop', (e) => e.preventDefault());
 
   $('exemple').addEventListener('click', () => chargerExemple('png'));
+  $('autre-figure').addEventListener('click', autreFigure);
   $('langue').addEventListener('click', () => { etat.langue = etat.langue === 'fr' ? 'de' : 'fr'; appliquerLangue(); });
-  for (const r of document.querySelectorAll('input[name="format"]')) {
-    r.checked = r.value === etat.format;
-    r.addEventListener('change', () => { etat.format = r.value; rendrePage(); if (etat.lecture) rendreAnalyse(); });
+
+  // Étapes
+  for (const b of document.querySelectorAll('.etape-bouton')) {
+    b.disabled = b.dataset.etape !== '1';
+    b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.etape)));
   }
+  for (const b of document.querySelectorAll('[data-aller]')) b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.aller)));
+
+  // Paramètres
+  synchroniserReglages();
+  for (const r of document.querySelectorAll('input[name="format"]')) {
+    r.addEventListener('change', () => { etat.format = r.value; reglagesChanges(); });
+  }
+  for (const r of document.querySelectorAll('input[name="seuil"]')) {
+    r.addEventListener('change', () => { etat.seuil = Number(r.value); reglagesChanges(); });
+  }
+  $('proportion').addEventListener('change', (e) => { etat.proportion = parseFloat(e.target.value) || null; reglagesChanges(); });
+
+  // Info-bulle : un clic l'ouvre ou la ferme, Échap ou un clic ailleurs la ferme.
+  const bulle = $('info-seuil'), boutonInfo = $('info-seuil-bouton');
+  const basculer = (ouvrir) => { bulle.hidden = !ouvrir; boutonInfo.setAttribute('aria-expanded', String(ouvrir)); };
+  boutonInfo.addEventListener('click', (e) => { e.preventDefault(); basculer(bulle.hidden); });
+  document.addEventListener('click', (e) => { if (!bulle.hidden && !e.target.closest('.info')) basculer(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !bulle.hidden) { basculer(false); boutonInfo.focus(); } });
+
+  // Écran
+  $('carte-curseur').addEventListener('input', montrerCarte);
+  $('carte-moins').addEventListener('click', () => { $('carte-curseur').value = parseFloat($('carte-curseur').value) - 0.02; montrerCarte(); });
+  $('carte-plus').addEventListener('click', () => { $('carte-curseur').value = parseFloat($('carte-curseur').value) + 0.02; montrerCarte(); });
+  $('carte-reinitialiser').addEventListener('click', () => { $('carte-curseur').value = PX_PAR_MM_NOMINAL; montrerCarte(); });
+  $('carte-valider').addEventListener('click', validerCalibration);
+  $('carte-passer').addEventListener('click', () => ouvrirEtape(4));
+  $('calibrer').addEventListener('click', () => ouvrirEtape(3));
+
+  // Vues de l'analyse, onglets au clavier compris
+  const onglets = [...document.querySelectorAll('.onglets-analyse [role="tab"]')];
+  onglets.forEach((b, i) => {
+    b.addEventListener('click', () => montrerVue(b.dataset.vue));
+    b.addEventListener('keydown', (e) => {
+      const sens = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (!sens) return;
+      e.preventDefault();
+      const suivant = onglets[(i + sens + onglets.length) % onglets.length];
+      montrerVue(suivant.dataset.vue);
+      suivant.focus();
+    });
+  });
   for (const r of document.querySelectorAll('input[name="vue"]')) {
     r.addEventListener('change', () => { etat.vue = r.value; zoomer(); });
   }
-  $('proportion').addEventListener('change', (e) => {
-    etat.proportion = parseFloat(e.target.value) || null;
-    rendrePage();
-    if (etat.lecture) rendreAnalyse();
-  });
-  $('calibrer').addEventListener('click', ouvrirCalibration);
   $('vue-fermer').addEventListener('click', () => $('dialogue-couleurs').close());
   $('dialogue-couleurs').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('imprimer').addEventListener('click', () => window.print());
@@ -647,5 +778,8 @@ function brancher() {
 
 brancher();
 appliquerLangue();
+ouvrirEtape(1);
+const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs' }[params.get('vue')];
+if (vueDemandee) etat.onglet = vueDemandee;
 if (params.get('exemple')) chargerExemple(params.get('exemple'));
 else if (/^tmp\/[\w.-]+$/.test(params.get('figure') || '')) chargerUrl(params.get('figure'));

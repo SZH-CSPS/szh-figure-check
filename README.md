@@ -20,6 +20,11 @@ figure et on voit :
   et en niveaux de gris ; un clic sur une vignette l’ouvre en grand, où l’on passe d’une
   vue à l’autre par les boutons ou les flèches du clavier.
 
+Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
+(format, largeur, contraste minimal Lc 60 par défaut ou Lc 75 recommandé), régler l’écran,
+lire l’analyse. L’analyse montre une vue à la fois : aperçu à taille réelle, taille et
+contraste des textes, couleurs.
+
 La figure ne quitte pas le navigateur. Interface en français et en allemand.
 
 ## Héberger
@@ -48,7 +53,7 @@ node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rap
 CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que celui de la page introuvable
 ```
 
-`?exemple=png|svg` charge la figure d’exemple, `?figure=tmp/nom.png` une figure du dossier
+`?exemple=png|svg` charge la figure d’exemple, `?etape=2|3|4` ouvre une étape, `?vue=page|textes|couleurs` choisit la vue de l’analyse, `?lc=75` le seuil de contraste, `?figure=tmp/nom.png` une figure du dossier
 `tmp/` (non suivi : les figures d’auteurs ne vont pas dans le dépôt), `?langue=de` et `?format=livre` fixent la
 langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 `body[data-etat="fini"]`, imprime le tableau des textes et enregistre une capture.
@@ -92,7 +97,8 @@ et la mesure est un peu plus sévère que la couleur nominale.
 | ! À améliorer | de 6,5 à 8 pt | de Lc 45 à 60 |
 | ✕ À corriger | moins de 6,5 pt | moins de Lc 45 |
 
-Le degré se décide sur la valeur affichée, arrondie. Les textes qui ont le même défaut
+Les seuils de contraste sont ceux du réglage par défaut, Lc 60 ; avec Lc 75, « à améliorer »
+va de Lc 60 à 75 et « à corriger » commence sous Lc 60. Le degré se décide sur la valeur affichée, arrondie. Les textes qui ont le même défaut
 (graduations d’un axe, par exemple) forment un seul endroit à revoir.
 
 **Figure très chargée.** Quand la moitié au moins des textes (et au moins 5) sont sous

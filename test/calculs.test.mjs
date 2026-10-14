@@ -113,6 +113,9 @@ test('degré de non-conformité aux seuils', () => {
   assert.equal(niveauContraste(59.5), 'ok');
   assert.equal(niveauContraste(-59.4), 'ameliorer');
   assert.equal(niveauContraste(44.4), 'corriger');
+  assert.equal(niveauContraste(74, 75), 'ameliorer');
+  assert.equal(niveauContraste(74.5, 75), 'ok');
+  assert.equal(niveauContraste(59, 75), 'corriger');
   assert.equal(pireNiveau('ok', null, 'corriger', 'ameliorer'), 'corriger');
   assert.equal(pireNiveau(null, null), null);
 });

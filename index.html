@@ -38,92 +38,172 @@
   </header>
 
   <main>
-    <section class="depot-zone">
-      <label id="depot" class="depot" tabindex="0">
-        <input type="file" id="fichier" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf,.svg,.pdf" hidden>
-        <strong data-t="deposer"></strong>
-        <span data-t="formatsAcceptes"></span>
-        <span class="discret" data-t="confidentialite"></span>
-      </label>
-      <button type="button" id="exemple" class="lien" data-t="exemple"></button>
-      <p id="erreur" class="erreur" role="alert" hidden></p>
-    </section>
-
-    <section id="resultats" hidden>
-      <h2 data-t="sectionPage"></h2>
-      <div class="commandes">
-        <fieldset class="bascule" id="formats">
-          <legend data-t="format"></legend>
-          <label><input type="radio" name="format" value="revue" checked> <span data-t="formatRevue"></span></label>
-          <label><input type="radio" name="format" value="livre"> <span data-t="formatLivre"></span></label>
-        </fieldset>
-        <label class="champ"><span data-t="largeur"></span>
-          <select id="proportion">
-            <option value="" data-t="largeurAuto"></option>
-            <option value="1" data-t="largeur100"></option>
-            <option value="0.75" data-t="largeur75"></option>
-            <option value="0.5" data-t="largeur50"></option>
-          </select>
-        </label>
-        <fieldset class="bascule" id="vues">
-          <label><input type="radio" name="vue" value="reelle" checked> <span data-t="vueReelle"></span></label>
-          <label><input type="radio" name="vue" value="page"> <span data-t="vuePage"></span></label>
-        </fieldset>
-        <button type="button" id="calibrer" data-t="calibrer"></button>
-        <button type="button" id="imprimer" data-t="imprimer"></button>
-      </div>
-      <p class="infos"><span id="dimensions"></span> <span id="calibration" class="discret"></span></p>
-      <ul id="alertes-page" class="alertes"></ul>
-      <div id="cadre-page" class="cadre-page"><div id="page" class="page"></div></div>
-      <p class="discret" data-t="conseilImpression"></p>
-
-      <div id="rapport" class="rapport">
-        <div class="titre-section">
-          <h2 data-t="sectionTextes"></h2>
-          <button type="button" id="imprimer-rapport" data-t="imprimerRapport" hidden></button>
-        </div>
-        <p id="rapport-fichier" class="discret"></p>
-        <p id="statut" class="statut" aria-live="polite"></p>
-        <div id="bilan" class="bilan" hidden></div>
-        <div id="ensemble"></div>
-        <ul class="niveaux" id="niveaux" hidden>
-          <li class="corriger"><span class="symbole" aria-hidden="true">✕</span> <b data-t="niveau_corriger"></b> <span data-t="legende_corriger"></span></li>
-          <li class="ameliorer"><span class="symbole" aria-hidden="true">!</span> <b data-t="niveau_ameliorer"></b> <span data-t="legende_ameliorer"></span></li>
-          <li class="ok"><span class="symbole" aria-hidden="true">✓</span> <b data-t="niveau_ok"></b> <span data-t="legende_ok"></span></li>
-        </ul>
-        <div class="explorateur">
-          <div class="explorateur-figure">
-            <div class="puces" id="puces"></div>
-            <div class="analyse-figure" id="analyse-figure"></div>
+    <!-- Quatre étapes en accordéon : une seule ouverte à la fois, les étapes 2 à 4
+         inaccessibles tant qu'aucune figure n'est choisie. -->
+    <ol class="etapes">
+      <li class="etape" id="etape-1">
+        <h2 class="etape-titre">
+          <button type="button" class="etape-bouton" data-etape="1" aria-controls="etape-1-corps">
+            <span class="etape-num">1</span><span class="etape-nom" data-t="etape1"></span><span class="etape-resume" id="resume-1"></span>
+          </button>
+        </h2>
+        <div class="etape-corps" id="etape-1-corps">
+          <div id="choix-figure">
+            <label id="depot" class="depot" tabindex="0">
+              <input type="file" id="fichier" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf,.svg,.pdf" hidden>
+              <strong data-t="deposer"></strong>
+              <span data-t="formatsAcceptes"></span>
+              <span class="discret" data-t="confidentialite"></span>
+            </label>
+            <button type="button" id="exemple" class="lien" data-t="exemple"></button>
           </div>
-          <div class="explorateur-panneau" id="panneau" role="tabpanel" aria-live="polite"></div>
-        </div>
-        <div class="cartes-impression">
-          <h3 id="zones-titre" hidden></h3>
-          <ol id="zones" class="zones"></ol>
-        </div>
-        <p id="zones-reste" class="discret"></p>
-        <details id="details-textes" hidden>
-          <summary id="details-titre"></summary>
-          <div class="analyse-table">
-            <table id="table-textes">
-              <thead><tr>
-                <th scope="col" data-t="colTexte"></th>
-                <th scope="col" data-t="colTaille"></th>
-                <th scope="col" data-t="colContraste"></th>
-                <th scope="col" data-t="colCouleurs"></th>
-              </tr></thead>
-              <tbody></tbody>
-            </table>
+          <div id="figure-choisie" class="figure-choisie" hidden>
+            <img id="figure-miniature" alt="">
+            <span class="figure-nom"><b id="figure-nom"></b><small id="figure-taille" class="discret"></small></span>
+            <button type="button" id="autre-figure" data-t="autreFigure"></button>
           </div>
-        </details>
-        <p id="note-mesure" class="discret"></p>
-      </div>
+          <p id="erreur" class="erreur" role="alert" hidden></p>
+        </div>
+      </li>
 
-      <h2 data-t="sectionCouleurs"></h2>
-      <p data-t="couleursAide"></p>
-      <ul id="couleurs" class="couleurs"></ul>
-    </section>
+      <li class="etape" id="etape-2">
+        <h2 class="etape-titre">
+          <button type="button" class="etape-bouton" data-etape="2" aria-controls="etape-2-corps">
+            <span class="etape-num">2</span><span class="etape-nom" data-t="etape2"></span><span class="etape-resume" id="resume-2"></span>
+          </button>
+        </h2>
+        <div class="etape-corps" id="etape-2-corps">
+          <div class="reglages">
+            <fieldset class="groupe-choix">
+              <legend data-t="format"></legend>
+              <label><input type="radio" name="format" value="revue"> <span data-t="formatRevue"></span></label>
+              <label><input type="radio" name="format" value="livre"> <span data-t="formatLivre"></span></label>
+            </fieldset>
+            <label class="groupe-choix"><span class="legende" data-t="largeur"></span>
+              <select id="proportion">
+                <option value="" data-t="largeurAuto"></option>
+                <option value="1" data-t="largeur100"></option>
+                <option value="0.75" data-t="largeur75"></option>
+                <option value="0.5" data-t="largeur50"></option>
+              </select>
+            </label>
+            <fieldset class="groupe-choix">
+              <legend class="legende-info"><span data-t="seuil"></span>
+                <span class="info"><button type="button" class="info-bouton" id="info-seuil-bouton" aria-expanded="false" aria-controls="info-seuil" data-t-aria="seuilInfoAria">i</button><span class="bulle" id="info-seuil" role="note" hidden data-t="seuilInfo"></span></span>
+              </legend>
+              <label><input type="radio" name="seuil" value="60"> <span data-t="seuil60"></span></label>
+              <label><input type="radio" name="seuil" value="75"> <span data-t="seuil75"></span></label>
+            </fieldset>
+          </div>
+          <div class="pied-etape">
+            <button type="button" class="principal" data-aller="3" data-t="continuer"></button>
+          </div>
+        </div>
+      </li>
+
+      <li class="etape" id="etape-3">
+        <h2 class="etape-titre">
+          <button type="button" class="etape-bouton" data-etape="3" aria-controls="etape-3-corps">
+            <span class="etape-num">3</span><span class="etape-nom" data-t="etape3"></span><span class="etape-resume" id="resume-3"></span>
+          </button>
+        </h2>
+        <div class="etape-corps" id="etape-3-corps">
+          <p class="calibration-pourquoi" data-t="calibrationPourquoi"></p>
+          <p data-t="calibrationAide"></p>
+          <div class="carte-zone"><div id="carte" class="carte"></div></div>
+          <div class="carte-commandes">
+            <button type="button" id="carte-moins" data-t="plusPetit"></button>
+            <input type="range" id="carte-curseur" min="2" max="9" step="0.01" data-t-aria="calibrationCurseur">
+            <button type="button" id="carte-plus" data-t="plusGrand"></button>
+          </div>
+          <p class="discret" data-t="calibrationGardee"></p>
+          <div class="pied-etape">
+            <button type="button" id="carte-reinitialiser" class="lien" data-t="reinitialiser"></button>
+            <button type="button" id="carte-passer" data-t="passer"></button>
+            <button type="button" id="carte-valider" class="principal" data-t="valider"></button>
+          </div>
+        </div>
+      </li>
+
+      <li class="etape" id="etape-4">
+        <h2 class="etape-titre">
+          <button type="button" class="etape-bouton" data-etape="4" aria-controls="etape-4-corps">
+            <span class="etape-num">4</span><span class="etape-nom" data-t="etape4"></span><span class="etape-resume" id="resume-4"></span>
+          </button>
+        </h2>
+        <div class="etape-corps" id="etape-4-corps">
+          <!-- Une seule vue de l'analyse à la fois ; la barre d'onglets reste en haut. -->
+          <div class="onglets-analyse" role="tablist" data-t-aria="vuesAnalyse">
+            <button type="button" role="tab" id="onglet-page" data-vue="vue-page" aria-controls="vue-page" data-t="navPage"></button>
+            <button type="button" role="tab" id="onglet-textes" data-vue="rapport" aria-controls="rapport" data-t="sectionTextes"></button>
+            <button type="button" role="tab" id="onglet-couleurs" data-vue="vue-couleurs" aria-controls="vue-couleurs" data-t="navCouleurs"></button>
+          </div>
+
+          <section id="vue-page" class="vue" role="tabpanel" aria-labelledby="onglet-page">
+            <div class="commandes">
+              <fieldset class="bascule">
+                <label><input type="radio" name="vue" value="reelle" checked> <span data-t="vueReelle"></span></label>
+                <label><input type="radio" name="vue" value="page"> <span data-t="vuePage"></span></label>
+              </fieldset>
+              <button type="button" id="calibrer" data-t="calibrer"></button>
+              <button type="button" id="imprimer" data-t="imprimer"></button>
+            </div>
+            <p class="infos"><span id="dimensions"></span> <span id="calibration" class="discret"></span></p>
+            <ul id="alertes-page" class="alertes"></ul>
+            <div id="cadre-page" class="cadre-page"><div id="page" class="page"></div></div>
+            <p class="discret" data-t="conseilImpression"></p>
+          </section>
+
+          <section id="rapport" class="vue rapport" role="tabpanel" aria-labelledby="onglet-textes" hidden>
+            <div class="titre-section">
+              <h3 data-t="sectionTextes"></h3>
+              <button type="button" id="imprimer-rapport" data-t="imprimerRapport" hidden></button>
+            </div>
+            <p id="rapport-fichier" class="discret"></p>
+            <p id="statut" class="statut" aria-live="polite"></p>
+            <div id="bilan" class="bilan" hidden></div>
+            <div id="ensemble"></div>
+            <ul class="niveaux" id="niveaux" hidden>
+              <li class="corriger"><span class="symbole" aria-hidden="true">✕</span> <b data-t="niveau_corriger"></b> <span data-t="legende_corriger"></span></li>
+              <li class="ameliorer"><span class="symbole" aria-hidden="true">!</span> <b data-t="niveau_ameliorer"></b> <span data-t="legende_ameliorer"></span></li>
+              <li class="ok"><span class="symbole" aria-hidden="true">✓</span> <b data-t="niveau_ok"></b> <span data-t="legende_ok"></span></li>
+            </ul>
+            <div class="explorateur">
+              <div class="explorateur-figure">
+                <div class="puces" id="puces"></div>
+                <div class="analyse-figure" id="analyse-figure"></div>
+              </div>
+              <div class="explorateur-panneau" id="panneau" role="tabpanel" aria-live="polite"></div>
+            </div>
+            <div class="cartes-impression">
+              <h4 id="zones-titre" hidden></h4>
+              <ol id="zones" class="zones"></ol>
+            </div>
+            <p id="zones-reste" class="discret"></p>
+            <details id="details-textes" hidden>
+              <summary id="details-titre"></summary>
+              <div class="analyse-table">
+                <table id="table-textes">
+                  <thead><tr>
+                    <th scope="col" data-t="colTexte"></th>
+                    <th scope="col" data-t="colTaille"></th>
+                    <th scope="col" data-t="colContraste"></th>
+                    <th scope="col" data-t="colCouleurs"></th>
+                  </tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </details>
+            <p id="note-mesure" class="discret"></p>
+          </section>
+
+          <section id="vue-couleurs" class="vue" role="tabpanel" aria-labelledby="onglet-couleurs" hidden>
+            <p data-t="couleursAide"></p>
+            <ul id="couleurs" class="couleurs"></ul>
+          </section>
+        </div>
+      </li>
+    </ol>
   </main>
 
   <footer class="pied"><p data-t="pied"></p></footer>
@@ -135,22 +215,6 @@
     </div>
     <div id="vues-onglets" class="vues-onglets" role="tablist"></div>
     <div class="vue-cadre"><img id="vue-grande" alt=""></div>
-  </dialog>
-
-  <dialog id="dialogue-calibration">
-    <h2 data-t="calibrationTitre"></h2>
-    <p data-t="calibrationAide"></p>
-    <div class="carte-zone"><div id="carte" class="carte"></div></div>
-    <div class="carte-commandes">
-      <button type="button" id="carte-moins" data-t="plusPetit"></button>
-      <input type="range" id="carte-curseur" min="2" max="9" step="0.01" aria-labelledby="carte-moins">
-      <button type="button" id="carte-plus" data-t="plusGrand"></button>
-    </div>
-    <div class="carte-actions">
-      <button type="button" id="carte-reinitialiser" class="lien" data-t="reinitialiser"></button>
-      <button type="button" id="carte-annuler" data-t="annuler"></button>
-      <button type="button" id="carte-valider" class="principal" data-t="valider"></button>
-    </div>
   </dialog>
 </body>
 </html>

@@ -5,9 +5,12 @@ export const MM_PAR_PX = 25.4 / 96;      // 1 px CSS
 export const MM_PAR_PT = 25.4 / 72;
 
 export const TAILLE_MIN_PT = 8;          // plus petit texte admis dans une figure
-export const LC_MIN = 60;                // contraste APCA minimal d'un texte de figure
 export const TAILLE_GRAVE_PT = 6.5;      // en dessous : « à corriger », au-dessus : « à améliorer »
-export const LC_GRAVE = 45;              // idem pour le contraste ; Lc 45 suffit à peine à un gros titre
+// Contraste APCA minimal d'un texte de figure, au choix : Lc 60 par défaut, Lc 75
+// recommandé (minimum APCA du texte courant). « À corriger » commence 15 en dessous.
+export const SEUILS_LC = [60, 75];
+export const LC_MIN = SEUILS_LC[0];
+export const ECART_GRAVE_LC = 15;
 
 export const FORMATS = {
   revue: {

@@ -2,7 +2,7 @@
 // des coordonnées de l'image tournée à l'image d'origine, degré de non-conformité, couleur conforme.
 
 import { lc, luminanceApca } from './apca.js';
-import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, LC_GRAVE } from './formats.js';
+import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './formats.js';
 
 // Rapport hauteur du glyphe / corps, moyen sur les sans-serif courantes (Arial, Open Sans,
 // Calibri, Helvetica). Les minuscules sans hampe donnent la hauteur d'x, les capitales et
@@ -149,11 +149,11 @@ export function niveauTaille(pt) {
   return pt >= TAILLE_GRAVE_PT ? 'ameliorer' : 'corriger';
 }
 
-export function niveauContraste(valeur) {
+export function niveauContraste(valeur, seuil = LC_MIN) {
   if (valeur == null) return null;
   const v = Math.abs(valeur) + TOLERANCE_LC;
-  if (v >= LC_MIN) return 'ok';
-  return v >= LC_GRAVE ? 'ameliorer' : 'corriger';
+  if (v >= seuil) return 'ok';
+  return v >= seuil - ECART_GRAVE_LC ? 'ameliorer' : 'corriger';
 }
 
 export function pireNiveau(...niveaux) {
