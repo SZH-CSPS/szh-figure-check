@@ -26,7 +26,7 @@ figure et on voit :
   de sensibilisation, à regarder en taille réelle à 40 cm. Acuité 5/10 et 3/10 (flou
   gaussien), seuil et confort de lecture comparés aux textes de la figure (unité M, réserve
   d’acuité de 2), contraste perçu affaibli et cataracte par la méthode du contraste local
-  par bandes de Peli. Les limites de chaque modèle sont dites dans la page ;
+  par bandes de Peli. Les limites de chaque modèle sont dites dans la page.
 
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
 (format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
