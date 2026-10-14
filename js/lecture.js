@@ -4,7 +4,17 @@
 
 import { corpsDepuisSymboles, hauteurGlyphe, contrasteZone, depuisRotation, recouvrement, unionBoites, mediane } from './analyse.js';
 
-const TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+// Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
+// la page : rien n'est demandé à un autre serveur. Les chemins sont absolus, parce que le
+// travailleur les résout depuis sa propre adresse.
+const VENDOR = new URL('../vendor/', import.meta.url);
+const TESSERACT = new URL('tesseract/tesseract.min.js', VENDOR).href;
+const OPTIONS_TESSERACT = {
+  workerPath: new URL('tesseract/worker.min.js', VENDOR).href,
+  workerBlobURL: false,
+  corePath: new URL('tesseract-core/', VENDOR).href,
+  langPath: new URL('tessdata/', VENDOR).href,
+};
 const LANGUES = 'fra+deu+eng';
 const CONFIANCE_MIN = 55;
 const CONFIANCE_MIN_TOURNEE = 70;        // à l'envers, l'OCR invente davantage
@@ -28,7 +38,7 @@ function charger(url) {
 async function ocr() {
   if (!travailleur) {
     if (!window.Tesseract) await charger(TESSERACT);
-    travailleur = await window.Tesseract.createWorker(LANGUES, 1, { logger: (m) => suivre(m) });
+    travailleur = await window.Tesseract.createWorker(LANGUES, 1, { ...OPTIONS_TESSERACT, logger: (m) => suivre(m) });
     // Mode « texte épars » : une figure n'a pas de paragraphes, l'analyse de mise en page
     // par défaut y perd les graduations et les petites notes.
     await travailleur.setParameters({ tessedit_pageseg_mode: '11' });

@@ -25,9 +25,18 @@ La figure ne quitte pas le navigateur. Interface en français et en allemand.
 ## Héberger
 
 Aucun serveur applicatif ni build : copier le dossier sur n’importe quel hébergement de
-fichiers statiques (GitHub Pages, un dossier du site, etc.). Le navigateur charge depuis
-jsDelivr Tesseract.js 5.1.1 (OCR) et pdf.js 4.4.168 (PDF), et Tesseract télécharge ses
-données de langue (fra, deu, eng, quelques Mo, une fois) depuis tessdata.projectnaptha.com.
+fichiers statiques. Il est publié sur GitHub Pages : https://szh-csps.github.io/szh-figure-check/
+
+**Tout est servi par le site lui-même** : polices, OCR (Tesseract.js, son moteur
+WebAssembly et les données de langue fra, deu, eng), lecture des PDF (pdf.js). Les
+bibliothèques sont copiées dans `vendor/`, avec leurs versions, licences et empreintes
+(`vendor/README.md`). La politique de sécurité de contenu de `index.html` interdit au
+navigateur toute connexion vers un autre serveur.
+
+**Aucune télémétrie** : ni statistiques de visite, ni cookie, ni envoi de la figure ou des
+résultats. Le seul stockage est local au navigateur : le réglage de l’écran
+(`localStorage`) et le cache des données de langue de l’OCR (IndexedDB). L’hébergeur voit
+les requêtes de fichiers comme pour toute page web (journaux de GitHub Pages).
 
 ## Développer
 
@@ -36,6 +45,7 @@ node outils/serveur.mjs          # http://localhost:8123/ ; les modules ES refus
 node --test test/*.test.mjs      # calculs : APCA, géométrie, contraste, verdicts, i18n
 node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
 node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
+CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que localhost introuvable
 ```
 
 `?exemple=png|svg` charge la figure d’exemple, `?figure=tmp/nom.png` une figure du dossier

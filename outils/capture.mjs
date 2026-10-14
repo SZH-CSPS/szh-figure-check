@@ -13,7 +13,11 @@ const PORT = 9333;
 const profil = await mkdtemp(join(tmpdir(), 'szh-capture-'));
 const proc = spawn(navigateur, [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profil}`,
-  '--window-size=1280,1000', '--hide-scrollbars', 'about:blank',
+  '--window-size=1280,1000', '--hide-scrollbars',
+  // CAPTURE_HORS_LIGNE : tout nom d'hôte autre que localhost est introuvable ; prouve que
+  // la page ne dépend d'aucun autre serveur.
+  ...(process.env.CAPTURE_HORS_LIGNE ? ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost'] : []),
+  'about:blank',
 ], { stdio: 'ignore' });
 
 const attendre = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -33,12 +37,14 @@ ws.addEventListener('message', (e) => {
   const m = JSON.parse(e.data);
   if (m.id && enAttente.has(m.id)) { enAttente.get(m.id)(m); enAttente.delete(m.id); }
   if (m.method === 'Runtime.consoleAPICalled') console.log('[console]', m.params.args.map((a) => a.value ?? a.description).join(' '));
+  if (m.method === 'Log.entryAdded') console.log('[log]', m.params.entry.level, m.params.entry.text, m.params.entry.url || '');
   if (m.method === 'Runtime.exceptionThrown') console.log('[exception]', m.params.exceptionDetails.exception?.description);
 });
 const cdp = (method, params = {}) => new Promise((ok) => { const n = ++id; enAttente.set(n, ok); ws.send(JSON.stringify({ id: n, method, params })); });
 const evaluer = async (expr) => (await cdp('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result.result.value;
 
 await cdp('Runtime.enable');
+await cdp('Log.enable');
 await cdp('Page.enable');
 await cdp('Page.navigate', { url });
 const debut = Date.now();

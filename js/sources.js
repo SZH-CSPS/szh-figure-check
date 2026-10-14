@@ -3,7 +3,7 @@
 // (ou null), une fonction qui la dessine sur un canevas d'une largeur donnée et, pour le
 // SVG et le PDF, la liste exacte de ses textes.
 
-const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/';
+const PDFJS = new URL('../vendor/pdfjs/', import.meta.url).href;
 
 const UNITES_PX = { '': 1, px: 1, pt: 96 / 72, pc: 16, mm: 96 / 25.4, cm: 96 / 2.54, in: 96 };
 
@@ -122,7 +122,7 @@ async function ouvrirPdf(fichier) {
     pdfjs = await import(PDFJS + 'pdf.min.mjs');
     pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs';
   }
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()) }).promise;
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()), isEvalSupported: false }).promise;
   const page = await pdf.getPage(1);
   const base = page.getViewport({ scale: 1 });
   const rendre = async (largeur) => {
