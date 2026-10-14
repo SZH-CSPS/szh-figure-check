@@ -22,7 +22,7 @@ figure et on voit :
   atteindre 1/200 de la distance du dernier rang ;
 - **la figure vue par des personnes daltoniennes** (deutéranopie, protanopie, tritanopie)
   et en niveaux de gris ;
-- **la basse vision** (en révision, visible avec `?basseVision=1`) : approximations à but
+- **la basse vision** : approximations à but
   de sensibilisation, à regarder en taille réelle à 40 cm. Acuité 5/10 et 3/10 (flou
   gaussien), seuil et confort de lecture comparés aux textes de la figure (unité M, réserve
   d’acuité de 2), contraste perçu affaibli et cataracte par la méthode du contraste local

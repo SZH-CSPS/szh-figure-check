@@ -92,6 +92,7 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 }
 .depot strong { font-size: 1.15rem; }
 .depot.survol { border-color: var(--accent); }
+.depot-actions { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin-top: 10px; }
 .erreur { color: var(--echec); font-weight: 700; margin-top: 12px; }
 .figure-choisie { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
 .figure-choisie img { width: 96px; height: auto; border: 1px solid var(--filet); background: #fff; }

@@ -553,8 +553,8 @@ const VUES_DALTONISME = [
 const VUES_BASSE_VISION = [['vueAcuite5', 'acuite5'], ['vueAcuite3', 'acuite3'], ['vueContraste', 'contraste'], ['vueCataracte', 'cataracte']];
 const LARGEUR_SIMULATION = 1600;
 const LARGEUR_SIMULATION_CONTRASTE = 900;
-// Basse vision en révision : masquée, sauf avec ?basseVision=1 pour la relire.
-const BASSE_VISION = params.get('basseVision') === '1';
+// Basse vision : affichée ; ?basseVision=0 la remplace par « à venir ».
+const BASSE_VISION = params.get('basseVision') !== '0';
 let simulations = { cle: null, urls: {} };
 let vuesVision = [];
 
@@ -751,6 +751,13 @@ async function chargerUrl(chemin) {
   await charger(new File([blob], chemin.split('/').pop(), { type: blob.type }));
 }
 
+// Une image collée n'a pas de nom utile : on lui en donne un, daté.
+function renommerCollage(fichier) {
+  const extension = (fichier.type.split('/')[1] || 'png').replace('svg+xml', 'svg').replace('jpeg', 'jpg');
+  const heure = new Date().toTimeString().slice(0, 5).replace(':', 'h');
+  return new File([fichier], `${t('nomCollage')}-${heure}.${extension}`, { type: fichier.type });
+}
+
 function chargerExemple(type) {
   return chargerUrl(EXEMPLES[type] || EXEMPLES.png);
 }
@@ -912,6 +919,30 @@ function brancher() {
   window.addEventListener('drop', (e) => e.preventDefault());
 
   $('exemple').addEventListener('click', () => chargerExemple('png'));
+
+  // Coller une image : Ctrl+V n'importe où (sauf dans un champ de saisie), ou le bouton, qui
+  // lit le presse-papiers quand le navigateur le permet.
+  document.addEventListener('paste', (e) => {
+    if (e.target.closest && e.target.closest('input, textarea, select')) return;
+    const fichier = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/') || f.type === 'application/pdf');
+    if (!fichier) {
+      if (etat.etape === 1) montrerErreur('collerRien');
+      return;
+    }
+    e.preventDefault();
+    charger(renommerCollage(fichier));
+  });
+  $('coller').addEventListener('click', async () => {
+    try {
+      for (const element of await navigator.clipboard.read()) {
+        const type = element.types.find((x) => x.startsWith('image/'));
+        if (type) { charger(renommerCollage(new File([await element.getType(type)], 'image', { type }))); return; }
+      }
+      montrerErreur('collerRien');
+    } catch {
+      montrerErreur('collerRefuse');
+    }
+  });
   $('autre-figure').addEventListener('click', autreFigure);
   $('langue').addEventListener('click', () => { etat.langue = etat.langue === 'fr' ? 'de' : 'fr'; appliquerLangue(); });
 
