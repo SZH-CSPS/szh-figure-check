@@ -71,7 +71,7 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 | `js/formats.js` | géométrie des pages de Pronto, seuils, place de la figure, conversion en points |
 | `js/sources.js` | ouverture d’une image, d’un SVG ou de la première page d’un PDF |
 | `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
-| `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste d’une zone, degré de non-conformité, couleur proposée, regroupement |
+| `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste et bruit du fond d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
 | `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
 | `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
@@ -89,7 +89,11 @@ entière : il doit être recadré sur la figure.
 **Corps d’un texte.** Dans un SVG (éléments `<text>`) ou un PDF (texte non vectorisé), il
 est lu dans le fichier. Dans une image, Tesseract trouve les mots (mode « texte épars », sur
 une copie en gris assombrie pour ne pas perdre le gris clair, puis une seconde fois tournée
-d’un quart de tour pour les textes verticaux). La hauteur d’encre des minuscules sans hampe
+d’un quart de tour pour les textes verticaux). Sur une photo ou une peinture, l’OCR prend
+des taches pour des lettres ; deux règles les écartent. Un mot n’est gardé que si le fond
+autour de lui est uni : la variation du fond, loin des bords des lettres, doit rester sous
+0,17 fois l’écart entre texte et fond. Une ligne de trois lettres ou chiffres au plus exige
+une confiance de l’OCR de 85, et de 95 sur l’image tournée. La hauteur d’encre des minuscules sans hampe
 et des capitales est mesurée sur les pixels et convertie en corps (hauteur d’x 0,52 em,
 capitale 0,71 em). Sur la figure d’exemple, l’écart avec les tailles exactes du SVG reste
 sous 4 % pour les textes droits.

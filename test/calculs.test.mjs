@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { lc, rapportWcag, versHex } from '../js/apca.js';
 import { FORMATS, zoneContenu, tailleFigure, versPoints, MM_PAR_PX } from '../js/formats.js';
 import {
-  corpsDepuisSymboles, contrasteZone, depuisRotation, recouvrement, seuilOtsu,
+  corpsDepuisSymboles, contrasteZone, bruitFond, ligneCourteFiable, BRUIT_FOND_MAX, depuisRotation, recouvrement, seuilOtsu,
   niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, quantile,
 } from '../js/analyse.js';
 import { T, TEXTES, nombre, langueInitiale } from '../js/i18n.js';
@@ -91,6 +91,49 @@ test('Otsu sépare deux pics', () => {
   h[30] = 100; h[220] = 300;
   const s = seuilOtsu(h, 400);
   assert.ok(s >= 30 && s < 220);
+});
+
+// Fond texturé comme une photo : chaque pixel tiré au hasard autour de `moyenne`, avec un
+// générateur fixe pour que le test rende toujours la même chose.
+function imageTexturee(l, h, moyenne, amplitude, texte, boite) {
+  let graine = 12345;
+  const hasard = () => ((graine = (graine * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  const px = new Uint8ClampedArray(l * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < l; x++) {
+      const dedans = x >= boite.x0 && x < boite.x1 && y >= boite.y0 && y < boite.y1;
+      const v = Math.round(moyenne + (hasard() - 0.5) * 2 * amplitude);
+      px.set([...(dedans ? texte : [v, v, v]), 255], (y * l + x) * 4);
+    }
+  }
+  return px;
+}
+
+test('bruit du fond : nul sur un fond uni, grand sur un fond texturé', () => {
+  const boite = { x0: 10, x1: 20, y0: 5, y1: 12 };
+  const zone = { x0: 5, y0: 2, x1: 30, y1: 15 };
+  assert.equal(bruitFond(image(40, 20, [255, 255, 255], [60, 60, 60], boite), 40, 20, zone), 0);
+  // Tache sombre sur un fond qui varie de ± 40 autour de 160, comme dans une photo.
+  assert.ok(bruitFond(imageTexturee(40, 20, 160, 40, [60, 60, 60], boite), 40, 20, zone) > BRUIT_FOND_MAX);
+  // Texte noir sur un fond blanc à peine bruité, comme dans un graphique en JPEG.
+  assert.ok(bruitFond(imageTexturee(40, 20, 245, 6, [0, 0, 0], boite), 40, 20, zone) < BRUIT_FOND_MAX);
+});
+
+test('bruit du fond : zone uniforme, pas de mesure', () => {
+  const px = image(20, 20, [255, 255, 255], [255, 255, 255], { x0: 0, x1: 0, y0: 0, y1: 0 });
+  assert.equal(bruitFond(px, 20, 20, { x0: 0, y0: 0, x1: 20, y1: 20 }), null);
+});
+
+test('ligne courte : gardée seulement si l’OCR en est sûr', () => {
+  const m = (text, confidence) => ({ text, confidence });
+  assert.equal(ligneCourteFiable([m('EN', 76)], 85), false);
+  assert.equal(ligneCourteFiable([m('50', 88)], 85), true);
+  assert.equal(ligneCourteFiable([m('Le', 71), m('3', 66)], 85), false);
+  assert.equal(ligneCourteFiable([m('0%', 96)], 85), true);
+  assert.equal(ligneCourteFiable([m('Il', 91)], 95), false);
+  // Au-delà de trois lettres ou chiffres, la ligne n'est pas jugée ici.
+  assert.equal(ligneCourteFiable([m('Vaud', 60)], 85), true);
+  assert.equal(ligneCourteFiable([m('2024', 60)], 95), true);
 });
 
 test('rotation : retour aux coordonnées d’origine', () => {
