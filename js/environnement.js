@@ -8,11 +8,15 @@
 export const MOTIF = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [200, 100, 50]];
 export const POSITIONS = [[0, 0], [1, 0], [0, 1], [1, 1]];
 
-// Vrai si les pixels lus (RGBA, 16 valeurs) sont exactement ceux du motif : une lecture
-// vide, uniforme ou brouillée d'un seul bit est une lecture bloquée.
+// Brave (« Bloquer les empreintes numériques » en mode standard) brouille les bits de poids
+// faible des pixels lus : la lecture reste utilisable pour mesurer. Au-delà de TOLERANCE par
+// canal, ou sur une lecture vide ou uniforme, la lecture est bloquée.
+export const TOLERANCE = 8;
+
+// Vrai si les pixels lus (RGBA, 16 valeurs) sont ceux du motif, à TOLERANCE près par canal.
 export function motifIntact(donnees) {
   if (!donnees || donnees.length !== 16) return false;
-  return MOTIF.every((c, i) => c.every((v, k) => donnees[i * 4 + k] === v) && donnees[i * 4 + 3] === 255);
+  return MOTIF.every((c, i) => c.every((v, k) => Math.abs(donnees[i * 4 + k] - v) <= TOLERANCE) && donnees[i * 4 + 3] >= 255 - TOLERANCE);
 }
 
 function canevasDocument() {
@@ -49,7 +53,7 @@ export function verifierEnvironnement(globale = globalThis, creerCanevas = canev
   };
 }
 
-const SONDE = new URL('./sonde-travailleur.js?v=34a354cfe0', import.meta.url).href;
+const SONDE = new URL('./sonde-travailleur.js?v=b295d983d5', import.meta.url).href;
 
 // Lance le travailleur d'essai : { wasm, worker } vus depuis un travailleur. Un travailleur qui
 // ne démarre pas (erreur) vaut « pas de Worker » ; un silence au-delà du délai ne conclut rien.

@@ -24,11 +24,18 @@ function faux(lecture = (d) => d) {
   });
 }
 
-test('motifIntact : exact seulement', () => {
+test('motifIntact : fidèle à TOLERANCE près, pas au-delà', () => {
   assert.equal(motifIntact(motif()), true);
   assert.equal(motifIntact(new Uint8ClampedArray(16)), false);
+  // Brouillage de Brave : quelques unités sur les canaux, lecture encore utilisable.
+  const farble = motif();
+  farble[1] ^= 1;
+  farble[4] += 3;
+  farble[10] -= 5;
+  assert.equal(motifIntact(farble), true);
+  // Au-delà de la tolérance : bloqué.
   const bruite = motif();
-  bruite[1] ^= 1;
+  bruite[1] += 20;
   assert.equal(motifIntact(bruite), false);
   assert.equal(motifIntact(null), false);
   assert.equal(motifIntact(new Uint8ClampedArray(4)), false);
@@ -37,7 +44,9 @@ test('motifIntact : exact seulement', () => {
 test('lirePixelsPossible : lecture fidèle, vide, brouillée ou refusée', () => {
   assert.equal(lirePixelsPossible(faux()), true);
   assert.equal(lirePixelsPossible(faux(() => new Uint8ClampedArray(16))), false);
-  assert.equal(lirePixelsPossible(faux((d) => d.map((v, i) => (i % 4 === 3 ? v : v ^ 1)))), false);
+  // Brouillage léger (Brave) : lecture utilisable ; brouillage fort : bloquée.
+  assert.equal(lirePixelsPossible(faux((d) => d.map((v, i) => (i % 4 === 3 ? v : v ^ 1)))), true);
+  assert.equal(lirePixelsPossible(faux((d) => d.map((v, i) => (i % 4 === 3 ? v : (v + 60) % 256)))), false);
   assert.equal(lirePixelsPossible(() => { throw new Error('SecurityError'); }), false);
   assert.equal(lirePixelsPossible(() => ({ getContext: () => null })), false);
 });

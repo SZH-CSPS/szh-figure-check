@@ -57,12 +57,15 @@ L’outil demande au navigateur trois choses, vérifiées au démarrage :
 - la **lecture des pixels d’un canevas** (`getImageData`) : toutes les mesures en dépendent.
 
 Ce qui les bloque : les bloqueurs de scripts (NoScript, uBlock Origin en mode strict) pour WebAssembly,
-et la protection contre le pistage de Firefox (`privacy.resistFingerprinting`, protection renforcée) pour
-la lecture des pixels. Dans le premier cas, un message dit d’autoriser le site puis de recharger la page.
-Dans le second, le bouton « Autoriser » refait le test dans un clic, ce qui fait apparaître la demande de
-Firefox ; sans autorisation, « Continuer sans mesures » laisse l’aperçu à taille réelle seul. Autre voie :
-autoriser « l’accès aux données d’image » depuis l’icône à gauche de l’adresse, ou ajouter le site à
-`privacy.resistFingerprinting.exemptedDomains` dans `about:config`.
+et les protections contre les empreintes numériques pour la lecture des pixels : « Bloquer les empreintes
+numériques » des Shields de Brave, `privacy.resistFingerprinting` de Firefox (protection renforcée), et des
+extensions du même genre. Le test de lecture tolère le brouillage léger de Brave en mode standard (quelques
+unités par canal) et ne refuse qu’une lecture vide, uniforme ou fortement brouillée. Dans le premier cas, un
+message dit d’autoriser le site puis de recharger la page. Dans le second, le message nomme Brave (lion à
+droite de l’adresse, interrupteur à désactiver pour ce site) et Firefox (le bouton « Autoriser » refait le
+test dans un clic, ce qui fait apparaître la demande du navigateur ; ou « l’accès aux données d’image » depuis
+l’icône à gauche de l’adresse, ou `privacy.resistFingerprinting.exemptedDomains` dans `about:config`) ;
+« Continuer sans mesures » laisse l’aperçu à taille réelle seul.
 
 Le **premier chargement télécharge environ 26 Mo, une fois** (moteur et modèle de détection, 17 Mo,
 plus l’OCR et ses trois langues) : un recouvrement bloque la page, avec une barre de progression,
