@@ -1,9 +1,5 @@
-/* Bloc « Objets du graphique » du rapport (js/objets.js). */
-.ob { margin-top: 28px; break-inside: auto; }
-.ob h4 { font-size: 1.05rem; margin: 0 0 8px; }
-.ob-details > summary { cursor: pointer; padding: 6px 0; }
-.ob-details > summary h4 { display: inline; margin: 0; font-size: 1rem; font-weight: 400; }
-.ob-action { color: var(--accent); text-decoration: underline; font-weight: 400; }
+/* Vue « Objets du graphique » (js/objets.js), après les textes dans le rapport imprimé. */
+.ob { break-inside: auto; }
 .ob-bilan { margin: 12px 0; }
 .ob-bilan p { margin: 0; }
 .ob-bilan-titre { font-weight: 700; margin-bottom: 4px !important; }
@@ -22,6 +18,7 @@
 .ob-image { position: relative; background: #fff; box-shadow: var(--ombre); }
 .ob-image img { display: block; width: 100%; height: auto; }
 .ob-calque { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
 .ob-interrupteur { display: inline-flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 0.92rem; cursor: pointer; }
 
 .ob-series, .ob-paires { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 12px; }
@@ -51,8 +48,8 @@
 @media print {
   .ob-serie, .ob-paire, .ob-image { box-shadow: none; border: 1px solid #d6d6cf; }
   .ob-serie, .ob-paire { border-top-width: 5px; }
+  .ob-interrupteur { display: none; }
   .ob-series { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ob-paires { grid-template-columns: 1fr; }
-  .ob-interrupteur { display: none; }
   .ob-figure { break-inside: avoid; }
 }

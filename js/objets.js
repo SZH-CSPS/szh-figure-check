@@ -6,13 +6,13 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=9ef9d97364';
-import { MM_PAR_PT } from './formats.js?v=9ef9d97364';
+import { versHex } from './apca.js?v=418fa05147';
+import { MM_PAR_PT } from './formats.js?v=418fa05147';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=9ef9d97364';
-import { T, nombre } from './i18n.js?v=9ef9d97364';
+} from './couleur.js?v=418fa05147';
+import { T, nombre } from './i18n.js?v=418fa05147';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -1016,6 +1016,7 @@ export const PALETTE_CONTOURS = ['#0b5cad', '#e6007e', '#008b8b', '#ff7f00', '#6
 const cache = new WeakMap();   // lecture → { largeurMm, brut, promesse, erreur }
 let appel = null;              // dernier appel à rendreObjets, rejoué quand la détection finit
 let dernier = null;            // { analyse, echelle } du dernier bloc rendu
+let resumeCourant = null;      // résumé d'une ligne du dernier bloc rendu
 
 function element(nom, attributs = {}, ...enfants) {
   const el = document.createElement(nom);
@@ -1059,8 +1060,9 @@ async function detecter(lecture, source, mmParPx) {
   return brut;
 }
 
-// Calque des contours : pixels de bord des objets d'une série, à la couleur de la série,
-// sur un halo blanc ; pour une source exacte, la boîte de chaque objet.
+// Calque des contours : un canevas dont `montrer(ids)` ne dessine que les séries demandées,
+// à la couleur de la série, sur un halo blanc ; pour une source exacte, la boîte de chaque
+// objet. Les bords sont repérés une fois, chaque appel efface et redessine.
 function calqueContours(analyse, brut) {
   const c = document.createElement('canvas');
   const couleurDe = (s) => PALETTE_CONTOURS[(s - 1) % PALETTE_CONTOURS.length];
@@ -1069,21 +1071,26 @@ function calqueContours(analyse, brut) {
     c.width = W; c.height = H;
     const serieDeComp = new Int16Array(nComp + 1).fill(-1);
     for (const o of analyse.objets) if (o.serie != null) for (const k of o.comps) serieDeComp[k] = o.serie;
-    const contours = [];
+    const contours = new Map();   // série → pixels de bord
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const p = y * W + x, cp = comp[p];
         if (!cp || serieDeComp[cp] < 0) continue;
-        if ((x > 0 && comp[p - 1] !== cp) || (x < W - 1 && comp[p + 1] !== cp) || (y > 0 && comp[p - W] !== cp) || (y < H - 1 && comp[p + W] !== cp)) contours.push(p);
+        if ((x > 0 && comp[p - 1] !== cp) || (x < W - 1 && comp[p + 1] !== cp) || (y > 0 && comp[p - W] !== cp) || (y < H - 1 && comp[p + W] !== cp)) {
+          const s = serieDeComp[cp];
+          if (!contours.has(s)) contours.set(s, []);
+          contours.get(s).push(p);
+        }
       }
     }
+    const ctx = c.getContext('2d');
     const image = new ImageData(W, H);
     const d = image.data;
     const rayon = Math.max(1, Math.round(W / 700));
-    const peindre = (r, teinte) => {
-      for (const p of contours) {
+    const rvb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const peindre = (r, pixels, [cr, cg, cb]) => {
+      for (const p of pixels) {
         const x = p % W, y = (p - x) / W;
-        const [cr, cg, cb] = teinte(serieDeComp[comp[p]]);
         for (let dy = -r; dy <= r; dy++) {
           const yy = y + dy;
           if (yy < 0 || yy >= H) continue;
@@ -1096,38 +1103,31 @@ function calqueContours(analyse, brut) {
         }
       }
     };
-    peindre(rayon + 1, () => [255, 255, 255]);
-    const rvb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    peindre(rayon, (s) => rvb(couleurDe(s)));
-    c.getContext('2d').putImageData(image, 0, 0);
+    c.montrer = (ids) => {
+      d.fill(0);
+      const choisies = ids.filter((s) => contours.has(s));
+      for (const s of choisies) peindre(rayon + 1, contours.get(s), [255, 255, 255]);
+      for (const s of choisies) peindre(rayon, contours.get(s), rvb(couleurDe(s)));
+      ctx.putImageData(image, 0, 0);
+    };
   } else {
     c.width = brut.largeur; c.height = brut.hauteur;
     const ctx = c.getContext('2d');
     const epaisseur = Math.max(2, Math.round(brut.largeur / 500));
-    for (const o of analyse.objets) {
-      if (o.serie == null) continue;
-      const { x0, y0, x1, y1 } = o.boite;
-      for (const [couleur, e] of [['#fff', epaisseur + 2], [couleurDe(o.serie), epaisseur]]) {
-        ctx.strokeStyle = couleur; ctx.lineWidth = e;
-        ctx.strokeRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+    c.montrer = (ids) => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      for (const o of analyse.objets) {
+        if (o.serie == null || !ids.includes(o.serie)) continue;
+        const { x0, y0, x1, y1 } = o.boite;
+        for (const [couleur, e] of [['#fff', epaisseur + 2], [couleurDe(o.serie), epaisseur]]) {
+          ctx.strokeStyle = couleur; ctx.lineWidth = e;
+          ctx.strokeRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+        }
       }
-    }
+    };
   }
   c.className = 'ob-calque';
   return c;
-}
-
-// Remplit `conteneur` avec le bloc « Objets du graphique » ; le vide sans lecture.
-// `largeurMm` est la largeur imprimée de la figure.
-// Le bloc est replié par défaut ; son état survit aux rendus, et l'impression le déplie.
-let ouvert = false;
-if (typeof window !== 'undefined') {
-  let avant = [];
-  window.addEventListener('beforeprint', () => {
-    avant = [...document.querySelectorAll('.ob-details')].map((d) => [d, d.open]);
-    for (const [d] of avant) d.open = true;
-  });
-  window.addEventListener('afterprint', () => { for (const [d, o] of avant) d.open = o; });
 }
 
 // Résumé d'une ligne : ce qui est à corriger dans les séries, et les paires confondues.
@@ -1143,22 +1143,19 @@ function resumeObjets(analyse, t) {
   return parties.length ? parties.join(', ') : t('objetsResumeOk');
 }
 
-// Le bloc entier dans un <details> dont le <summary> dit le résultat en une ligne.
-function replie(t, resume, ...contenu) {
-  const action = element('span', { class: 'ob-action' }, t(ouvert ? 'objetsMasquer' : 'objetsAfficher'));
-  const details = element('details', { class: 'ob-details' },
-    element('summary', {}, element('h4', {}, element('b', {}, t('objetsTitre')), `${t('objetsSep')}${resume}. `), action),
-    ...contenu);
-  details.open = ouvert;
-  details.addEventListener('toggle', () => { ouvert = details.open; action.textContent = t(ouvert ? 'objetsMasquer' : 'objetsAfficher'); });
-  return element('section', { class: 'ob' }, details);
-}
+// Résumé d'une ligne du dernier rendu, null tant que les objets ne sont pas analysés.
+export const resumeObjetsCourant = () => resumeCourant;
 
-export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
-  appel = { conteneur, lecture, source, largeurMm, langue };
+// Remplit `conteneur` avec la vue « Objets du graphique » ; le vide sans lecture.
+// `largeurMm` est la largeur imprimée de la figure ; `rappel` est appelé à chaque rendu, une
+// fois le résumé à jour (le sous-titre de la tuile le lit).
+export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rappel = () => {}) {
+  appel = { conteneur, lecture, source, largeurMm, langue, rappel };
+  resumeCourant = null;
   if (!lecture) {
     conteneur.replaceChildren();
     dernier = null;
+    rappel();
     return;
   }
   const t = (cle, valeurs) => T(langue, cle, valeurs);
@@ -1170,12 +1167,12 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
     const debut = performance.now();
     entree.promesse = detecter(lecture, source, mmParPx)
       .then((brut) => { entree.brut = brut; entree.duree = performance.now() - debut; }, (e) => { entree.erreur = e; console.error(e); })
-      .then(() => { if (appel && appel.lecture === lecture && cache.get(lecture) === entree) rendreObjets(appel.conteneur, appel.lecture, appel.source, appel.largeurMm, appel.langue); });
+      .then(() => { if (appel && appel.lecture === lecture && cache.get(lecture) === entree) rendreObjets(appel.conteneur, appel.lecture, appel.source, appel.largeurMm, appel.langue, appel.rappel); });
   }
-  const titre = element('h4', {}, t('objetsTitre'));
   if (!entree.brut) {
-    conteneur.replaceChildren(element('section', { class: 'ob' }, titre,
+    conteneur.replaceChildren(element('section', { class: 'ob' },
       element('p', { class: 'discret' }, t(entree.erreur ? 'objetsErreur' : 'objetsEnCours'))));
+    rappel();
     return;
   }
   const analyse = analyserObjets(entree.brut, { mmParPx, boites: boitesTextes(lecture) });
@@ -1195,10 +1192,12 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
   const methode = element('p', { class: 'discret' }, `${t(analyse.exact ? 'objetsExact' : 'objetsApproche')}${analyse.images ? ` ${t('objetsImages', { n: analyse.images })}` : ''}`);
 
   if (!analyse.formes) {
-    conteneur.replaceChildren(replie(t, t('objetsResumeAucune'),
+    resumeCourant = t('objetsResumeAucune');
+    conteneur.replaceChildren(element('section', { class: 'ob' },
       element('div', { class: 'ob-bilan inconnu' }, element('p', { class: 'ob-bilan-titre' }, t('objetsAucune')),
         element('p', {}, t(analyse.degrades ? 'objetsAucuneDegrade' : 'objetsAucuneExplication'))),
       methode));
+    rappel();
     return;
   }
 
@@ -1211,6 +1210,7 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
 
   // Figure et calque des contours, avec son interrupteur.
   const calque = calqueContours(analyse, entree.brut);
+  calque.montrer(analyse.series.map((s) => s.id));
   const interrupteur = element('input', { type: 'checkbox', checked: '' });
   interrupteur.addEventListener('change', () => { calque.hidden = !interrupteur.checked; });
   const figure = element('div', { class: 'ob-figure' },
@@ -1284,8 +1284,11 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
     min: WCAG_GRAPHIQUE, lc: LC_GRAPHIQUE, distinct: DELTA_E_DISTINCT, confondu: DELTA_E_CONFONDU,
     ameliorer: decimal(EPAISSEUR_AMELIORER_PT), corriger: decimal(EPAISSEUR_CORRIGER_PT), surface: decimal(SURFACE_MIN_MM2),
   })));
-  conteneur.replaceChildren(replie(t, resumeObjets(analyse, t), ...blocs));
+  resumeCourant = resumeObjets(analyse, t);
+  conteneur.replaceChildren(element('section', { class: 'ob' }, ...blocs));
+  rappel();
 }
+
 
 // Dernier résultat rendu, prêt pour l'export : boîtes en pixels de l'image d'origine (px
 // CSS de la page pour un SVG ou un PDF), surfaces en pour cent de la figure, épaisseurs en

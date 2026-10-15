@@ -18,7 +18,7 @@ figure et on voit :
   de la rangée revient à l’endroit actif, le 1 au départ. Aucun numéro sur la figure ;
 - **un rapport des endroits à revoir** : pour chacun, un extrait de la figure entouré de
   rouge, la taille et le contraste mesurés, un degré de non-conformité et ce qu’il faut
-  faire (agrandir de tant de %, prendre telle couleur). Le rapport s’imprime ou
+  faire (agrandir de tant de %, prendre telle couleur). Le rapport, qui reprend aussi les objets du graphique, s’imprime ou
   s’enregistre en PDF pour l’envoyer à la rédaction ;
 - **la figure projetée** sur une diapositive, dans une petite salle avec écran ou une grande
   salle avec projecteur, à la taille apparente qu’elle a au dernier rang (approchée sans
@@ -34,9 +34,12 @@ figure et on voit :
 
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
 (format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
-lire l’analyse. L’analyse montre une vue à la fois : aperçu à taille réelle, taille et
-contraste des textes (avec les objets du graphique : séries de barres, courbes et formes,
-leurs contrastes et l’épaisseur de leurs traits), couleurs. Pour un résultat exact, la page
+lire l’analyse. L’analyse montre une vue à la fois, choisie par cinq tuiles : aperçu à taille
+réelle, taille et contraste des textes, vision (daltonismes et basse vision), projection, et
+objets du graphique (séries de barres, courbes et formes, leurs contrastes et l’épaisseur de
+leurs traits). Dans la vue des objets, une puce numérotée par carte de série ou de paire
+met en évidence ses contours sur la figure : le survol montre un aperçu, le clic la rend
+active, et la première série à corriger l’est au départ. Pour un résultat exact, la page
 demande dès la première étape le PDF ou le SVG de la figure plutôt qu’une capture d’écran :
 les tailles y sont lues dans le fichier, alors que dans une image elles sont estimées.
 
@@ -126,7 +129,7 @@ rend la lecture courante, le même objet que le bouton « Exporter la lecture (J
 | `js/residu.js` | sans DOM : règle du statut, mesure d’une zone par son profil d’encre, zones d’encre restantes (suggestions), coordonnées de l’image d’origine, export |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
 | `js/couleur.js` | CIELAB, CIEDE2000, daltonismes simulés (Machado), contraste d’une couleur avec le fond, écart entre deux couleurs selon la vision |
-| `js/objets.js` | objets du graphique : lus dans le SVG ou le PDF, sinon cherchés sur les pixels ; séries, contrastes, épaisseur des traits ; bloc du rapport (styles dans `objets.css`) et `exporterObjets()` |
+| `js/objets.js` | objets du graphique : lus dans le SVG ou le PDF, sinon cherchés sur les pixels ; séries, contrastes, épaisseur des traits ; vue des objets, cartes et puces (styles dans `objets.css`) et `exporterObjets()` |
 | `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
 | `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
 | `js/environnement.js` | WebAssembly, Web Workers et lecture des pixels : vérifications du démarrage |

@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=9ef9d97364">
-  <link rel="stylesheet" href="objets.css?v=9ef9d97364">
+  <link rel="stylesheet" href="style.css?v=418fa05147">
+  <link rel="stylesheet" href="objets.css?v=418fa05147">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=9ef9d97364"></script>
+  <script type="module" src="js/app.js?v=418fa05147"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -160,6 +160,10 @@
               <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="2.5" y="3" width="15" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 13v3.5M6.5 17.5h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span data-t="navProjection"></span></b>
               <span class="tuile-desc" data-t="descProjection"></span>
             </button>
+            <button type="button" role="tab" id="onglet-objets" data-vue="vue-objets" aria-controls="vue-objets">
+              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="2.5" y="10.5" width="3.6" height="7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="8.2" y="5" width="3.6" height="12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="13.9" y="8" width="3.6" height="9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span data-t="objetsTitre"></span></b>
+              <span class="tuile-desc" id="desc-objets"></span>
+            </button>
           </div>
 
           <section id="vue-page" class="vue" role="tabpanel" aria-labelledby="onglet-page">
@@ -218,7 +222,6 @@
               <ol id="statuts-impression" class="statuts-impression"></ol>
             </div>
             <p id="zones-reste" class="discret"></p>
-            <div id="objets-graphique"></div>
             <details id="details-textes" hidden>
               <summary id="details-titre"></summary>
               <div class="analyse-table">
@@ -235,6 +238,12 @@
               </div>
             </details>
             <p id="note-mesure" class="discret"></p>
+          </section>
+
+          <!-- Placée juste après les textes : le rapport imprimé enchaîne les deux. -->
+          <section id="vue-objets" class="vue" role="tabpanel" aria-labelledby="onglet-objets" hidden>
+            <h3 data-t="objetsTitre"></h3>
+            <div id="objets-graphique"></div>
           </section>
 
           <section id="vue-projection" class="vue" role="tabpanel" aria-labelledby="onglet-projection" hidden>

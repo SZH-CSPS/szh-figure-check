@@ -1,21 +1,22 @@
 // Interface : quatre étapes en accordéon (figure, paramètres, écran, analyse) ; l'analyse
-// montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
-// textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
+// montre une vue à la fois (aperçu à taille réelle, textes, couleurs, projection, objets du
+// graphique). Dans la vue des textes, la vue résidu masque les textes connus pour laisser
+// voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=9ef9d97364';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=9ef9d97364';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=9ef9d97364';
-import { versHex } from './apca.js?v=9ef9d97364';
-import { ouvrir, ErreurSource } from './sources.js?v=9ef9d97364';
-import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=9ef9d97364';
-import { chargerDetecteur, fournirModele } from './detection.js?v=9ef9d97364';
-import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=9ef9d97364';
-import { precharger } from './prechargement.js?v=9ef9d97364';
-import { creerChargeur } from './chargeur.js?v=9ef9d97364';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=9ef9d97364';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=9ef9d97364';
-import { T, langueInitiale, nombre } from './i18n.js?v=9ef9d97364';
-import { rendreObjets, exporterObjets } from './objets.js?v=9ef9d97364';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=418fa05147';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=418fa05147';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=418fa05147';
+import { versHex } from './apca.js?v=418fa05147';
+import { ouvrir, ErreurSource } from './sources.js?v=418fa05147';
+import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=418fa05147';
+import { chargerDetecteur, fournirModele } from './detection.js?v=418fa05147';
+import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=418fa05147';
+import { precharger } from './prechargement.js?v=418fa05147';
+import { creerChargeur } from './chargeur.js?v=418fa05147';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=418fa05147';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=418fa05147';
+import { T, langueInitiale, nombre } from './i18n.js?v=418fa05147';
+import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=418fa05147';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -227,11 +228,11 @@ function rendreAttente() {
   rendreResumes();
 }
 
-// Lecture des pixels bloquée : le message remplace les résultats des vues Textes (objets
-// compris) et Vision ; l'aperçu à taille réelle marche sans pixels.
+// Lecture des pixels bloquée : le message remplace les résultats des vues Textes, Objets
+// et Vision ; l'aperçu à taille réelle marche sans pixels.
 function rendreBlocage() {
   const bloque = !etat.environnement.canvas;
-  for (const id of ['rapport', 'vue-couleurs']) {
+  for (const id of ['rapport', 'vue-objets', 'vue-couleurs']) {
     const section = $(id);
     section.classList.toggle('env-bloque', bloque);
     section.querySelector(':scope > .env-message')?.remove();
@@ -501,7 +502,7 @@ function rendreAnalyse() {
   const cadre = $('analyse-figure');
   const tbody = document.querySelector('#table-textes tbody');
   const f = FORMATS[etat.format];
-  rendreObjets($('objets-graphique'), etat.lecture, etat.source, figureSurPage().l, etat.langue);
+  rendreObjets($('objets-graphique'), etat.lecture, etat.source, figureSurPage().l, etat.langue, rendreResumes);
   $('rapport-fichier').textContent = t('rapportFichier', {
     nom: etat.source.nom, format: t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre'),
   });
@@ -1041,10 +1042,10 @@ function imprimerRapport() {
   window.print();
 }
 
-// Ctrl+P depuis la vue des textes imprime le rapport, comme le bouton, et non la page
-// simulée. Les autres vues gardent l'impression de la page à 100 %.
+// Ctrl+P depuis la vue des textes ou des objets imprime le rapport, comme le bouton, et non
+// la page simulée. Les autres vues gardent l'impression de la page à 100 %.
 window.addEventListener('beforeprint', () => {
-  if (document.body.dataset.impression || !etat.source || !etat.lecture || etat.onglet !== 'rapport') return;
+  if (document.body.dataset.impression || !etat.source || !etat.lecture || !['rapport', 'vue-objets'].includes(etat.onglet)) return;
   preparerRapport();
 });
 
@@ -1353,6 +1354,9 @@ function rendreResumes() {
   }
   const sous = sousTitreTextes();
   if ($('desc-textes').textContent !== sous) $('desc-textes').textContent = sous;
+  // Sous-titre de la tuile Objets : le résumé d'une ligne une fois les objets analysés.
+  const objets = (etat.source && etat.lecture && resumeObjetsCourant()) || t('descObjets');
+  if ($('desc-objets').textContent !== objets) $('desc-objets').textContent = objets;
 }
 
 // Une seule étape ouverte. Les étapes passées portent une coche.
@@ -1670,7 +1674,7 @@ brancher();
 appliquerLangue();
 ouvrirEtape(1);
 window.szhFigureCheck = { exporter };
-const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs', projection: 'vue-projection' }[params.get('vue')];
+const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs', projection: 'vue-projection', objets: 'vue-objets' }[params.get('vue')];
 if (vueDemandee) etat.onglet = vueDemandee;
 const figureDemandee = params.get('figure') || '';
 etat.demarrage = demarrer();
