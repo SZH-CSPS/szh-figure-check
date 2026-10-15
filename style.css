@@ -168,6 +168,13 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .infos { margin: 0 0 8px; }
 .alertes { margin: 0 0 12px; padding: 0; list-style: none; }
 .alertes li { border-left: 4px solid var(--echec); padding: 4px 12px; margin-bottom: 6px; background: var(--surface); }
+.avertissements-source { margin-top: 12px; }
+.avertissements-source li { border-left-color: var(--ameliorer); }
+.avertissements-source:empty, #alertes-textes:empty { display: none; }
+
+/* Attente de l'analyse : barre indéterminée sans valeur, à valeur sinon. */
+.attente { display: block; width: 100%; max-width: 360px; height: 8px; margin: 0 0 12px; accent-color: var(--accent); }
+.attente-etape { flex: none; width: 96px; max-width: 96px; margin: 0 0 0 12px; align-self: center; }
 
 /* Page simulée : toujours blanche, comme le papier. */
 .cadre-page { overflow: auto; padding: 16px; background: #8a8a84; border-radius: 8px; }

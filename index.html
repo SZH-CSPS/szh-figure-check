@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=baab26fe43">
-  <link rel="stylesheet" href="objets.css?v=baab26fe43">
+  <link rel="stylesheet" href="style.css?v=21682de6b4">
+  <link rel="stylesheet" href="objets.css?v=21682de6b4">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=baab26fe43"></script>
+  <script type="module" src="js/app.js?v=21682de6b4"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -68,6 +68,7 @@
             <span class="figure-nom"><b id="figure-nom"></b><small id="figure-taille" class="discret"></small></span>
             <button type="button" id="autre-figure" data-t="autreFigure"></button>
           </div>
+          <ul id="avertissements-source" class="alertes avertissements-source"></ul>
           <p id="erreur" class="erreur" role="alert" hidden></p>
         </div>
       </li>
@@ -136,7 +137,7 @@
       <li class="etape" id="etape-4">
         <h2 class="etape-titre">
           <button type="button" class="etape-bouton" data-etape="4" aria-controls="etape-4-corps" aria-labelledby="etape-4-num etape-4-nom" aria-describedby="resume-4">
-            <span class="etape-num" id="etape-4-num">4</span><span class="etape-nom" id="etape-4-nom" data-t="etape4"></span><span class="etape-resume" id="resume-4" aria-live="polite"></span>
+            <span class="etape-num" id="etape-4-num">4</span><span class="etape-nom" id="etape-4-nom" data-t="etape4"></span><span class="etape-resume" id="resume-4" aria-live="polite"></span><progress class="attente attente-etape" id="attente-etape" max="1" hidden></progress>
           </button>
         </h2>
         <p class="etape-aide" id="etape-4-aide" role="tooltip" data-t="etapeSansFigure"></p>
@@ -149,7 +150,7 @@
             </button>
             <button type="button" role="tab" id="onglet-textes" data-vue="rapport" aria-controls="rapport">
               <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><text x="1.5" y="15.5" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="currentColor">A</text><text x="11" y="15.5" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="currentColor">a</text></svg><span data-t="sectionTextes"></span></b>
-              <span class="tuile-desc" data-t="descTextes"></span>
+              <span class="tuile-desc" id="desc-textes"></span>
             </button>
             <button type="button" role="tab" id="onglet-couleurs" data-vue="vue-couleurs" aria-controls="vue-couleurs">
               <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M1.5 10s3.2-5.5 8.5-5.5S18.5 10 18.5 10s-3.2 5.5-8.5 5.5S1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.6" fill="currentColor"/></svg><span data-t="navVision"></span></b>
@@ -187,7 +188,9 @@
             </div>
             <p id="rapport-fichier" class="discret"></p>
             <p id="statut" class="statut" aria-live="polite"></p>
+            <ul id="alertes-textes" class="alertes"></ul>
             <div id="bilan" class="bilan" hidden></div>
+            <progress class="attente" id="attente-textes" max="1" hidden></progress>
             <div id="ensemble"></div>
             <ul class="niveaux" id="niveaux" hidden>
               <li class="corriger"><span class="symbole" aria-hidden="true">✕</span> <b data-t="niveau_corriger"></b> <span data-t="legende_corriger"></span></li>

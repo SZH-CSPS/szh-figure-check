@@ -7,8 +7,8 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=baab26fe43';
-import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=baab26fe43';
+} from './analyse.js?v=21682de6b4';
+import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=21682de6b4';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -424,8 +424,8 @@ export function directions(boite) {
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
 const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=baab26fe43', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=baab26fe43', VENDOR).href;
+const ORT = new URL('onnxruntime/ort.wasm.min.js?v=21682de6b4', VENDOR).href;
+const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=21682de6b4', VENDOR).href;
 const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
 const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 
@@ -451,9 +451,32 @@ export function chargerScript(url) {
 
 let session = null;
 
+// Corps de la réponse, en signalant la progression si l'en-tête donne la taille et que le
+// contenu n'est pas compressé (sinon la taille annoncée n'est pas celle des octets lus).
+async function lireModele(reponse, progres) {
+  const total = Number(reponse.headers.get('content-length'));
+  if (!reponse.body || !total || reponse.headers.get('content-encoding')) return new Uint8Array(await reponse.arrayBuffer());
+  const morceaux = [];
+  let lus = 0;
+  const lecteur = reponse.body.getReader();
+  for (;;) {
+    const { done, value } = await lecteur.read();
+    if (done) break;
+    morceaux.push(value);
+    lus += value.length;
+    progres(Math.min(1, lus / total));
+  }
+  const modele = new Uint8Array(lus);
+  let o = 0;
+  for (const m of morceaux) { modele.set(m, o); o += m.length; }
+  return modele;
+}
+
 // Charge l'exécuteur et le modèle, une seule fois. Un seul fil, sans travailleur : les fils
 // multiples demandent des en-têtes (COOP, COEP) que l'hébergement statique ne pose pas.
-export async function chargerDetecteur() {
+// `progres(p)` reçoit la part du modèle déjà téléchargée (0 à 1), quand sa taille est connue ;
+// seul l'appel qui lance le chargement est suivi.
+export async function chargerDetecteur(progres = () => {}) {
   if (!session) {
     session = (async () => {
       if (typeof WebAssembly !== 'object') throw new Error('WebAssembly absent');
@@ -464,7 +487,7 @@ export async function chargerDetecteur() {
       ort.env.wasm.wasmPaths = { mjs: ORT_MJS, wasm: ORT_WASM };
       const reponse = await fetch(MODELE);
       if (!reponse.ok) throw new Error(`modèle introuvable (${reponse.status})`);
-      const modele = new Uint8Array(await reponse.arrayBuffer());
+      const modele = await lireModele(reponse, progres);
       return ort.InferenceSession.create(modele, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
     })();
     session.catch(() => { session = null; });
@@ -547,8 +570,8 @@ const lectureUtile = (r) => r && /[\p{L}\p{N}]/u.test(r.texte);
 export async function detecter(canevas, progres = () => {}, lecteur = null) {
   let carte;
   try {
-    progres('detecteur-chargement', 0);
-    const s = await chargerDetecteur();
+    progres('detecteur-chargement', null);
+    const s = await chargerDetecteur((p) => progres('detecteur-chargement', p));
     progres('detection', 0);
     carte = await inferer(s, canevas);
   } catch (e) {

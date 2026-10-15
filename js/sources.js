@@ -24,11 +24,27 @@ function canevas(l, h) {
   return c;
 }
 
+// Erreur d'ouverture : `code` vaut 'type' (ce n'est pas une figure) ou 'illisible'.
+export class ErreurSource extends Error {
+  constructor(code, cause) {
+    super(`source : ${code}${cause ? ` (${cause.message || cause})` : ''}`);
+    this.code = code;
+    this.cause = cause;
+  }
+}
+
+const EXTENSIONS_IMAGE = /.(png|jpe?g|webp|gif)$/;
+
 export async function ouvrir(fichier) {
   const nom = fichier.name.toLowerCase();
-  if (fichier.type === 'application/pdf' || nom.endsWith('.pdf')) return ouvrirPdf(fichier);
-  if (fichier.type === 'image/svg+xml' || nom.endsWith('.svg')) return ouvrirSvg(fichier);
-  return ouvrirBitmap(fichier);
+  const pdf = fichier.type === 'application/pdf' || nom.endsWith('.pdf');
+  const svg = fichier.type === 'image/svg+xml' || nom.endsWith('.svg');
+  if (!pdf && !svg && !fichier.type.startsWith('image/') && !EXTENSIONS_IMAGE.test(nom)) throw new ErreurSource('type');
+  try {
+    return await (pdf ? ouvrirPdf(fichier) : svg ? ouvrirSvg(fichier) : ouvrirBitmap(fichier));
+  } catch (e) {
+    throw e instanceof ErreurSource ? e : new ErreurSource('illisible', e);
+  }
 }
 
 async function ouvrirBitmap(fichier) {
@@ -123,8 +139,8 @@ let pdfjs = null;
 
 async function ouvrirPdf(fichier) {
   if (!pdfjs) {
-    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=baab26fe43');
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=baab26fe43';
+    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=21682de6b4');
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=21682de6b4';
   }
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()), isEvalSupported: false }).promise;
   const page = await pdf.getPage(1);
@@ -144,6 +160,7 @@ async function ouvrirPdf(fichier) {
   return {
     type: 'pdf',
     nom: fichier.name,
+    pages: pdf.numPages,
     url,
     ratio: base.height / base.width,
     naturel: { l: base.width * 96 / 72, h: base.height * 96 / 72 },

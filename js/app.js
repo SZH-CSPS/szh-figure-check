@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=baab26fe43';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=baab26fe43';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=baab26fe43';
-import { versHex } from './apca.js?v=baab26fe43';
-import { ouvrir } from './sources.js?v=baab26fe43';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=baab26fe43';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=baab26fe43';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=baab26fe43';
-import { T, langueInitiale, nombre } from './i18n.js?v=baab26fe43';
-import { rendreObjets, exporterObjets } from './objets.js?v=baab26fe43';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=21682de6b4';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=21682de6b4';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=21682de6b4';
+import { versHex } from './apca.js?v=21682de6b4';
+import { ouvrir, ErreurSource } from './sources.js?v=21682de6b4';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=21682de6b4';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=21682de6b4';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=21682de6b4';
+import { T, langueInitiale, nombre } from './i18n.js?v=21682de6b4';
+import { rendreObjets, exporterObjets } from './objets.js?v=21682de6b4';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -38,7 +38,12 @@ const etat = {
   source: null,
   lecture: null,
   jeton: 0,
+  attente: null,         // { phase: 'detecteur' | 'analyse', p } pendant l'analyse, sinon null
+  alertesDefinition: 0,  // alertes de définition de l'image, d'après rendrePage()
 };
+
+// Plus de pixels que cela : l'analyse peut dépasser la minute.
+const PIXELS_TRES_GRANDE = 40e6;
 
 const t = (cle, valeurs) => T(etat.langue, cle, valeurs);
 
@@ -92,6 +97,29 @@ function figureSurPage() {
   return tailleFigure(FORMATS[etat.format], s.ratio, s.naturel, etat.proportion);
 }
 
+// Avertissements propres au fichier ouvert : PDF de plusieurs pages (étape 1), image très
+// grande (étape 1, aperçu, vue des textes).
+function avertissementPdf() {
+  const s = etat.source;
+  return s && s.pages > 1 ? [t('pdfPlusieursPages', { n: s.pages })] : [];
+}
+
+function avertissementsGrande() {
+  const p = etat.source && etat.source.type === 'bitmap' ? etat.source.pixels : null;
+  return p && p.l * p.h > PIXELS_TRES_GRANDE ? [t('imageTresGrande', { l: p.l, h: p.h })] : [];
+}
+
+function rendreAvertissementsSource() {
+  $('avertissements-source').replaceChildren(...[...avertissementPdf(), ...avertissementsGrande()].map((a) => element('li', {}, a)));
+}
+
+// En tête de la vue des textes : les alertes de définition, et l'avertissement « très
+// grande » tant que l'analyse dure.
+function rendreAlertesTextes() {
+  const liste = [...(etat.source ? etat.definitions || [] : []), ...(etat.attente ? avertissementsGrande() : [])];
+  $('alertes-textes').replaceChildren(...liste.map((a) => element('li', {}, a)));
+}
+
 function rendrePage() {
   const f = FORMATS[etat.format];
   const s = etat.source;
@@ -130,7 +158,14 @@ function rendrePage() {
     const etiree = Boolean(etat.proportion) && s.naturel.l * MM_PAR_PX < fig.l - 0.5;
     if (ppp < PPP_MIN) alertes.push(t(etiree ? 'petiteEtiree' : 'resolutionFaible', { ppp: Math.round(ppp), px: s.pixels.l }));
   }
-  $('alertes-page').replaceChildren(...alertes.map((a) => element('li', {}, a)));
+  // Les alertes de définition s'ajoutent à celles de la page dans la vue des textes et au
+  // résumé de l'étape 4 ; la taille réduite par le plafond n'est pas un défaut de l'image.
+  const definition = alertes.filter((a) => a !== t('plafonnee'));
+  etat.alertesDefinition = definition.length;
+  etat.definitions = definition;
+  $('alertes-page').replaceChildren(...[...alertes, ...avertissementsGrande()].map((a) => element('li', {}, a)));
+  rendreAlertesTextes();
+  rendreResumes();
   zoomer();
 }
 
@@ -155,29 +190,60 @@ function statut(cle, valeurs) {
   $('statut').textContent = cle ? t(cle, valeurs) : '';
 }
 
+// Attente de l'analyse : sous-titre de la tuile « Taille et contraste des textes »,
+// <progress> sous le bilan et dans l'en-tête de l'étape 4, aria-busy sur le panneau.
+// `p` : part faite (0 à 1), ou null quand elle est inconnue.
+function attendre(phase, p = null) {
+  etat.attente = phase ? { phase, p } : null;
+  rendreAttente();
+}
+
+function textesAttente() {
+  const a = etat.attente;
+  if (!a) return '';
+  if (a.phase === 'detecteur') return a.p == null ? t('attenteDetecteurSansP') : t('attenteDetecteur', { p: Math.round(a.p * 100) });
+  return t('resumeAnalyseEnCours');
+}
+
+function rendreAttente() {
+  const a = etat.attente;
+  $('rapport').setAttribute('aria-busy', String(Boolean(a)));
+  for (const id of ['attente-textes', 'attente-etape']) {
+    const barre = $(id);
+    barre.hidden = !a;
+    if (a && a.p != null) barre.value = a.p; else barre.removeAttribute('value');
+    barre.setAttribute('aria-label', textesAttente());
+  }
+  rendreAlertesTextes();
+  rendreResumes();
+}
+
 async function analyser() {
   const jeton = ++etat.jeton;
   etat.lecture = null;
   etat.endroits = null;
+  attendre('analyse');
   rendreAnalyse();
   try {
     const lecture = await lire(etat.source, figureSurPage().l, (etape, p) => {
       if (jeton !== etat.jeton) return;
-      if (etape === 'rendu') statut('preparation');
-      else if (etape === 'chargement') statut('chargementOcr');
-      else if (etape === 'detecteur-chargement') statut('chargementDetecteur');
-      else if (etape === 'detection') statut('detectionTextes');
-      else if (etape === 'ocr') statut('lectureOcr', { p: Math.round(p * 100) });
-      else if (etape === 'suggestions') statut('rechercheSuggestions');
+      if (etape === 'rendu') { statut('preparation'); attendre('analyse'); }
+      else if (etape === 'chargement') { statut('chargementOcr'); attendre('analyse'); }
+      else if (etape === 'detecteur-chargement') { statut('chargementDetecteur'); attendre('detecteur', p); }
+      else if (etape === 'detection') { statut('detectionTextes'); attendre('analyse'); }
+      else if (etape === 'ocr') { statut('lectureOcr', { p: Math.round(p * 100) }); attendre('analyse', p); }
+      else if (etape === 'suggestions') { statut('rechercheSuggestions'); attendre('analyse'); }
     });
     if (jeton !== etat.jeton) return;
     etat.lecture = lecture;
     statut(lecture.repli ? 'repliOcr' : null);
+    attendre(null);
     rendreAnalyse();
   } catch (e) {
     if (jeton !== etat.jeton) return;
     statut(null);
-    montrerErreur(e.message === 'cdn' ? 'erreurCdn' : 'erreurFichier', e);
+    attendre(null);
+    montrerErreur(e.message === 'cdn' ? 'erreurCdn' : 'erreurIllisible', e);
   }
   document.body.dataset.etat = 'fini';
 }
@@ -1024,7 +1090,7 @@ async function charger(fichier) {
   try {
     source = await ouvrir(fichier);
   } catch (e) {
-    montrerErreur('erreurFichier', e);
+    montrerErreur(e instanceof ErreurSource && e.code === 'type' ? 'erreurType' : 'erreurIllisible', e);
     return;
   }
   if (etat.source) URL.revokeObjectURL(etat.source.url);
@@ -1035,6 +1101,7 @@ async function charger(fichier) {
   $('figure-nom').textContent = source.nom;
   $('figure-taille').textContent = source.pixels ? t('figureTaille', { l: source.pixels.l, h: source.pixels.h }) : '';
   activerEtapes(true);
+  rendreAvertissementsSource();
   rendrePage();
   rendreCouleurs();
   analyser();
@@ -1068,6 +1135,8 @@ function autreFigure() {
   $('figure-choisie').hidden = true;
   $('erreur').hidden = true;
   statut(null);
+  attendre(null);
+  rendreAvertissementsSource();
   rendreResumes();
   ouvrirEtape(1);
   $('depot').focus();
@@ -1113,17 +1182,29 @@ function validerCalibration() {
 // ── Étapes et vues ──────────────────────────────────────────────────────────────
 
 const RESUMES = {
-  1: () => (etat.source ? etat.source.nom : ''),
+  1: () => (etat.source ? [etat.source.nom, ...avertissementPdf()].join(' · ') : ''),
   2: () => (etat.source ? `${t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre')} · Lc\u00a0${etat.seuil}` : ''),
   3: () => (etat.source ? t(etat.pxParMm ? 'resumeEcranOui' : 'resumeEcranNon') : ''),
   4: () => {
     if (!etat.source) return '';
+    if (etat.attente) return textesAttente();
     if (etat.endroits == null) return t('resumeAnalyseEnCours');
-    if (etat.aVerifier && !etat.endroits) return t('resumeProvisoire', { n: etat.aVerifier });
-    if (etat.aVerifier) return t('resumeEtAVerifier', { n: etat.endroits, a: etat.aVerifier });
-    return etat.endroits ? t('resumeAnalyse', { n: etat.endroits }) : t('resumeAnalyseOk');
+    const alertes = etat.alertesDefinition ? t('resumeAlertePage', { n: etat.alertesDefinition }) : '';
+    const analyse = etat.aVerifier && !etat.endroits ? t('resumeProvisoire', { n: etat.aVerifier })
+      : etat.aVerifier ? t('resumeEtAVerifier', { n: etat.endroits, a: etat.aVerifier })
+        : etat.endroits ? t('resumeAnalyse', { n: etat.endroits }) : '';
+    // « Rien à revoir » seulement sans alerte de page.
+    return [analyse, alertes].filter(Boolean).join(' · ') || t('resumeAnalyseOk');
   },
 };
+
+// Sous-titre de la tuile « Taille et contraste des textes » : l'état de l'analyse, ou sa
+// description tant qu'il n'y a pas de résultat.
+function sousTitreTextes() {
+  if (!etat.source) return t('descTextes');
+  if (etat.attente) return textesAttente();
+  return etat.lecture ? RESUMES[4]() : t('descTextes');
+}
 
 function rendreResumes() {
   // Un texte inchangé n'est pas réécrit : le résumé de l'étape 4 est une zone vive.
@@ -1131,6 +1212,8 @@ function rendreResumes() {
     const texte = RESUMES[n]();
     if ($(`resume-${n}`).textContent !== texte) $(`resume-${n}`).textContent = texte;
   }
+  const sous = sousTitreTextes();
+  if ($('desc-textes').textContent !== sous) $('desc-textes').textContent = sous;
 }
 
 // Une seule étape ouverte. Les étapes passées portent une coche.
