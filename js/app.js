@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=36bc6cfe92';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=36bc6cfe92';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=36bc6cfe92';
-import { versHex } from './apca.js?v=36bc6cfe92';
-import { ouvrir, ErreurSource } from './sources.js?v=36bc6cfe92';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=36bc6cfe92';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=36bc6cfe92';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=36bc6cfe92';
-import { T, langueInitiale, nombre } from './i18n.js?v=36bc6cfe92';
-import { rendreObjets, exporterObjets } from './objets.js?v=36bc6cfe92';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=fa6a15def0';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=fa6a15def0';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=fa6a15def0';
+import { versHex } from './apca.js?v=fa6a15def0';
+import { ouvrir, ErreurSource } from './sources.js?v=fa6a15def0';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=fa6a15def0';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=fa6a15def0';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=fa6a15def0';
+import { T, langueInitiale, nombre } from './i18n.js?v=fa6a15def0';
+import { rendreObjets, exporterObjets } from './objets.js?v=fa6a15def0';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -40,6 +40,8 @@ const etat = {
   jeton: 0,
   attente: null,         // { phase: 'detecteur' | 'analyse', p } pendant l'analyse, sinon null
   alertesDefinition: 0,  // alertes de définition de l'image, d'après rendrePage()
+  annulable: null, // { lecture, ids } : la dernière réponse groupée, qu'on peut défaire
+  depliee: null, // la lecture dont la liste « À vérifier » est dépliée en entier
 };
 
 // Plus de pixels que cela : l'analyse peut dépasser la minute.
@@ -340,6 +342,7 @@ function conseils(l, plusieurs) {
 const TEXTES_PAR_CARTE = 6;
 const CARTES_MAX = 8;
 const CONFORMES_MAX = 6;
+const VERIFIER_MAX = 6;
 
 // « 3,0 pt » ou « 3,0 à 4,2 pt » selon l'étendue des valeurs.
 function plage(valeurs, formater) {
@@ -413,6 +416,45 @@ function carteEnsemble(diag) {
     element('p', { class: 'bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES.corriger), ' ', t('ensembleTitre')),
     element('p', {}, phrases.join(' ')),
     element('p', {}, element('b', {}, t('queFaireDeuxPoints')), ' ', t('ensembleConseil')));
+}
+
+// Le bilan compte les endroits (les groupes), pas les textes, et dit par où commencer :
+// le premier endroit affiché, avec ce qui lui manque (taille, contraste ou les deux).
+function phraseEndroits(groupes, premier, diag) {
+  const nC = groupes.filter((g) => g.niveau === 'corriger').length;
+  const nA = groupes.filter((g) => g.niveau === 'ameliorer').length;
+  const comptes = nC ? [t('bilanEndroits_corriger', { n: nC }), nA ? t('bilanEndroitsCourt_ameliorer', { n: nA }) : null]
+    : [t('bilanEndroits_ameliorer', { n: nA })];
+  const phrase = [comptes.filter(Boolean).join(', ') + '.'];
+  const r = resumeGroupe(premier);
+  // Quand la figure entière est trop petite, l'encadré d'ensemble parle de la taille.
+  const petit = !diag && r.pour.nt && r.pour.nt !== 'ok';
+  const pale = r.pour.nc && r.pour.nc !== 'ok';
+  if (petit || pale) {
+    const n = premier.membres.length;
+    const cites = premier.membres.filter((l) => l.texte).slice(0, 2).map((l) => (etat.langue === 'de' ? `«${l.texte}»` : `« ${l.texte} »`)).join(', ');
+    const qui = cites ? cites + (n > 2 ? ` ${t('etAutres', { n: n - 2 })}` : '') : t('departCeTexte', { n });
+    phrase.push(t('bilanDepart', { n: 1, quoi: `${qui} ${t(petit && pale ? 'departLesDeux' : petit ? 'departTaille' : 'departContraste', { n })}` }));
+  }
+  return phrase.join(' ');
+}
+
+// La première occurrence visible de « Lc » dans la vue porte une infobulle qui l'explique.
+function marquerLc() {
+  const marcheur = document.createTreeWalker($('rapport'), NodeFilter.SHOW_TEXT);
+  for (let n = marcheur.nextNode(); n; n = marcheur.nextNode()) {
+    const el = n.parentElement;
+    if (!/\bLc\b/.test(n.nodeValue) || el.closest('.cartes-impression, abbr, script')) continue;
+    const cache = el.closest('[hidden]');
+    if (cache && $('rapport').contains(cache)) continue;
+    if (el.closest('details:not([open])') && !el.closest('summary')) continue;
+    const i = n.nodeValue.search(/\bLc\b/);
+    const abbr = element('abbr', { title: t('lcAbbr') }, 'Lc');
+    const apres = n.splitText(i);
+    apres.nodeValue = apres.nodeValue.slice(2);
+    n.after(abbr);
+    return;
+  }
 }
 
 function rendreAnalyse() {
@@ -526,10 +568,18 @@ function rendreAnalyse() {
     const non = element('button', { type: 'button', class: 'non', 'aria-label': t('pasTexteAria', { texte: texteAria }) }, t('pasTexte'));
     oui.addEventListener('click', () => changerStatut(l.id, 'confirme'));
     non.addEventListener('click', () => changerStatut(l.id, 'retire'));
-    const item = element('li', { class: 'a-verifier-item' },
-      element('img', { src: extrait(canevas, l.bbox, 200, 80), alt: '' }),
-      element('span', { class: 'texte-lu' }, libelle(l), ' ', element('span', { class: 'discret' }, `${texteTaille(l)} · ${texteContraste(l)}`)),
-      element('span', { class: 'a-verifier-actions' }, oui, non));
+    // Une suggestion n'a ni lecture ni mesure fiable : une grande vignette et la question.
+    const suggestion = l.origine === 'suggestion';
+    const item = suggestion
+      ? element('li', { class: 'a-verifier-item suggestion' },
+        element('img', { src: extrait(canevas, l.bbox, 400, 160), alt: '' }),
+        element('span', { class: 'texte-lu' }, libelle(l)),
+        element('span', { class: 'a-verifier-question' }, t('estCeTexte')),
+        element('span', { class: 'a-verifier-actions' }, oui, non))
+      : element('li', { class: 'a-verifier-item' },
+        element('img', { src: extrait(canevas, l.bbox, 200, 80), alt: '' }),
+        element('span', { class: 'texte-lu' }, libelle(l), ' ', element('span', { class: 'discret' }, `${texteTaille(l)} · ${texteContraste(l)}`)),
+        element('span', { class: 'a-verifier-actions' }, oui, non));
     const activer = (actif) => { item.classList.toggle('actif', actif); surligner(l.id, actif); };
     item.addEventListener('mouseenter', () => activer(true));
     item.addEventListener('mouseleave', () => activer(false));
@@ -537,21 +587,37 @@ function rendreAnalyse() {
     item.addEventListener('focusout', () => activer(false));
     return item;
   };
-  // Trancher tous les textes à vérifier d'un coup, à partir de deux : un seul rendu à la fin.
+  // Répondre pour tous d'un coup, à partir de deux : un seul rendu à la fin. Le bloc cède
+  // la place à « Annuler » tant qu'aucun autre changement n'a eu lieu.
   const trancher = (statut) => {
-    for (const l of trancherAVerifier(etat.lecture.lignes, statut)) {
-      if (statut === 'confirme' && !l.texte) libeller(l);
-    }
+    const changes = trancherAVerifier(etat.lecture.lignes, statut);
+    for (const l of changes) if (statut === 'confirme' && !l.texte) libeller(l);
+    etat.annulable = { lecture: etat.lecture, ids: changes.map((l) => l.id) };
     rendreAnalyse();
   };
-  const trancherTout = aVerifier.length >= 2 ? element('div', { class: 'trancher-tout' },
-    element('span', { class: 'discret' }, t('trancherTout')),
-    element('button', { type: 'button', class: 'oui' }, t('tousSontTextes')),
-    element('button', { type: 'button', class: 'non' }, t('aucunEstTexte'))) : null;
-  if (trancherTout) {
+  const annulable = etat.annulable?.lecture === etat.lecture ? etat.annulable : null;
+  let trancherTout = null;
+  if (annulable) {
+    trancherTout = element('div', { class: 'trancher-tout' }, element('button', { type: 'button', class: 'annuler' }, t('annuler')));
+    trancherTout.querySelector('button').addEventListener('click', () => {
+      retablir(etat.lecture.lignes, annulable.ids);
+      etat.annulable = null;
+      rendreAnalyse();
+    });
+  } else if (aVerifier.length >= 2) {
+    trancherTout = element('div', { class: 'trancher-tout' },
+      element('span', { class: 'discret' }, t('trancherTout')),
+      element('button', { type: 'button', class: 'non' }, t('aucunEstTexte', { n: aVerifier.length })),
+      element('button', { type: 'button', class: 'oui' }, t('tousSontTextes', { n: aVerifier.length })));
     trancherTout.querySelector('.oui').addEventListener('click', () => trancher('confirme'));
     trancherTout.querySelector('.non').addEventListener('click', () => trancher('retire'));
   }
+  // Au-delà de six, la liste montre les six premiers et un bouton déplie le reste.
+  const deplie = etat.depliee === etat.lecture;
+  const montres = deplie ? aVerifier : aVerifier.slice(0, VERIFIER_MAX);
+  const autres = aVerifier.length - montres.length;
+  const boutonAutres = autres > 0 ? element('button', { type: 'button', class: 'autres-verifier' }, t('afficherAutres', { n: autres })) : null;
+  if (boutonAutres) boutonAutres.addEventListener('click', () => { etat.depliee = etat.lecture; rendreAnalyse(); });
   const boiteVerifier = element('section', { class: 'boite-niveau a-verifier', 'aria-label': t('statut_a-verifier') },
     element('p', { class: 'boite-titre' },
       element('span', { class: 'symbole', 'aria-hidden': 'true' }, '?'), ' ',
@@ -561,10 +627,16 @@ function rendreAnalyse() {
     element('div', { class: 'a-verifier-corps' },
       trancherTout,
       aVerifier.length
-        ? element('ul', { class: 'a-verifier-liste' }, ...aVerifier.map(itemVerifier))
+        ? element('div', {}, element('ul', { class: 'a-verifier-liste' }, ...montres.map(itemVerifier)), boutonAutres)
         : element('div', { class: 'boite-puces' }, element('span', { class: 'discret' }, t('aVerifierVide')))));
-  const rangee = element('div', { class: 'boites-niveaux' }, ...boitesNiveaux, boiteVerifier);
-  puces.replaceChildren(rangee);
+  // Une boîte à zéro n'apporte rien : seules celles qui ont un contenu s'affichent, et
+  // « À vérifier » reste tant qu'on peut annuler une réponse groupée. Sans aucun texte, un
+  // seul message du bilan remplace les boîtes.
+  const sansTexte = !lignes.length && !aVerifier.length && !annulable;
+  const rangee = element('div', { class: 'boites-niveaux' },
+    ...boitesNiveaux.filter((b, i) => explorables.some((g) => g.niveau === ['corriger', 'ameliorer', 'ok'][i])),
+    ...(aVerifier.length || annulable ? [boiteVerifier] : []));
+  puces.replaceChildren(...(sansTexte ? [] : [rangee]));
 
   const cartes = new Map();
   const carteDe = (i) => {
@@ -628,18 +700,22 @@ function rendreAnalyse() {
   const nCorriger = lignes.filter((l) => l.niveau === 'corriger').length;
   const nAmeliorer = lignes.filter((l) => l.niveau === 'ameliorer').length;
   const bilan = $('bilan');
+  $('panneau').hidden = !explorables.length;
   bilan.className = `bilan ${provisoire ? 'provisoire' : lignes.length ? global : 'inconnu'}`;
-  bilan.replaceChildren(
+  if (sansTexte) {
+    bilan.className = 'bilan inconnu';
+    bilan.replaceChildren(element('p', {}, t('aucunTexteDetecte')));
+  } else bilan.replaceChildren(
     element('p', { class: 'bilan-titre' },
       ...(provisoire ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES.provisoire), ' ', t('bilan_provisoire', { n: aVerifier.length })]
         : lignes.length ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`), global !== 'ok' && aVerifier.length ? ` ${t('bilan_etAVerifier', { n: aVerifier.length })}` : '']
           : [t('aucunTexte')])),
-    element('p', {}, [
+    ...(groupes.length ? [element('p', { class: 'bilan-endroits' }, phraseEndroits(groupes, affiches[0], diag))] : []),
+    element('p', { class: 'discret' }, [
       lignes.length ? t('textesLus', { n: lignes.length }) : null,
       nCorriger ? t('compte_corriger', { n: nCorriger }) + '.' : null,
       nAmeliorer ? t('compte_ameliorer', { n: nAmeliorer }) + '.' : null,
       ajoutes.length ? t('compte_ajoute', { n: ajoutes.length }) + '.' : null,
-      aVerifier.length ? t('compte_aVerifier', { n: aVerifier.length }) + '.' : null,
       tailles.length ? t('plusPetitTexte', { pt: nombre(Math.min(...tailles)), min: TAILLE_MIN_PT }) : null,
     ].filter(Boolean).join(' ')),
     ...(etat.source.type === 'bitmap' ? [element('p', { class: 'discret' }, t('lectureApprochee'))] : []));
@@ -693,6 +769,7 @@ function rendreAnalyse() {
 
   const exact = lignes.length && lignes.every((l) => l.exact);
   $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: etat.seuil, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
+  marquerLc();
 }
 
 const ns = 'http://www.w3.org/2000/svg';
@@ -844,6 +921,7 @@ function changerStatut(id, statut) {
   const ligne = etat.lecture?.lignes.find((l) => l.id === id);
   if (!ligne) return;
   ligne.statut = statut;
+  etat.annulable = null;
   if (statut === 'confirme' && !ligne.texte) libeller(ligne);
   rendreAnalyse();
 }
@@ -853,6 +931,7 @@ function changerStatut(id, statut) {
 function ajouterZone(bbox) {
   const { canevas, lignes } = etat.lecture;
   if (recouvreUnTexte(bbox, lignes)) { aide('zoneDeja'); return; }
+  etat.annulable = null;
   const mesure = mesurerAjout(canevas, bbox);
   if (!mesure) { aide('zoneVide'); return; }
   const ligne = { ...mesure, id: prochainId(lignes), origine: 'humain', statut: 'ajoute' };

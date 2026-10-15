@@ -6,13 +6,13 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=36bc6cfe92';
-import { MM_PAR_PT } from './formats.js?v=36bc6cfe92';
+import { versHex } from './apca.js?v=fa6a15def0';
+import { MM_PAR_PT } from './formats.js?v=fa6a15def0';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=36bc6cfe92';
-import { T, nombre } from './i18n.js?v=36bc6cfe92';
+} from './couleur.js?v=fa6a15def0';
+import { T, nombre } from './i18n.js?v=fa6a15def0';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -1119,6 +1119,41 @@ function calqueContours(analyse, brut) {
 
 // Remplit `conteneur` avec le bloc « Objets du graphique » ; le vide sans lecture.
 // `largeurMm` est la largeur imprimée de la figure.
+// Le bloc est replié par défaut ; son état survit aux rendus, et l'impression le déplie.
+let ouvert = false;
+if (typeof window !== 'undefined') {
+  let avant = [];
+  window.addEventListener('beforeprint', () => {
+    avant = [...document.querySelectorAll('.ob-details')].map((d) => [d, d.open]);
+    for (const [d] of avant) d.open = true;
+  });
+  window.addEventListener('afterprint', () => { for (const [d, o] of avant) d.open = o; });
+}
+
+// Résumé d'une ligne : ce qui est à corriger dans les séries, et les paires confondues.
+function resumeObjets(analyse, t) {
+  const faibles = analyse.series.filter((s) => s.niveau !== 'ok');
+  const quoi = [];
+  if (faibles.some((s) => !s.quadrillage && s.contrasteFond.niveau !== 'ok')) quoi.push(t('objetsQuoi_fond'));
+  if (faibles.some((s) => s.voisins.some((v) => v.niveau !== 'ok'))) quoi.push(t('objetsQuoi_voisin'));
+  if (faibles.some((s) => s.niveauEpaisseur && s.niveauEpaisseur !== 'ok')) quoi.push(t('objetsQuoi_epaisseur'));
+  const parties = [];
+  if (faibles.length) parties.push(t('objetsResumeCorriger', { k: faibles.length, quoi: quoi.join(', ') }));
+  if (analyse.paires.length) parties.push(t('objetsResumePaires', { p: analyse.paires.length }));
+  return parties.length ? parties.join(', ') : t('objetsResumeOk');
+}
+
+// Le bloc entier dans un <details> dont le <summary> dit le résultat en une ligne.
+function replie(t, resume, ...contenu) {
+  const action = element('span', { class: 'ob-action' }, t(ouvert ? 'objetsMasquer' : 'objetsAfficher'));
+  const details = element('details', { class: 'ob-details' },
+    element('summary', {}, element('h4', {}, element('b', {}, t('objetsTitre')), `${t('objetsSep')}${resume}. `), action),
+    ...contenu);
+  details.open = ouvert;
+  details.addEventListener('toggle', () => { ouvert = details.open; action.textContent = t(ouvert ? 'objetsMasquer' : 'objetsAfficher'); });
+  return element('section', { class: 'ob' }, details);
+}
+
 export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
   appel = { conteneur, lecture, source, largeurMm, langue };
   if (!lecture) {
@@ -1160,8 +1195,8 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
   const methode = element('p', { class: 'discret' }, `${t(analyse.exact ? 'objetsExact' : 'objetsApproche')}${analyse.images ? ` ${t('objetsImages', { n: analyse.images })}` : ''}`);
 
   if (!analyse.formes) {
-    conteneur.replaceChildren(element('section', { class: 'ob' }, titre,
-      element('div', { class: 'bilan inconnu' }, element('p', { class: 'bilan-titre' }, t('objetsAucune')),
+    conteneur.replaceChildren(replie(t, t('objetsResumeAucune'),
+      element('div', { class: 'ob-bilan inconnu' }, element('p', { class: 'ob-bilan-titre' }, t('objetsAucune')),
         element('p', {}, t(analyse.degrades ? 'objetsAucuneDegrade' : 'objetsAucuneExplication'))),
       methode));
     return;
@@ -1169,8 +1204,8 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
 
   const nSurfaces = analyse.series.filter((s) => s.groupe === 'surface').length;
   const nTraits = analyse.series.length - nSurfaces;
-  const bilan = element('div', { class: `bilan ${analyse.niveau}` },
-    element('p', { class: 'bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[analyse.niveau]), ' ', t(`objetsBilan_${analyse.niveau}`)),
+  const bilan = element('div', { class: `ob-bilan ${analyse.niveau}` },
+    element('p', { class: 'ob-bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[analyse.niveau]), ' ', t(`objetsBilan_${analyse.niveau}`)),
     element('p', {}, [t('objetsIntro', { n: analyse.objets.filter((o) => o.serie != null).length, surfaces: nSurfaces, traits: nTraits }),
       analyse.degrades ? t('objetsDegrades', { n: analyse.degrades }) : null].filter(Boolean).join(' ')));
 
@@ -1220,7 +1255,7 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
       ...(conseils.length ? [element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))), element('ul', {}, ...conseils)] : []));
   }));
 
-  const blocs = [titre, methode, bilan, figure, fond, series];
+  const blocs = [methode, bilan, figure, fond, series];
   if (analyse.paires.length) {
     blocs.push(element('h5', {}, t('objetsPairesTitre', { n: analyse.paires.length })));
     blocs.push(element('ul', { class: 'ob-paires' }, ...analyse.paires.slice(0, PAIRES_MAX).map((p) => {
@@ -1249,7 +1284,7 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
     min: WCAG_GRAPHIQUE, lc: LC_GRAPHIQUE, distinct: DELTA_E_DISTINCT, confondu: DELTA_E_CONFONDU,
     ameliorer: decimal(EPAISSEUR_AMELIORER_PT), corriger: decimal(EPAISSEUR_CORRIGER_PT), surface: decimal(SURFACE_MIN_MM2),
   })));
-  conteneur.replaceChildren(element('section', { class: 'ob' }, ...blocs));
+  conteneur.replaceChildren(replie(t, resumeObjets(analyse, t), ...blocs));
 }
 
 // Dernier résultat rendu, prêt pour l'export : boîtes en pixels de l'image d'origine (px
