@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=21682de6b4';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=21682de6b4';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=21682de6b4';
-import { versHex } from './apca.js?v=21682de6b4';
-import { ouvrir, ErreurSource } from './sources.js?v=21682de6b4';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=21682de6b4';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=21682de6b4';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=21682de6b4';
-import { T, langueInitiale, nombre } from './i18n.js?v=21682de6b4';
-import { rendreObjets, exporterObjets } from './objets.js?v=21682de6b4';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=67a41e43d8';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=67a41e43d8';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=67a41e43d8';
+import { versHex } from './apca.js?v=67a41e43d8';
+import { ouvrir, ErreurSource } from './sources.js?v=67a41e43d8';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=67a41e43d8';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=67a41e43d8';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=67a41e43d8';
+import { T, langueInitiale, nombre } from './i18n.js?v=67a41e43d8';
+import { rendreObjets, exporterObjets } from './objets.js?v=67a41e43d8';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -995,19 +995,26 @@ function vignettes(vues) {
 // Seuil et confort de lecture pour deux acuités, comparés aux textes de la figure.
 function rendreLecture() {
   const tableau = $('lecture-acuite');
-  if (!BASSE_VISION || !etat.lecture) { tableau.replaceChildren(); return; }
+  if (!BASSE_VISION || !etat.lecture) { tableau.replaceChildren(); $('lecture-explication').replaceChildren(); return; }
   const tailles = mesures().filter((l) => compte(l.statut)).map((l) => l.pt).filter((v) => v != null);
-  const lignes = [[0.5, 'vueAcuite5'], [0.3, 'vueAcuite3']].map(([acuite, cle]) => {
+  const phrases = [];
+  const lignes = [[0.5, '5'], [0.3, '3']].map(([acuite, k]) => {
     const { seuil, confort } = lectureAcuite(acuite);
     const sousSeuil = tailles.filter((v) => v < seuil).length;
     const sousConfort = tailles.filter((v) => v < confort).length;
+    // Une phrase par acuité, avec les valeurs du tableau ; l'acuité s'explique au survol.
+    const nomme = (valeur) => element('abbr', { title: t(`acuiteAbbr${k}`) }, valeur);
+    const valeur = t(`acuiteValeur${k}`);
+    const [avant, apres] = t('lectureExplication', { d: LECTURE_MM / 10, acuite: '\u0000', seuil: nombre(seuil), n: sousSeuil }).split('\u0000');
+    phrases.push(element('p', {}, avant, nomme(valeur), apres));
     return element('tr', {},
-      element('th', { scope: 'row' }, t(cle)),
+      element('th', { scope: 'row' }, nomme(`${t('acuiteMot')} ${valeur}`), ' ', t(`acuiteQualif${k}`)),
       element('td', {}, `${nombre(seuil)}\u00a0pt`),
       element('td', {}, `${nombre(confort)}\u00a0pt`),
       element('td', { class: sousSeuil ? 'corriger' : 'ok' }, t('lectureIllisibles', { n: sousSeuil, total: tailles.length })),
       element('td', { class: sousConfort ? 'ameliorer' : 'ok' }, t('lecturePenibles', { n: sousConfort, total: tailles.length })));
   });
+  $('lecture-explication').replaceChildren(...phrases);
   tableau.replaceChildren(
     element('caption', {}, t('lectureTitre')),
     element('thead', {}, element('tr', {}, ...['lectureColAcuite', 'lectureColSeuil', 'lectureColConfort', 'lectureColIllisibles', 'lectureColPenibles'].map((k) => element('th', { scope: 'col' }, t(k))))),
@@ -1309,8 +1316,11 @@ function rendreProjection() {
   const plusPetite = Math.min(...hauteurs);
   const valeurs = { d: nombre(etat.distanceCm / 100).replace(/,0$/, ''), min: nombre(minimum), x: nombre(plusPetite), n: petits, total: hauteurs.length,
     p: Math.ceil((minimum / plusPetite - 1) * 20) * 5 };
-  bilan.className = `bilan ${petits ? 'corriger' : 'ok'}`;
-  bilan.replaceChildren(element('p', {}, t(petits ? 'projectionPetit' : 'projectionOk', valeurs)));
+  // Un encadré d'information : la projection ne décide pas du verdict de l'impression.
+  bilan.className = 'bilan information';
+  bilan.replaceChildren(
+    element('p', { class: 'bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, 'i'), ' ', t('projectionTitre')),
+    element('p', {}, t(petits ? 'projectionPetit' : 'projectionOk', valeurs)));
 }
 
 function synchroniserReglages() {
