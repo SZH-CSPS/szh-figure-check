@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=2047d7c12f">
-  <link rel="stylesheet" href="objets.css?v=2047d7c12f">
+  <link rel="stylesheet" href="style.css?v=8aa7eff363">
+  <link rel="stylesheet" href="objets.css?v=8aa7eff363">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=2047d7c12f"></script>
+  <script type="module" src="js/app.js?v=8aa7eff363"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -152,6 +152,10 @@
               <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><text x="1.5" y="15.5" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="currentColor">A</text><text x="11" y="15.5" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="currentColor">a</text></svg><span data-t="sectionTextes"></span></b>
               <span class="tuile-desc" id="desc-textes"></span>
             </button>
+            <button type="button" role="tab" id="onglet-objets" data-vue="vue-objets" aria-controls="vue-objets">
+              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="2.5" y="10.5" width="3.6" height="7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="8.2" y="5" width="3.6" height="12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="13.9" y="8" width="3.6" height="9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span data-t="objetsTitre"></span></b>
+              <span class="tuile-desc" id="desc-objets"></span>
+            </button>
             <button type="button" role="tab" id="onglet-couleurs" data-vue="vue-couleurs" aria-controls="vue-couleurs">
               <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M1.5 10s3.2-5.5 8.5-5.5S18.5 10 18.5 10s-3.2 5.5-8.5 5.5S1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.6" fill="currentColor"/></svg><span data-t="navVision"></span></b>
               <span class="tuile-desc" data-t="descVision"></span>
@@ -159,10 +163,6 @@
             <button type="button" role="tab" id="onglet-projection" data-vue="vue-projection" aria-controls="vue-projection">
               <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="2.5" y="3" width="15" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 13v3.5M6.5 17.5h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span data-t="navProjection"></span></b>
               <span class="tuile-desc" data-t="descProjection"></span>
-            </button>
-            <button type="button" role="tab" id="onglet-objets" data-vue="vue-objets" aria-controls="vue-objets">
-              <b><svg class="icone" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="2.5" y="10.5" width="3.6" height="7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="8.2" y="5" width="3.6" height="12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="13.9" y="8" width="3.6" height="9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span data-t="objetsTitre"></span></b>
-              <span class="tuile-desc" id="desc-objets"></span>
             </button>
           </div>
 
