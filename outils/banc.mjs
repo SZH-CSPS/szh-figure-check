@@ -192,7 +192,10 @@ export function evaluerVerdict(fig, exp) {
   else if (attendu === 'ok' && obtenu === 'corriger') classe = 'fausse-alerte-grave';
   else if (attendu === 'corriger' && obtenu === 'ok') classe = 'manque-grave';
   else classe = NIVEAUX.indexOf(obtenu) > NIVEAUX.indexOf(attendu) ? 'trop-severe' : 'trop-indulgent';
-  return { attendu, obtenu, classe };
+  // Un verdict « ok » avec des textes encore à vérifier est provisoire : l'export le dit, et
+  // le banc le compte à part sans toucher à la classe.
+  const aVerifier = exp.textesAVerifier ?? (exp.textes || []).filter((t) => t.statut === 'a-verifier').length;
+  return { attendu, obtenu, classe, provisoire: Boolean(exp.verdictProvisoire), aVerifier };
 }
 
 // Textes : problématiques retrouvés et signalés au bon degré, fausses alertes, suggestions,
@@ -372,6 +375,8 @@ export function totaliser(resultats) {
       evaluables: verdicts.length, justes: compter('juste'),
       faussesAlertesGraves: compter('fausse-alerte-grave'), manquesGraves: compter('manque-grave'),
       tropSeveres: compter('trop-severe'), tropIndulgents: compter('trop-indulgent'), matrice,
+      provisoires: resultats.filter((r) => r.verdict.provisoire).length,
+      textesAVerifier: somme(resultats, (r) => r.verdict.aVerifier),
     },
     problematiques: {
       figures: complets.length,
@@ -433,6 +438,7 @@ export function tableau(resultats, total = totaliser(resultats)) {
   const part = (a, b) => (b ? ` (${pc(a / b)})` : '');
   const clair = [
     `Verdict : ${tv.justes}/${tv.evaluables} justes${part(tv.justes, tv.evaluables)} ; figures conformes déclarées à corriger : ${tv.faussesAlertesGraves} ; figures à corriger déclarées conformes : ${tv.manquesGraves} ; trop sévère : ${tv.tropSeveres}, trop indulgent : ${tv.tropIndulgents}${total.figures - tv.evaluables ? ` ; non évaluables : ${total.figures - tv.evaluables}` : ''}.`,
+    `Verdicts provisoires : ${tv.provisoires}/${total.figures} figure(s) (« ok » avec des textes encore à vérifier) ; textes à vérifier : ${tv.textesAVerifier}.`,
     `Textes problématiques (${tp.figures} figures à liste complète) : ${tp.trouves}/${tp.total} retrouvés${part(tp.trouves, tp.total)}, ${tp.signales} signalés, ${tp.bonDegre} au bon degré${part(tp.bonDegre, tp.total)}.`,
     `Fausses alertes : ${tf.sures}${tf.bornees ? `, plus au plus ${tf.bornees} sur ${tf.figuresBornees} figure(s) à liste incomplète` : ''} ; alertes sur des textes conformes : ${tf.alertesSurConformes}.`,
     `Suggestions (à vérifier) : ${ts.total}, dont ${ts.vraies} sur un vrai texte${part(ts.vraies, ts.total)}.`,

@@ -186,11 +186,13 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .bilan.corriger .bilan-titre { color: var(--corriger); }
 .bilan.ameliorer .bilan-titre { color: var(--ameliorer); }
 .bilan.ok .bilan-titre { color: var(--ok); }
+.bilan.provisoire .bilan-titre { color: var(--encre-2); }
 .niveaux { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 0.9rem; }
 .symbole { display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%; color: #fff; font-weight: 700; font-size: 0.85em; line-height: 1; }
 .corriger .symbole, .badge.corriger .symbole { background: var(--corriger); }
 .ameliorer .symbole, .badge.ameliorer .symbole { background: var(--ameliorer); }
 .ok .symbole, .badge.ok .symbole { background: var(--ok); }
+.provisoire .symbole { background: var(--encre-2); }
 :root[data-theme="dark"] .symbole { color: #1a1a19; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .symbole { color: #1a1a19; } }
 .niveaux .corriger b { color: var(--corriger); }

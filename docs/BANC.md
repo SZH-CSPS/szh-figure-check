@@ -38,9 +38,12 @@ Le banc lit `await window.szhFigureCheck.exporter()` dans la page :
 { version: 1,
   figure: { nom, type: 'bitmap'|'svg'|'pdf', largeurPx, hauteurPx },
   reglages: { format, proportion, seuilLc, largeurMm, hauteurMm, pxParMm },
-  verdict: 'ok'|'ameliorer'|'corriger',
+  verdict: 'ok'|'ameliorer'|'corriger',          // décidé sur les seuls textes confirmés et ajoutés
+  verdictProvisoire: bool,                        // verdict « ok » alors que des textes restent à vérifier
+  textesAVerifier: n,
   textes: [ { id, texte, boite: { x0, y0, x1, y1 },   // pixels de l'image d'origine
               exact, statut: 'confirme'|'a-verifier'|'ajoute'|'retire', origine,
+              confiance, score,                       // lecture Tesseract (0 à 100) et score du détecteur (0 à 1) ; null hors détecteur
               corpsPt, lc, couleurTexte, couleurFond, niveauTaille, niveauContraste, niveau } ],
   objets: [ { id, type: 'rectangle'|'ellipse'|'trait'|'forme'|'degrade', couleur, boite, surfacePct, epaisseurMm, serie, lcFond, wcagFond, niveau } ],
   series: [ { id, couleur, nObjets, typeDominant, lcFond, wcagFond, epaisseurMinMm, niveau, legende } ],
@@ -126,7 +129,7 @@ d’objets (version 1 convertie), ils s’apparient par couleur seule.
 
 Fixées avant les mesures ; ce sont les critères de réussite.
 
-1. **Verdict.** Par figure, verdict obtenu contre `verdictAttendu` : juste, *fausse alerte
+1. **Verdict.** Un verdict « ok » tant que des textes restent à vérifier est *provisoire* : l'outil n'affiche pas de verdict et l'export porte `verdictProvisoire` et `textesAVerifier`, sans changer `verdict`. Le banc compte ces figures à part (« Verdicts provisoires : n/N figure(s) ») ; la classe ci-dessous se juge sur `verdict`. Par figure, verdict obtenu contre `verdictAttendu` : juste, *fausse alerte
    grave* (figure conforme déclarée « à corriger »), *manque grave* (figure à corriger
    déclarée conforme), trop sévère ou trop indulgent sinon. Total de figures justes, et
    les deux pires cas comptés à part. Une figure sans `verdictAttendu` n’est pas évaluable.

@@ -210,10 +210,12 @@ test('banc : totaux, tableau et détails', () => {
   assert.equal(r3.objets.evaluable, false);
   assert.equal(total.temps.total, 16.5);
   assert.equal(total.exportsAbsents, 1);
+  assert.deepEqual([total.verdict.provisoires, total.verdict.textesAVerifier], [0, 2]);
   const texte = tableau([r1, r2, r3], total);
   assert.match(texte, /^figure/);
   assert.match(texte, /\nTOTAL\s+1\/2\s+justes/);
   assert.match(texte, /Verdict : 1\/2 justes/);
+  assert.match(texte, /Verdicts provisoires : 0\/3 figure\(s\)/);
   assert.match(texte, /Effort humain : 1 cadre\(s\) à ajouter/);
   assert.ok(details(r1).some((d) => d.startsWith('fausses alertes : « lll »')));
   assert.ok(details(r3).some((d) => /sans boîtes/.test(d)));
@@ -274,4 +276,14 @@ test('vérité v2 : conversion d’une vérité v1, boîtes à compléter', () =
   assert.equal(hexUnique('#D86B6A ou #E7A8A0'), null);
   assert.equal(hexUnique('fond #eff4f7'), '#EFF4F7');
   assert.equal(typeDe('x.SVG'), 'svg');
+});
+
+test('banc : verdict provisoire lu dans l’export, classe du verdict inchangée', () => {
+  const r = evaluer(figure({ fichier: 'p.png', verdictAttendu: 'ok', textes: [], objets: [] }),
+    { export: exporte({ verdict: 'ok', verdictProvisoire: true, textesAVerifier: 7 }), duree: 1 });
+  assert.equal(r.verdict.classe, 'juste');
+  assert.deepEqual([r.verdict.provisoire, r.verdict.aVerifier], [true, 7]);
+  const total = totaliser([r]);
+  assert.deepEqual([total.verdict.provisoires, total.verdict.textesAVerifier], [1, 7]);
+  assert.match(tableau([r], total), /Verdicts provisoires : 1\/1 figure\(s\).*textes à vérifier : 7/);
 });
