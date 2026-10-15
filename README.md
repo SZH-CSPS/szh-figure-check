@@ -35,9 +35,10 @@ figure et on voit :
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
 (format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
 lire l’analyse. L’analyse montre une vue à la fois : aperçu à taille réelle, taille et
-contraste des textes, couleurs. Pour un résultat exact, la page demande dès la première
-étape le PDF ou le SVG de la figure plutôt qu’une capture d’écran : les tailles y sont lues
-dans le fichier, alors que dans une image elles sont estimées.
+contraste des textes (avec les objets du graphique : séries de barres, courbes et formes,
+leurs contrastes et l’épaisseur de leurs traits), couleurs. Pour un résultat exact, la page
+demande dès la première étape le PDF ou le SVG de la figure plutôt qu’une capture d’écran :
+les tailles y sont lues dans le fichier, alors que dans une image elles sont estimées.
 
 La figure ne quitte pas le navigateur. Interface en français et en allemand.
 
@@ -102,7 +103,8 @@ rend la lecture courante, le même objet que le bouton « Exporter la lecture (J
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste et bruit du fond d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/residu.js` | sans DOM : règle du statut, mesure d’une zone par son profil d’encre, zones d’encre restantes (suggestions), coordonnées de l’image d’origine, export |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
-| `js/couleurs-graphique.js` | couleurs des éléments graphiques : aplats dominants, contraste avec le fond, écart entre deux couleurs selon la vision ; bloc du rapport (styles dans `couleurs-graphique.css`) |
+| `js/couleur.js` | CIELAB, CIEDE2000, daltonismes simulés (Machado), contraste d’une couleur avec le fond, écart entre deux couleurs selon la vision |
+| `js/objets.js` | objets du graphique : lus dans le SVG ou le PDF, sinon cherchés sur les pixels ; séries, contrastes, épaisseur des traits ; bloc du rapport (styles dans `objets.css`) et `exporterObjets()` |
 | `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
 | `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
 | `js/i18n.js` | libellés fr et de |
@@ -149,12 +151,13 @@ lecture.
 **Statut des textes.** L’OCR n’est pas fiable sur une figure : il manque des textes et en
 invente sur les photos. Plutôt que de trancher à sa place, l’outil donne un statut à chaque
 texte. Un texte lu dans un SVG ou un PDF est *confirmé*. Un texte de l’OCR est *à vérifier*
-dès que l’une de quatre raisons se présente : confiance moyenne de l’OCR sous 80
-(`CONFIANCE_SURE`), deux lettres ou chiffres au plus (`SIGNES_PEU`, « 50 », « 0 % »), fond
-bruité (variation du fond, loin des bords des lettres, au-delà de 0,17 fois l’écart entre
-texte et fond, `BRUIT_FOND_MAX`, comme dans une photo), ou texte trouvé seulement sur l’image
-tournée ; sinon il est *confirmé*. Un texte posé par l’humain est *ajouté*, un texte qu’il
-écarte est *retiré*. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
+dès que l’une de ces raisons se présente : confiance moyenne de l’OCR sous 80
+(`CONFIANCE_SURE`) ; deux lettres ou chiffres au plus (`SIGNES_PEU`, « 50 », « 0 % »), avec une
+confiance sous 85 (`CONFIANCE_SURE_COURTE`) ; fond bruité (variation du fond, loin des bords
+des lettres, au-delà de 0,17 fois l’écart entre texte et fond, `BRUIT_FOND_MAX`, comme dans une
+photo) ; texte vertical, avec une confiance sous 90
+(`CONFIANCE_SURE_TOURNEE`) ou s’il est court ; sinon il est *confirmé*. Un texte posé par
+l’humain est *ajouté*, un texte qu’il écarte est *retiré*. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
 trop petite » ne comptent que les textes confirmés et ajoutés. Les textes à vérifier vont
 dans une quatrième boîte, chacun avec deux réponses : « C’est bien un texte » le confirme,
 « Ce n’est pas un texte » le retire. Un texte retiré disparaît de la figure et des comptes,
@@ -247,20 +250,49 @@ contraste, regroupées par style de texte (mêmes couleurs de texte et de fond, 
 restent dans la liste de tous les textes. La couleur proposée
 est la plus proche de l’actuelle qui atteint le seuil plus 10 de marge (Lc 85 ou 100), ou à défaut le seuil.
 
-**Couleurs du graphique.** Les grandes surfaces d’une seule couleur (barres, secteurs,
-aplats) sont repérées sur l’image d’analyse : le fond est la couleur la plus fréquente du
-pourtour ; les textes lus, avec une marge, et les pixels de bord (un voisin qui diffère de
-plus de 16 sur un canal) sont écartés ; les nuances à moins de 12 unités Lab se regroupent.
-Une couleur compte si elle couvre au moins 0,5 % de l’image (8 au plus). Une photo ou un
-dégradé, dont les pixels unis s’étalent sur des dizaines de nuances, n’a pas de couleur
-dominante. Pour chaque couleur, le contraste avec le fond doit atteindre 3:1 (WCAG 2.2,
-critère 1.4.11) et Lc 30 (APCA, élément non textuel) ; « à corriger » commence sous 2:1 ou
-Lc 15. Pour chaque paire, l’écart CIEDE2000 est calculé en vision normale, après simulation
-de la deutéranopie, de la protanopie et de la tritanopie (Machado, Oliveira et Fernandes,
-2009, sévérité 1) et en niveaux de gris : sous 12, deux séries se distinguent mal ; sous 5,
-elles se confondent. Sur la figure d’exemple, le rouge et le vert se distinguent mal en noir
-et blanc (écart 7) et pour une personne deutéranope (écart 11), et le jaune n’a qu’un
-contraste de 1,6:1 avec le fond blanc.
+**Objets du graphique.** L’outil cherche les objets de la figure, pas ses nuances : barres,
+cases, ronds, courbes, axes, flèches, secteurs. Dans un SVG, il lit `rect`, `circle`,
+`ellipse`, `polygon`, `polyline`, `line` et `path` (boîte, couleur de remplissage ou de
+trait, épaisseur de trait, transformations) ; dans un PDF, les tracés remplis ou tracés de la
+première page, par la liste des opérateurs de pdf.js, hors texte et hors images. Le résultat
+est alors exact et dit comme tel. Dans une image, le résultat est approché : l’image est lue
+à sa résolution d’origine, les couleurs regroupées (nuances à moins de 12 unités Lab, 6 pour
+la couleur la plus fréquente, afin qu’une surface pâle sur fond blanc reste un objet), les
+textes lus écartés avec un halo (une case garde sa forme malgré le texte qu’elle porte), les
+franges lissées écartées (un pixel qui mélange ses deux voisins opposés) ; les composantes
+connexes d’au moins 0,25 mm² à l’impression sont classées par des mesures simples : taux de
+remplissage de leur boîte (0,9 et plus : rectangle ; autour de π/4, coins vides : ellipse),
+finesse par transformée de distance (longueur d’au moins seize fois l’épaisseur, épaisseur
+sous 1,5 mm : trait, épaisseur = deux fois la distance médiane au bord sur la crête, frange
+lissée comprise pour moitié), sinon forme. Deux régions voisines dont la couleur se
+continue sans saut forment un dégradé, qui n’est pas découpé en objets ; des petites formes
+disparates d’une même couleur sont une texture. Le fond est la plus grande surface unie.
+
+Les objets de même couleur (ΔE00 sous 5) forment une série ; une petite case de la couleur
+d’une série de surfaces, haute comme le texte à côté d’elle, est sa légende. Pour chaque série : contraste avec le fond
+(3:1, WCAG 2.2, critère 1.4.11, et Lc 30, APCA ; « à corriger » sous 2:1 ou Lc 15),
+contraste avec les séries de surfaces qui la touchent (barres empilées, secteurs voisins),
+épaisseur du trait le plus fin à l’impression (sous 0,5 pt : à améliorer ; sous 0,25 pt :
+à corriger), et, pour chaque paire de séries de même nature, l’écart CIEDE2000 en vision
+normale, après simulation de la deutéranopie, de la protanopie et de la tritanopie (Machado,
+Oliveira et Fernandes, 2009, sévérité 1) et en niveaux de gris : sous 12, deux séries se
+distinguent mal ; sous 5, elles se confondent. Un quadrillage (au moins trois traits
+parallèles réguliers, longs d’au moins 40 % de la figure, avec le cadre du graphique) est
+décoratif et n’est pas jugé. Une photo, un dégradé ou un schéma sans aplats nets donne
+« Aucune forme nette trouvée » : les séries doivent couvrir au moins 0,1 % de la figure et
+la moitié de ce qui n’est pas le fond, dégradés et textures compris.
+Sur la figure d’exemple : trois séries de barres, le rouge et le vert difficiles à
+distinguer en noir et blanc (écart 7) et en deutéranopie (écart 11), le jaune à corriger sur
+le fond blanc (1,6:1), plus le quadrillage et l’axe.
+
+`exporterObjets()` (`js/objets.js`) rend le dernier résultat, ou `null` : `{ exact, formes,
+fond, dureeMs, objets: [{ id, type, couleur, boite, surfacePct, epaisseurMm, serie, lcFond,
+wcagFond, niveau }], series: [{ id, couleur, nObjets, typeDominant, lcFond, wcagFond,
+epaisseurMinMm, niveau, legende }] }`. `type` vaut `rectangle`, `ellipse`, `trait`, `forme`
+ou `degrade` ; `couleur` est en `#RRGGBB` (`null` pour un dégradé) ; `boite` est en pixels de
+l’image d’origine (px CSS de la page pour un SVG ou un PDF) ; `surfacePct` en pour cent de
+la figure ; `epaisseurMm` en millimètres imprimés, `null` pour une surface ; `serie`
+renvoie à `series[].id` ; `nObjets` ne compte pas la case de légende.
 
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression
 peut échapper au détecteur et à l’OCR ; la vue résidu le montre, et l’humain l’ajoute. La mesure d’une zone
@@ -270,7 +302,12 @@ volontiers des rangées de points ou de petits symboles alignés ; elles ne lise
 photo peut en recevoir plusieurs dizaines (plafond : 30). Le cadre au clavier se déplace par
 pas d’un centième de la figure : un petit texte demande quelques frappes. Le « taille
 réelle » de l’écran n’est juste qu’après le réglage par carte bancaire ; l’impression à
-100 % reste la référence.
+100 % reste la référence. Dans une image, un objet dont la couleur est à moins de 6 unités
+Lab du fond (blanc cassé sur blanc) se confond avec lui, un trait en pointillé se découpe en
+points trop petits pour compter, un motif de hachures donne un objet par élément du motif,
+et l’épaisseur d’un trait lissé est connue à un demi-pixel près ; dans un SVG ou un PDF, les
+objets qui se touchent sont trouvés par leurs boîtes, et les remplissages en dégradé ou en
+motif n’ont pas de couleur.
 
 ## Licence
 

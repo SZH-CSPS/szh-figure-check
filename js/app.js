@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=25c40bd6e2';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=25c40bd6e2';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=25c40bd6e2';
-import { versHex } from './apca.js?v=25c40bd6e2';
-import { ouvrir } from './sources.js?v=25c40bd6e2';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=25c40bd6e2';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=25c40bd6e2';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=25c40bd6e2';
-import { T, langueInitiale, nombre } from './i18n.js?v=25c40bd6e2';
-import { rendreCouleursGraphique } from './couleurs-graphique.js?v=25c40bd6e2';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=6aa08b6e2c';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=6aa08b6e2c';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=6aa08b6e2c';
+import { versHex } from './apca.js?v=6aa08b6e2c';
+import { ouvrir } from './sources.js?v=6aa08b6e2c';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=6aa08b6e2c';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=6aa08b6e2c';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=6aa08b6e2c';
+import { T, langueInitiale, nombre } from './i18n.js?v=6aa08b6e2c';
+import { rendreObjets, exporterObjets } from './objets.js?v=6aa08b6e2c';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -350,7 +350,7 @@ function rendreAnalyse() {
   const cadre = $('analyse-figure');
   const tbody = document.querySelector('#table-textes tbody');
   const f = FORMATS[etat.format];
-  rendreCouleursGraphique($('couleurs-graphique'), etat.lecture, etat.langue);
+  rendreObjets($('objets-graphique'), etat.lecture, etat.source, figureSurPage().l, etat.langue);
   $('rapport-fichier').textContent = t('rapportFichier', {
     nom: etat.source.nom, format: t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre'),
   });
@@ -788,7 +788,7 @@ function exporter() {
   const fig = figureSurPage();
   const toutes = mesures();
   const lignes = toutes.filter((l) => compte(l.statut));
-  return exporterLecture({
+  const donnees = exporterLecture({
     figure: { nom: s.nom, type: s.type, largeurPx: s.espace.l, hauteurPx: s.espace.h },
     reglages: { format: etat.format, proportion: etat.proportion, seuilLc: etat.seuil, largeurMm: fig.l, hauteurMm: fig.h, pxParMm: s.espace.l / fig.l },
     verdict: verdictGlobal(lignes),
@@ -796,6 +796,9 @@ function exporter() {
     echelle: s.espace.l / etat.lecture.canevas.width,
     diagnosticEnsemble: diagnosticEnsemble(lignes),
   });
+  // Objets et séries du graphique (objets.js), dans le même espace de pixels.
+  const objets = exporterObjets();
+  return { ...donnees, objets: objets ? objets.objets : [], series: objets ? objets.series : [] };
 }
 
 function telechargerExport() {

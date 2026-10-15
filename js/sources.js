@@ -85,6 +85,7 @@ async function ouvrirSvg(fichier) {
     naturel: lAttr ? { l: lAttr, h: hAttr || lAttr * h / l } : null,
     pixels: null,
     espace: { l, h },
+    svgSource: source,                   // pour lire les formes (objets.js)
     dessiner(largeur) {
       const c = canevas(largeur, largeur * h / l);
       c.getContext('2d').drawImage(image, 0, 0, c.width, c.height);
@@ -122,8 +123,8 @@ let pdfjs = null;
 
 async function ouvrirPdf(fichier) {
   if (!pdfjs) {
-    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=25c40bd6e2');
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=25c40bd6e2';
+    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=6aa08b6e2c');
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=6aa08b6e2c';
   }
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()), isEvalSupported: false }).promise;
   const page = await pdf.getPage(1);
@@ -148,6 +149,8 @@ async function ouvrirPdf(fichier) {
     naturel: { l: base.width * 96 / 72, h: base.height * 96 / 72 },
     pixels: null,
     espace: { l: base.width, h: base.height },
+    pdfPage: page,                       // pour lire les tracés (objets.js)
+    pdfOps: pdfjs.OPS,
     dessiner: rendre,
     async textesExacts(largeur) {
       const vue = page.getViewport({ scale: largeur / base.width });

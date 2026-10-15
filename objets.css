@@ -1,0 +1,52 @@
+/* Bloc « Objets du graphique » du rapport (js/objets.js). */
+.ob { margin-top: 28px; break-inside: auto; }
+.ob h4 { font-size: 1.05rem; margin: 0 0 8px; }
+.ob h5 { font-size: 1rem; margin: 20px 0 10px; }
+.ob-fond { display: flex; gap: 8px; align-items: center; font-size: 0.92rem; }
+.ob-pastille { display: inline-block; flex: none; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--filet); vertical-align: middle; }
+.ob-pastille.petite { width: 18px; height: 18px; border-radius: 4px; }
+.ob-contour { display: inline-block; flex: none; width: 22px; height: 22px; border: 4px solid; border-radius: 3px; background: var(--surface); }
+.ob-duo { display: inline-flex; flex: none; }
+.ob-duo .ob-pastille + .ob-pastille { margin-left: -1px; }
+.ob-duo .ob-pastille:first-child { border-radius: 6px 0 0 6px; }
+.ob-duo .ob-pastille:last-child { border-radius: 0 6px 6px 0; }
+
+/* La figure et son calque de contours, à la même taille. */
+.ob-figure { margin: 0 0 12px; }
+.ob-image { position: relative; background: #fff; box-shadow: var(--ombre); }
+.ob-image img { display: block; width: 100%; height: auto; }
+.ob-calque { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ob-interrupteur { display: inline-flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 0.92rem; cursor: pointer; }
+
+.ob-series, .ob-paires { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 12px; }
+.ob-series { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.ob-paires { grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+.ob-serie, .ob-paire { background: var(--surface); border-radius: 8px; box-shadow: var(--ombre); padding: 10px 14px; border-top: 5px solid var(--inconnu); break-inside: avoid; font-size: 0.92rem; }
+.ob-serie.ok, .ob-paire.ok { border-top-color: var(--ok); }
+.ob-serie.ameliorer, .ob-paire.ameliorer { border-top-color: var(--ameliorer); }
+.ob-serie.corriger, .ob-paire.corriger { border-top-color: var(--corriger); }
+.ob-tete { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 6px; }
+.ob-nom { flex: 1; min-width: 0; }
+.ob-tete .badge { margin-left: auto; }
+.ob-serie dl { margin: 0; }
+.ob-mesure { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 4px 0; border-bottom: 1px solid var(--filet); }
+.ob-mesure dt { color: var(--encre-2); }
+.ob-mesure dd { margin: 0; overflow-wrap: anywhere; }
+.ob-mesure dd.corriger, .ob-mesure dd.ameliorer { font-weight: 700; }
+.ob-mesure dd.corriger { color: var(--corriger); }
+.ob-mesure dd.ameliorer { color: var(--ameliorer); }
+.ob-mesure dd .badge { margin-left: 6px; font-size: 0.8rem; }
+.ob-serie .que-faire { margin: 10px 0 2px; }
+.ob-serie > ul, .ob-paire > ul:last-child { margin: 0 0 6px; padding-left: 1.2em; }
+.ob-visions { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
+.ob-visions li { display: flex; gap: 10px; align-items: center; }
+.ob-visions .ob-pastille { width: 28px; height: 28px; }
+
+@media print {
+  .ob-serie, .ob-paire, .ob-image { box-shadow: none; border: 1px solid #d6d6cf; }
+  .ob-serie, .ob-paire { border-top-width: 5px; }
+  .ob-series { grid-template-columns: 1fr 1fr 1fr; }
+  .ob-paires { grid-template-columns: 1fr; }
+  .ob-interrupteur { display: none; }
+  .ob-figure { break-inside: avoid; }
+}
