@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=dccc1885cd">
-  <link rel="stylesheet" href="objets.css?v=dccc1885cd">
+  <link rel="stylesheet" href="style.css?v=baab26fe43">
+  <link rel="stylesheet" href="objets.css?v=baab26fe43">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=dccc1885cd"></script>
+  <script type="module" src="js/app.js?v=baab26fe43"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -78,6 +78,7 @@
             <span class="etape-num" id="etape-2-num">2</span><span class="etape-nom" id="etape-2-nom" data-t="etape2"></span><span class="etape-resume" id="resume-2"></span>
           </button>
         </h2>
+        <p class="etape-aide" id="etape-2-aide" role="tooltip" data-t="etapeSansFigure"></p>
         <div class="etape-corps" id="etape-2-corps">
           <div class="reglages">
             <fieldset class="groupe-choix">
@@ -113,6 +114,7 @@
             <span class="etape-num" id="etape-3-num">3</span><span class="etape-nom" id="etape-3-nom" data-t="etape3"></span><span class="etape-resume" id="resume-3"></span>
           </button>
         </h2>
+        <p class="etape-aide" id="etape-3-aide" role="tooltip" data-t="etapeSansFigure"></p>
         <div class="etape-corps" id="etape-3-corps">
           <p class="calibration-pourquoi" data-t="calibrationPourquoi"></p>
           <p data-t="calibrationAide"></p>
@@ -137,6 +139,7 @@
             <span class="etape-num" id="etape-4-num">4</span><span class="etape-nom" id="etape-4-nom" data-t="etape4"></span><span class="etape-resume" id="resume-4" aria-live="polite"></span>
           </button>
         </h2>
+        <p class="etape-aide" id="etape-4-aide" role="tooltip" data-t="etapeSansFigure"></p>
         <div class="etape-corps" id="etape-4-corps">
           <!-- Une seule vue de l'analyse à la fois ; la barre d'onglets reste en haut. -->
           <div class="onglets-analyse" role="tablist" data-t-aria="vuesAnalyse">

@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=dccc1885cd';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=dccc1885cd';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=dccc1885cd';
-import { versHex } from './apca.js?v=dccc1885cd';
-import { ouvrir } from './sources.js?v=dccc1885cd';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=dccc1885cd';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=dccc1885cd';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=dccc1885cd';
-import { T, langueInitiale, nombre } from './i18n.js?v=dccc1885cd';
-import { rendreObjets, exporterObjets } from './objets.js?v=dccc1885cd';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=baab26fe43';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=baab26fe43';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=baab26fe43';
+import { versHex } from './apca.js?v=baab26fe43';
+import { ouvrir } from './sources.js?v=baab26fe43';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=baab26fe43';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=baab26fe43';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=baab26fe43';
+import { T, langueInitiale, nombre } from './i18n.js?v=baab26fe43';
+import { rendreObjets, exporterObjets } from './objets.js?v=baab26fe43';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -1034,12 +1034,23 @@ async function charger(fichier) {
   $('figure-miniature').src = source.url;
   $('figure-nom').textContent = source.nom;
   $('figure-taille').textContent = source.pixels ? t('figureTaille', { l: source.pixels.l, h: source.pixels.h }) : '';
-  for (const b of document.querySelectorAll('.etape-bouton')) b.disabled = false;
+  activerEtapes(true);
   rendrePage();
   rendreCouleurs();
   analyser();
   const demandee = Number(params.get('etape'));
   ouvrirEtape(demandee >= 2 && demandee <= 4 ? demandee : 2);
+}
+
+// Les étapes 2 à 4 n'existent qu'avec une figure ; sans elle leur bouton est grisé, et
+// l'infobulle « Choisissez d'abord une figure » le décrit.
+function activerEtapes(avecFigure) {
+  for (const b of document.querySelectorAll('.etape-bouton')) {
+    const n = b.dataset.etape;
+    const grise = n !== '1' && !avecFigure;
+    if (grise) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+    b.setAttribute('aria-describedby', grise ? 'resume-' + n + ' etape-' + n + '-aide' : 'resume-' + n);
+  }
 }
 
 // Retour à l'étape 1 : la figure est oubliée, les réglages sont gardés.
@@ -1049,6 +1060,7 @@ function autreFigure() {
   etat.source = null;
   etat.lecture = null;
   etat.endroits = null;
+  activerEtapes(false);
   etat.masquer = false;
   $('masquer').checked = false;
   $('fichier').value = '';
@@ -1282,9 +1294,9 @@ function brancher() {
 
   // Étapes
   for (const b of document.querySelectorAll('.etape-bouton')) {
-    b.disabled = b.dataset.etape !== '1';
-    b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.etape), true));
+    b.addEventListener('click', () => { if (b.getAttribute('aria-disabled') !== 'true') ouvrirEtape(Number(b.dataset.etape), true); });
   }
+  activerEtapes(false);
   for (const b of document.querySelectorAll('[data-aller]')) b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.aller), true));
 
   // Paramètres

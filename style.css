@@ -66,14 +66,21 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 /* Étapes en accordéon */
 /* minmax(0, 1fr) : la diapositive large défile dans .salle au lieu d'élargir la page. */
 .etapes { list-style: none; padding: 0; margin: 24px 0 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-.etape { background: var(--surface); border: 1px solid var(--filet); border-radius: 12px; }
+.etape { position: relative; background: var(--surface); border: 1px solid var(--filet); border-radius: 12px; }
 .etape.ouverte { border-color: var(--encre-2); }
 .etape-titre { margin: 0; font-size: 1.1rem; }
 .etape-bouton {
   width: 100%; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; text-align: left;
   background: none; border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 700;
 }
-.etape-bouton:disabled { cursor: not-allowed; color: var(--encre-2); }
+/* Étape grisée tant qu'aucune figure n'est choisie : aria-disabled garde le bouton focalisable,
+   et l'infobulle s'affiche au survol et au focus. */
+.etape-bouton[aria-disabled="true"] { cursor: not-allowed; color: var(--encre-2); }
+.etape-aide {
+  display: none; position: absolute; left: 16px; top: calc(100% - 4px); z-index: 5; margin: 0; pointer-events: none;
+  padding: 4px 10px; border-radius: 6px; background: var(--encre); color: var(--surface); font-size: 0.9rem; font-weight: 400;
+}
+.etape:has(.etape-bouton[aria-disabled="true"]:is(:hover, :focus-visible)) .etape-aide { display: block; }
 .etape-num {
   display: inline-grid; place-items: center; width: 1.9em; height: 1.9em; flex: none;
   border-radius: 50%; border: 2px solid currentColor; font-size: 0.9rem;
