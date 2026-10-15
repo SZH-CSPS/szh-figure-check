@@ -157,11 +157,23 @@ confiance sous 85 (`CONFIANCE_SURE_COURTE`) ; fond bruité (variation du fond, l
 des lettres, au-delà de 0,17 fois l’écart entre texte et fond, `BRUIT_FOND_MAX`, comme dans une
 photo) ; texte vertical, avec une confiance sous 90
 (`CONFIANCE_SURE_TOURNEE`) ou s’il est court ; sinon il est *confirmé*. Un texte posé par
-l’humain est *ajouté*, un texte qu’il écarte est *retiré*. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
+l’humain est *ajouté*, un texte qu’il écarte est *retiré*. Une boîte du détecteur de texte
+est *confirmée* dès que son score (probabilité moyenne de la carte dans la boîte, de 0 à 1) atteint
+0,75 (`SCORE_SUR`), que le fond n’est pas bruité et que la boîte a une hauteur de ligne : au moins
+6 pixels de petit côté (`HAUTEUR_BOITE_MIN`) et un corps mesuré d’au moins la moitié de cette hauteur
+(`RAPPORT_CORPS_MIN`). La lecture du libellé ne sert alors qu’à l’afficher : une lecture vide ou
+absurde donne « ? » et l’étiquette « libellé non lu ». Sous 0,75, la lecture décide, comme pour
+l’OCR. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
 trop petite » ne comptent que les textes confirmés et ajoutés. Les textes à vérifier vont
 dans une quatrième boîte, chacun avec deux réponses : « C’est bien un texte » le confirme,
 « Ce n’est pas un texte » le retire. Un texte retiré disparaît de la figure et des comptes,
 mais reste dans l’export.
+
+**Verdict provisoire.** Tant qu’il reste des textes à vérifier, le verdict n’est pas définitif. Si
+les textes confirmés donnent « conforme », l’encadré du bilan devient neutre (symbole « ? ») et dit
+« Pas encore de verdict : N texte(s) à vérifier » ; le résumé de l’étape 4 et le rapport imprimé
+suivent. Si les textes confirmés donnent « à améliorer » ou « à corriger », le verdict s’affiche,
+suivi de « et N texte(s) encore à vérifier ».
 
 **Vue résidu.** Dans la vue des textes, l’interrupteur « Masquer les textes reconnus » couvre
 d’un masque blanc hachuré chaque texte confirmé, à vérifier ou ajouté. Ce qui reste lisible
@@ -215,7 +227,10 @@ fois corrigée par l’humain :
   reglages: { format: 'revue'|'livre', proportion: 1|0.75|0.5|null, seuilLc: 75|90,
               largeurMm, hauteurMm, pxParMm },          // pxParMm : pixels d’origine par mm imprimé
   verdict: 'ok'|'ameliorer'|'corriger',
-  textes: [ { id, texte, boite: { x0, y0, x1, y1 }, exact, statut, origine: 'ocr'|'fichier'|'suggestion'|'humain',
+  verdictProvisoire: true|false,                          // « ok » alors que des textes restent à vérifier
+  textesAVerifier: n,
+  textes: [ { id, texte, boite: { x0, y0, x1, y1 }, exact, statut, origine: 'ocr'|'detecteur'|'fichier'|'suggestion'|'humain',
+              confiance, score,                              // lecture Tesseract (0 à 100), score du détecteur (0 à 1)
               corpsPt, lc, couleurTexte: '#RRGGBB'|null, couleurFond, niveauTaille, niveauContraste, niveau } ],
   objets: [], series: [],                                // réservés
   diagnosticEnsemble: { total, petits, bas, haut, mediane, facteur } | null }

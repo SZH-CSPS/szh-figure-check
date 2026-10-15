@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=6aa08b6e2c';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=f48910fefb';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
@@ -11,7 +11,7 @@ import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvreme
 // montré, demandé, jamais compté. ajoute : posé par l'humain, compte. retire : écarté par
 // l'humain ; absent de la figure et des comptes, gardé dans l'export.
 export const STATUTS = ['confirme', 'a-verifier', 'ajoute', 'retire'];
-export const ORIGINES = ['ocr', 'fichier', 'suggestion', 'humain'];
+export const ORIGINES = ['ocr', 'detecteur', 'fichier', 'suggestion', 'humain'];
 
 // Un texte de l'OCR est à vérifier si sa confiance moyenne est sous CONFIANCE_SURE, si son
 // fond est bruité (bruitFond au-delà de BRUIT_FOND_MAX, comme sur une photo) ou s'il n'a été
@@ -26,14 +26,45 @@ export const CONFIANCE_SURE_COURTE = 85;
 export const CONFIANCE_SURE_TOURNEE = 90;
 export const SIGNES_PEU = 2;
 
+// Une boîte du détecteur existe parce qu'un réseau entraîné à trouver du texte l'a vue : son
+// score (probabilité moyenne de la carte dans la boîte, de 0 à 1) dit si c'est bien du
+// texte, la lecture du libellé ne sert qu'à l'afficher. À partir de SCORE_SUR, si le fond
+// n'est pas bruité et si la boîte a une hauteur de ligne de texte (boiteCoherente), elle est
+// confirmée même sans libellé lu. Sous SCORE_SUR le score ne condamne rien : la lecture
+// décide, comme pour l'OCR.
+export const SCORE_SUR = 0.75;
+export const HAUTEUR_BOITE_MIN = 6;
+// Le corps mesuré sur l'encre d'une ligne de texte vaut à peu près la hauteur de sa boîte (la
+// médiane est de 0,86). Sous RAPPORT_CORPS_MIN de cette hauteur, la boîte entoure autre
+// chose qu'une ligne (plusieurs lignes, écriture à la main, tache) ou la mesure est fausse.
+export const RAPPORT_CORPS_MIN = 0.5;
+
 export function compteSignes(texte) {
   return (String(texte || '').match(/[\p{L}\p{N}]/gu) || []).length;
 }
 
-// `ligne` : { origine, texte, confiance, bruit, vertical }.
+// Le petit côté d'une boîte, en pixels du canevas : la hauteur d'une ligne de texte, ou sa
+// largeur quand elle est verticale.
+function petitCote(bbox) {
+  return Math.min(bbox.x1 - bbox.x0, bbox.y1 - bbox.y0);
+}
+
+// La boîte a une hauteur de ligne de texte : pas un trait, et un corps mesuré cohérent.
+function boiteCoherente({ bbox, corpsPx }) {
+  if (!bbox) return true;
+  const cote = petitCote(bbox);
+  return cote >= HAUTEUR_BOITE_MIN && (corpsPx == null || corpsPx >= RAPPORT_CORPS_MIN * cote);
+}
+
+// `ligne` : { origine, texte, confiance, bruit, vertical, score, bbox, corpsPx }.
 export function statutInitial(ligne) {
   if (ligne.origine === 'fichier') return 'confirme';
   if (ligne.origine === 'suggestion') return 'a-verifier';
+  if (ligne.origine === 'detecteur' && ligne.score != null) {
+    const fondCalme = ligne.bruit == null || ligne.bruit <= BRUIT_FOND_MAX;
+    const hauteurPlausible = boiteCoherente(ligne);
+    if (ligne.score >= SCORE_SUR && fondCalme && hauteurPlausible) return 'confirme';
+  }
   if (ligne.confiance != null && ligne.confiance < CONFIANCE_SURE) return 'a-verifier';
   // Sans confiance (zone non lue), rien ne garantit la lecture : le texte court reste à vérifier.
   const court = compteSignes(ligne.texte) <= SIGNES_PEU;
@@ -46,6 +77,13 @@ export function statutInitial(ligne) {
 // Seuls les textes confirmés et ajoutés décident du verdict.
 export function compte(statut) {
   return statut === 'confirme' || statut === 'ajoute';
+}
+
+// Le verdict d'ensemble ne se décide que sur les textes confirmés : « ok » avec des textes
+// encore à vérifier n'est pas un verdict, il reste provisoire. « À améliorer » et « à
+// corriger » tiennent déjà, les textes à vérifier ne pouvant que s'y ajouter.
+export function verdictProvisoire(verdict, nAVerifier) {
+  return nAVerifier > 0 && verdict === 'ok';
 }
 
 // Les statuts visibles sur la figure : tout sauf les textes retirés.
@@ -384,7 +422,7 @@ const arrondi = (v, d) => (v == null ? null : Math.round(v * 10 ** d) / 10 ** d)
 // La lecture telle qu'elle est, statuts compris, en pixels de l'image d'origine. `lignes`
 // sont les textes mesurés (mesures() de l'interface : pt, lc, nt, nc, niveau). Les textes
 // retirés y restent, avec leur statut. objets et series sont réservés.
-export function exporterLecture({ figure, reglages, verdict, lignes, echelle, diagnosticEnsemble }) {
+export function exporterLecture({ figure, reglages, verdict, aVerifier = 0, lignes, echelle, diagnosticEnsemble }) {
   return {
     version: VERSION_EXPORT,
     figure: { nom: figure.nom, type: figure.type, largeurPx: figure.largeurPx, hauteurPx: figure.hauteurPx },
@@ -393,6 +431,8 @@ export function exporterLecture({ figure, reglages, verdict, lignes, echelle, di
       largeurMm: arrondi(reglages.largeurMm, 2), hauteurMm: arrondi(reglages.hauteurMm, 2), pxParMm: arrondi(reglages.pxParMm, 3),
     },
     verdict,
+    verdictProvisoire: verdictProvisoire(verdict, aVerifier),
+    textesAVerifier: aVerifier,
     textes: lignes.map((l) => ({
       id: l.id,
       texte: l.texte || '',
@@ -400,6 +440,8 @@ export function exporterLecture({ figure, reglages, verdict, lignes, echelle, di
       exact: Boolean(l.exact),
       statut: l.statut,
       origine: l.origine,
+      confiance: arrondi(l.confiance, 1),
+      score: arrondi(l.score, 3),
       corpsPt: arrondi(l.pt, 2),
       lc: arrondi(l.lc, 1),
       couleurTexte: l.contraste ? hex(l.contraste.texte) : null,

@@ -7,7 +7,7 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=6aa08b6e2c';
+} from './analyse.js?v=f48910fefb';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -405,8 +405,8 @@ export function directions(boite) {
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
 const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=6aa08b6e2c', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=6aa08b6e2c', VENDOR).href;
+const ORT = new URL('onnxruntime/ort.wasm.min.js?v=f48910fefb', VENDOR).href;
+const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=f48910fefb', VENDOR).href;
 const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
 const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 
@@ -523,7 +523,7 @@ const lectureUtile = (r) => r && /[\p{L}\p{N}]/u.test(r.texte);
 // Détecte les lignes de texte d'un canevas d'analyse. `lecteur(canevas)` lit une ligne et
 // rend { texte, confiance } ; sans lecteur, le libellé reste « ? ». Rend des lignes comme
 // lire() de lecture.js : { texte, mots, bbox, corpsPx, contraste, exact: false, vertical,
-// confiance, origine: 'detecteur' }, plus lectureIncertaine quand la lecture est vide ou
+// confiance, origine: 'detecteur', score, bruit }, plus lectureIncertaine quand la lecture est vide ou
 // absurde. Une ErreurDetecteur signale un chargement ou une inférence impossible.
 export async function detecter(canevas, progres = () => {}, lecteur = null) {
   let carte;
@@ -545,7 +545,8 @@ export async function detecter(canevas, progres = () => {}, lecteur = null) {
     if (bbox.x1 - bbox.x0 < 2 || bbox.y1 - bbox.y0 < 2) continue;
     // Une tache de photo que le réseau prend pour du texte : fond qui varie presque
     // autant que l'écart entre texte et fond.
-    if (bruitFond(rgba, canevas.width, canevas.height, bbox) > BRUIT_FOND_MAX) continue;
+    const bruit = bruitFond(rgba, canevas.width, canevas.height, bbox);
+    if (bruit > BRUIT_FOND_MAX) continue;
     let lu = null, phi = directions(boite)[0];
     if (lecteur) {
       for (const d of directions(boite)) {
@@ -568,6 +569,8 @@ export async function detecter(canevas, progres = () => {}, lecteur = null) {
       vertical: Math.abs(phi) > Math.PI / 4,
       confiance: lu ? lu.confiance : 0,
       origine: 'detecteur',
+      score: boite.score,
+      bruit,
     };
     if (incertaine) ligne.lectureIncertaine = true;
     lignes.push(ligne);

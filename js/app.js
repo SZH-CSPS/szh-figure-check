@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=6aa08b6e2c';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=6aa08b6e2c';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=6aa08b6e2c';
-import { versHex } from './apca.js?v=6aa08b6e2c';
-import { ouvrir } from './sources.js?v=6aa08b6e2c';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=6aa08b6e2c';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=6aa08b6e2c';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=6aa08b6e2c';
-import { T, langueInitiale, nombre } from './i18n.js?v=6aa08b6e2c';
-import { rendreObjets, exporterObjets } from './objets.js?v=6aa08b6e2c';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=f48910fefb';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=f48910fefb';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire } from './residu.js?v=f48910fefb';
+import { versHex } from './apca.js?v=f48910fefb';
+import { ouvrir } from './sources.js?v=f48910fefb';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=f48910fefb';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=f48910fefb';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=f48910fefb';
+import { T, langueInitiale, nombre } from './i18n.js?v=f48910fefb';
+import { rendreObjets, exporterObjets } from './objets.js?v=f48910fefb';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -147,7 +147,7 @@ function zoomer() {
 
 // ── Textes de la figure ─────────────────────────────────────────────────────────
 
-const SYMBOLES = { corriger: '✕', ameliorer: '!', ok: '✓' };
+const SYMBOLES = { corriger: '✕', ameliorer: '!', ok: '✓', provisoire: '?' };
 const ROUGE = '#d0021b';
 
 function statut(cle, valeurs) {
@@ -241,8 +241,10 @@ function texteContraste(l) {
   return l.lc == null ? t('nonMesure') : `Lc ${Math.round(Math.abs(l.lc))}`;
 }
 
-// Libellé d'un texte : ce qui a été lu, sinon « texte non lu » en retrait.
+// Libellé d'un texte : ce qui a été lu, sinon « texte non lu » en retrait. Une boîte du
+// détecteur dont la lecture est vide ou absurde s'affiche « ? », avec son étiquette.
 function libelle(l) {
+  if (l.lectureIncertaine && l.texte === '?') return element('span', {}, '?', ' ', element('span', { class: 'etiquette discret' }, t('libelleNonLu')));
   return l.texte ? l.texte : element('i', {}, t(l.origine === 'suggestion' ? 'suggestionTexte' : 'texteNonLu'));
 }
 
@@ -388,6 +390,7 @@ function rendreAnalyse() {
   const conformes = regrouper(lignes.filter((l) => l.niveau === 'ok'), { souple: true }).slice(0, CONFORMES_MAX);
   const explorables = [...affiches, ...conformes];
   etat.endroits = groupes.length;
+  etat.aVerifier = aVerifier.length;
   rendreResumes();
 
   // Figure annotée : rien n'y est dessiné par défaut, et on n'agit pas sur elle. Les puces
@@ -536,14 +539,17 @@ function rendreAnalyse() {
 
   // Bilan
   const global = verdictGlobal(lignes);
+  const provisoire = verdictProvisoire(global, aVerifier.length);
   const tailles = lignes.map((l) => l.pt).filter((v) => v != null);
   const nCorriger = lignes.filter((l) => l.niveau === 'corriger').length;
   const nAmeliorer = lignes.filter((l) => l.niveau === 'ameliorer').length;
   const bilan = $('bilan');
-  bilan.className = `bilan ${lignes.length ? global : 'inconnu'}`;
+  bilan.className = `bilan ${provisoire ? 'provisoire' : lignes.length ? global : 'inconnu'}`;
   bilan.replaceChildren(
     element('p', { class: 'bilan-titre' },
-      ...(lignes.length ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`)] : [t('aucunTexte')])),
+      ...(provisoire ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES.provisoire), ' ', t('bilan_provisoire', { n: aVerifier.length })]
+        : lignes.length ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`), global !== 'ok' && aVerifier.length ? ` ${t('bilan_etAVerifier', { n: aVerifier.length })}` : '']
+          : [t('aucunTexte')])),
     element('p', {}, [
       lignes.length ? t('textesLus', { n: lignes.length }) : null,
       nCorriger ? t('compte_corriger', { n: nCorriger }) + '.' : null,
@@ -792,6 +798,7 @@ function exporter() {
     figure: { nom: s.nom, type: s.type, largeurPx: s.espace.l, hauteurPx: s.espace.h },
     reglages: { format: etat.format, proportion: etat.proportion, seuilLc: etat.seuil, largeurMm: fig.l, hauteurMm: fig.h, pxParMm: s.espace.l / fig.l },
     verdict: verdictGlobal(lignes),
+    aVerifier: toutes.filter((l) => l.statut === 'a-verifier').length,
     lignes: toutes,
     echelle: s.espace.l / etat.lecture.canevas.width,
     diagnosticEnsemble: diagnosticEnsemble(lignes),
@@ -1075,6 +1082,8 @@ const RESUMES = {
   4: () => {
     if (!etat.source) return '';
     if (etat.endroits == null) return t('resumeAnalyseEnCours');
+    if (etat.aVerifier && !etat.endroits) return t('resumeProvisoire', { n: etat.aVerifier });
+    if (etat.aVerifier) return t('resumeEtAVerifier', { n: etat.endroits, a: etat.aVerifier });
     return etat.endroits ? t('resumeAnalyse', { n: etat.endroits }) : t('resumeAnalyseOk');
   },
 };

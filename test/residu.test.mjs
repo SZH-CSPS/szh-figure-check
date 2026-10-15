@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  statutInitial, compte, visible, compteSignes, CONFIANCE_SURE, CONFIANCE_SURE_COURTE, CONFIANCE_SURE_TOURNEE, SIGNES_PEU,
+  statutInitial, verdictProvisoire, SCORE_SUR, HAUTEUR_BOITE_MIN, RAPPORT_CORPS_MIN, compte, visible, compteSignes, CONFIANCE_SURE, CONFIANCE_SURE_COURTE, CONFIANCE_SURE_TOURNEE, SIGNES_PEU,
   profilEncre, mesurerProfil, mesurerZone, PALIER_DENSE,
   carteEncre, composantes, signePossible, alignerSignes, zonesEncre, masquer, partBords, BORDS_MAX,
   versOrigine, versCanevas, boiteNormalisee, recouvreUnTexte,
@@ -53,7 +53,7 @@ test('statut initial : texte vertical, à vérifier s’il est peu sûr ou court
 test('seuls confirmé et ajouté comptent ; retiré n’est plus visible', () => {
   assert.deepEqual(STATUTS.filter(compte), ['confirme', 'ajoute']);
   assert.deepEqual(STATUTS.filter(visible), ['confirme', 'a-verifier', 'ajoute']);
-  assert.equal(ORIGINES.length, 4);
+  assert.equal(ORIGINES.length, 5);
 });
 
 // ── Profil d'encre ──────────────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ test('export : schéma complet et stable, coordonnées d’origine, textes retir
     echelle: 800 / 3440,
     diagnosticEnsemble: null,
   });
-  assert.deepEqual(Object.keys(e), ['version', 'figure', 'reglages', 'verdict', 'textes', 'objets', 'series', 'diagnosticEnsemble']);
+  assert.deepEqual(Object.keys(e), ['version', 'figure', 'reglages', 'verdict', 'verdictProvisoire', 'textesAVerifier', 'textes', 'objets', 'series', 'diagnosticEnsemble']);
   assert.equal(e.version, VERSION_EXPORT);
   assert.deepEqual(e.figure, { nom: 'fig.png', type: 'bitmap', largeurPx: 800, hauteurPx: 400 });
   assert.deepEqual(e.reglages, { format: 'revue', proportion: 1, seuilLc: 75, largeurMm: 171.92, hauteurMm: 85.96, pxParMm: 4.653 });
@@ -266,13 +266,13 @@ test('export : schéma complet et stable, coordonnées d’origine, textes retir
   assert.deepEqual(e.series, []);
   assert.equal(e.diagnosticEnsemble, null);
   assert.equal(e.textes.length, 2);
-  assert.deepEqual(Object.keys(e.textes[0]), ['id', 'texte', 'boite', 'exact', 'statut', 'origine', 'corpsPt', 'lc', 'couleurTexte', 'couleurFond', 'niveauTaille', 'niveauContraste', 'niveau']);
+  assert.deepEqual(Object.keys(e.textes[0]), ['id', 'texte', 'boite', 'exact', 'statut', 'origine', 'confiance', 'score', 'corpsPt', 'lc', 'couleurTexte', 'couleurFond', 'niveauTaille', 'niveauContraste', 'niveau']);
   assert.deepEqual(e.textes[0], {
-    id: 't1', texte: 'Effectif', boite: { x0: 80, y0: 20, x1: 400, y1: 40 }, exact: false, statut: 'confirme', origine: 'ocr',
+    id: 't1', texte: 'Effectif', boite: { x0: 80, y0: 20, x1: 400, y1: 40 }, exact: false, statut: 'confirme', origine: 'ocr', confiance: null, score: null,
     corpsPt: 7.25, lc: -62.4, couleurTexte: '#141414', couleurFond: '#FFFFFF', niveauTaille: 'ameliorer', niveauContraste: 'ameliorer', niveau: 'ameliorer',
   });
   assert.deepEqual(e.textes[1], {
-    id: 't2', texte: '', boite: { x0: 0, y0: 0, x1: 20, y1: 10 }, exact: false, statut: 'retire', origine: 'suggestion',
+    id: 't2', texte: '', boite: { x0: 0, y0: 0, x1: 20, y1: 10 }, exact: false, statut: 'retire', origine: 'suggestion', confiance: null, score: null,
     corpsPt: null, lc: null, couleurTexte: null, couleurFond: null, niveauTaille: null, niveauContraste: null, niveau: null,
   });
   // Stable : deux exports des mêmes données sont identiques, et l'objet passe par JSON tel quel.
@@ -288,4 +288,60 @@ test('export : diagnostic d’ensemble arrondi', () => {
   });
   assert.deepEqual(e.diagnosticEnsemble, { total: 12, petits: 9, bas: 3.12, haut: 4.46, mediane: 3.79, facteur: 2.11 });
   assert.equal(e.reglages.proportion, 0.5);
+});
+
+// ── Boîtes du détecteur ─────────────────────────────────────────────────────────
+
+test('statut initial d’une boîte du détecteur : le score confirme, même sans libellé lu', () => {
+  const boite = { x0: 10, y0: 10, x1: 90, y1: 30 };
+  const sure = { origine: 'detecteur', texte: '?', lectureIncertaine: true, confiance: 0, score: SCORE_SUR, bruit: 0.05, vertical: false, bbox: boite, corpsPx: 14 };
+  assert.equal(statutInitial(sure), 'confirme');                                          // « ? » confirmé : le libellé n'entre pas
+  assert.equal(statutInitial({ ...sure, texte: 'Effectif', confiance: 30 }), 'confirme');  // lecture peu sûre, boîte sûre
+  assert.equal(statutInitial({ ...sure, texte: '5', vertical: true }), 'confirme');
+  assert.equal(statutInitial({ ...sure, score: SCORE_SUR - 0.01 }), 'a-verifier');         // score trop bas, lecture vide
+  assert.equal(statutInitial({ ...sure, bruit: BRUIT_FOND_MAX + 0.01 }), 'a-verifier');    // fond bruité
+  assert.equal(statutInitial({ ...sure, bbox: { x0: 0, y0: 0, x1: 80, y1: HAUTEUR_BOITE_MIN - 1 } }), 'a-verifier'); // trait
+  assert.equal(statutInitial({ ...sure, corpsPx: RAPPORT_CORPS_MIN * 20 - 1 }), 'a-verifier'); // corps incohérent avec la boîte
+  assert.equal(statutInitial({ ...sure, corpsPx: RAPPORT_CORPS_MIN * 20 }), 'confirme');
+  assert.equal(statutInitial({ ...sure, corpsPx: null }), 'confirme');                       // corps non mesuré
+});
+
+test('statut initial d’une boîte du détecteur sous le score sûr : la lecture décide, comme pour l’OCR', () => {
+  const bas = { origine: 'detecteur', texte: 'Effectif', confiance: 92, score: SCORE_SUR - 0.1, bruit: 0.05, vertical: false, bbox: { x0: 0, y0: 0, x1: 80, y1: 20 }, corpsPx: 14 };
+  assert.equal(statutInitial(bas), 'confirme');
+  assert.equal(statutInitial({ ...bas, confiance: CONFIANCE_SURE - 1 }), 'a-verifier');
+  assert.equal(statutInitial({ ...bas, texte: '?', confiance: 0 }), 'a-verifier');
+  assert.equal(statutInitial({ ...bas, score: undefined, confiance: CONFIANCE_SURE - 1 }), 'a-verifier');
+  // Une ligne de l'OCR ne passe pas par le score.
+  assert.equal(statutInitial({ origine: 'ocr', texte: '?', confiance: 0, score: 0.99, bruit: 0.05 }), 'a-verifier');
+});
+
+// ── Verdict provisoire ──────────────────────────────────────────────────────────
+
+test('verdict provisoire : « ok » seulement, et seulement s’il reste des textes à vérifier', () => {
+  assert.equal(verdictProvisoire('ok', 0), false);
+  assert.equal(verdictProvisoire('ok', 1), true);
+  assert.equal(verdictProvisoire('ok', 40), true);
+  assert.equal(verdictProvisoire('ameliorer', 3), false);   // le verdict tient, on ajoute « et N texte(s) encore à vérifier »
+  assert.equal(verdictProvisoire('corriger', 3), false);
+  assert.equal(verdictProvisoire('corriger', 0), false);
+});
+
+test('export : verdict provisoire et textes à vérifier, verdict inchangé', () => {
+  const base = {
+    figure: { nom: 'f.png', type: 'bitmap', largeurPx: 100, hauteurPx: 50 },
+    reglages: { format: 'revue', proportion: 1, seuilLc: 75, largeurMm: 100, hauteurMm: 50, pxParMm: 1 },
+    lignes: [{ id: 't1', texte: '?', bbox: { x0: 0, y0: 0, x1: 10, y1: 5 }, statut: 'confirme', origine: 'detecteur', confiance: 12.34, score: 0.8123 }],
+    echelle: 1, diagnosticEnsemble: null,
+  };
+  const provisoire = exporterLecture({ ...base, verdict: 'ok', aVerifier: 4 });
+  assert.equal(provisoire.verdict, 'ok');
+  assert.equal(provisoire.verdictProvisoire, true);
+  assert.equal(provisoire.textesAVerifier, 4);
+  assert.equal(provisoire.textes[0].confiance, 12.3);
+  assert.equal(provisoire.textes[0].score, 0.812);
+  const net = exporterLecture({ ...base, verdict: 'ok', aVerifier: 0 });
+  assert.deepEqual([net.verdictProvisoire, net.textesAVerifier], [false, 0]);
+  const corriger = exporterLecture({ ...base, verdict: 'corriger', aVerifier: 4 });
+  assert.deepEqual([corriger.verdict, corriger.verdictProvisoire, corriger.textesAVerifier], ['corriger', false, 4]);
 });
