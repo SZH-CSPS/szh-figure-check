@@ -1,15 +1,15 @@
 // Interface : quatre étapes en accordéon (figure, paramètres, écran, analyse) ; l'analyse
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs).
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js?v=fc46882b66';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=fc46882b66';
-import { versHex } from './apca.js?v=fc46882b66';
-import { ouvrir } from './sources.js?v=fc46882b66';
-import { lire } from './lecture.js?v=fc46882b66';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=fc46882b66';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=fc46882b66';
-import { T, langueInitiale, nombre } from './i18n.js?v=fc46882b66';
-import { rendreCouleursGraphique } from './couleurs-graphique.js?v=fc46882b66';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js?v=9055eac22a';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=9055eac22a';
+import { versHex } from './apca.js?v=9055eac22a';
+import { ouvrir } from './sources.js?v=9055eac22a';
+import { lire } from './lecture.js?v=9055eac22a';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=9055eac22a';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=9055eac22a';
+import { T, langueInitiale, nombre } from './i18n.js?v=9055eac22a';
+import { rendreObjets } from './objets.js?v=9055eac22a';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -326,7 +326,7 @@ function rendreAnalyse() {
   const cadre = $('analyse-figure');
   const tbody = document.querySelector('#table-textes tbody');
   const f = FORMATS[etat.format];
-  rendreCouleursGraphique($('couleurs-graphique'), etat.lecture, etat.langue);
+  rendreObjets($('objets-graphique'), etat.lecture, etat.source, figureSurPage().l, etat.langue);
   $('rapport-fichier').textContent = t('rapportFichier', {
     nom: etat.source.nom, format: t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre'),
   });

@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   versLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme,
-  couleursDominantes, analyserCouleurs, VISIONS, DELTA_E_DISTINCT, DELTA_E_CONFONDU, WCAG_GRAPHIQUE, LC_GRAPHIQUE,
-} from '../js/couleurs-graphique.js';
+  VISIONS, DELTA_E_DISTINCT, DELTA_E_CONFONDU, WCAG_GRAPHIQUE, LC_GRAPHIQUE,
+} from '../js/couleur.js';
 import { rapportWcag, lc } from '../js/apca.js';
 
 const ROUGE = [0xd7, 0x30, 0x1f], VERT = [0x1a, 0x98, 0x50], JAUNE = [0xf2, 0xc5, 0x3d], BLANC = [255, 255, 255];
@@ -83,52 +83,4 @@ test('verdict d’une paire : la vision la plus défavorable décide', () => {
   assert.equal(v.niveau, 'corriger');
   assert.deepEqual(v.visions, ['deuteranopie', 'gris']);
   assert.equal(verdictPaire({ ...base, protanopie: DELTA_E_DISTINCT - 0.1 }).niveau, 'ameliorer');
-});
-
-// Image synthétique : fond blanc, deux barres de couleur aux bords lissés, un texte noir.
-function image(largeur, hauteur, peindre) {
-  const rgba = new Uint8ClampedArray(largeur * hauteur * 4);
-  for (let y = 0; y < hauteur; y++) {
-    for (let x = 0; x < largeur; x++) {
-      const c = peindre(x, y);
-      rgba.set([...c, 255], (y * largeur + x) * 4);
-    }
-  }
-  return rgba;
-}
-
-test('couleurs dominantes : barres retenues, fond, bords et texte écartés', () => {
-  const L = 300, H = 200;
-  const melange = (a, b, t) => a.map((c, i) => Math.round(c + (b[i] - c) * t));
-  const rgba = image(L, H, (x, y) => {
-    if (x >= 160 && x < 200 && y >= 20 && y < 30) return (x + y) % 3 ? [0, 0, 0] : BLANC;   // texte
-    if (y >= 40 && y < 180) {
-      if (x === 40 || x === 99) return melange(ROUGE, BLANC, 0.5);                      // bord lissé
-      if (x > 40 && x < 99) return ROUGE;
-      if (x === 120 || x === 179) return melange(VERT, BLANC, 0.5);
-      if (x > 120 && x < 179) return VERT;
-    }
-    if (x >= 250 && x < 253 && y >= 100 && y < 103) return [0, 0, 255];                     // tache minuscule
-    return BLANC;
-  });
-  const r = couleursDominantes(rgba, L, H, [{ x0: 160, y0: 20, x1: 200, y1: 30 }]);
-  assert.deepEqual(r.fond, BLANC);
-  assert.equal(r.aplats, true);
-  // Les deux barres ont la même surface : l'ordre entre elles n'est pas fixé.
-  assert.deepEqual(r.couleurs.map((c) => c.rgb).sort(), [ROUGE, VERT].sort());
-  for (const c of r.couleurs) assert.ok(Math.abs(c.part - (58 * 140) / (L * H)) < 0.01, String(c.part));
-
-  const a = analyserCouleurs(r);
-  assert.equal(a.paires.length, 1);
-  assert.ok(a.paires[0].visions.includes('gris') && a.paires[0].visions.includes('deuteranopie'));
-  assert.equal(a.niveau, 'ameliorer');
-});
-
-test('couleurs dominantes : un dégradé n’a pas d’aplat', () => {
-  const L = 300, H = 200;
-  const rgba = image(L, H, (x, y) => [Math.round((x / L) * 200), Math.round((y / H) * 120), 90]);
-  const r = couleursDominantes(rgba, L, H);
-  assert.equal(r.aplats, false);
-  assert.deepEqual(r.couleurs, []);
-  assert.deepEqual(analyserCouleurs(r).paires, []);
 });
