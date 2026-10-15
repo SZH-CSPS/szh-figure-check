@@ -5,7 +5,7 @@ import {
   profilEncre, mesurerProfil, mesurerZone, PALIER_DENSE,
   carteEncre, composantes, signePossible, alignerSignes, zonesEncre, masquer, partBords, BORDS_MAX,
   versOrigine, versCanevas, boiteNormalisee, recouvreUnTexte,
-  exporterLecture, VERSION_EXPORT, STATUTS, ORIGINES,
+  exporterLecture, VERSION_EXPORT, STATUTS, ORIGINES, trancherAVerifier,
 } from '../js/residu.js';
 import { BRUIT_FOND_MAX, RATIO_X, RATIO_CAPITALE } from '../js/analyse.js';
 
@@ -344,4 +344,20 @@ test('export : verdict provisoire et textes à vérifier, verdict inchangé', ()
   assert.deepEqual([net.verdictProvisoire, net.textesAVerifier], [false, 0]);
   const corriger = exporterLecture({ ...base, verdict: 'corriger', aVerifier: 4 });
   assert.deepEqual([corriger.verdict, corriger.verdictProvisoire, corriger.textesAVerifier], ['corriger', false, 4]);
+});
+
+// ── Trancher les textes à vérifier d'un coup ────────────────────────────────────
+
+test('trancher : seuls les textes à vérifier changent, les autres statuts restent', () => {
+  const lignes = [
+    { id: 't1', statut: 'a-verifier' },
+    { id: 't2', statut: 'confirme' },
+    { id: 't3', statut: 'a-verifier' },
+    { id: 't4', statut: 'retire' },
+    { id: 't5', statut: 'ajoute' },
+  ];
+  const changes = trancherAVerifier(lignes, 'retire');
+  assert.deepEqual(changes.map((l) => l.id), ['t1', 't3']);
+  assert.deepEqual(lignes.map((l) => l.statut), ['retire', 'confirme', 'retire', 'retire', 'ajoute']);
+  assert.deepEqual(trancherAVerifier(lignes, 'confirme'), []);
 });
