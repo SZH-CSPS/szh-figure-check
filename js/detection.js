@@ -7,7 +7,8 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=e80834be70';
+} from './analyse.js?v=e02e5eea6a';
+import { compteSignes, SIGNES_PEU } from './residu.js?v=e02e5eea6a';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -282,6 +283,16 @@ export const PALIER_PLEIN = 0.5;
 // maximum. Plus bas, le flou des bords et les queues (virgule, « % ») allongent la ligne ;
 // plus haut, les montants d'un L ou d'un U, moins denses que leurs barres, sortent.
 export const ETENDUE = 0.25;
+// Un texte d'un ou deux signes, tous des capitales ou des chiffres, n'a pas de ligne de base
+// partagée entre plusieurs lettres : un 4 (pointe fine), un 7 ou un T (barre dense, montant
+// mince), un F ou un 9 (paliers interrompus) ont un palier dense qui ne couvre qu'une partie
+// de leur hauteur. Leur hauteur est alors l'étendue d'encre mesurée plus bas : rangées
+// contiguës où la densité atteint ETENDUE_COURTE fois le maximum, ou PIXELS_ENCRE pixels
+// d'encre si c'est moins (un montant de 3 pixels de large est de l'encre même devant une
+// barre de 60). Le palier ne vaut que s'il couvre au moins PALIER_PLEIN_COURT de cette étendue.
+export const ETENDUE_COURTE = 0.15;
+export const PIXELS_ENCRE = 3;
+export const PALIER_PLEIN_COURT = 0.8;
 
 // Densité d'encre de chaque rangée d'un tampon RGBA de l × h pixels : part de la largeur
 // couverte, chaque pixel comptant pour son écart au fond (médiane de la zone : l'encre en
@@ -334,7 +345,7 @@ export function medianeGlissante(profil, fenetre) {
 // capitale ou de chiffre d'un texte en capitales), ce qui monte au-dessus (hampes,
 // capitales) et ce qui descend dessous (jambages). Hauteurs en pixels, au dixième près.
 // Rend null si le profil est vide.
-export function paliers(brut) {
+export function paliers(brut, largeur = null) {
   const profil = medianeGlissante(brut, FENETRE_LISSAGE);
   const max = Math.max(...profil);
   if (!(max > 0)) return null;
@@ -348,7 +359,10 @@ export function paliers(brut) {
   const [, e1] = bordsDepuis(profil, i1, HAMPE * max);
   const [c0] = bordsDepuis(profil, i0, ETENDUE * max);
   const [, c1] = bordsDepuis(profil, i1, ETENDUE * max);
-  return { palier: bas - haut, dessus: Math.max(0, haut - e0), dessous: Math.max(0, e1 - bas), etendue: c1 - c0 };
+  const seuilFin = Math.min(ETENDUE_COURTE * max, largeur ? PIXELS_ENCRE / largeur : Infinity);
+  const [f0] = bordsDepuis(profil, i0, seuilFin);
+  const [, f1] = bordsDepuis(profil, i1, seuilFin);
+  return { palier: bas - haut, dessus: Math.max(0, haut - e0), dessous: Math.max(0, e1 - bas), etendue: c1 - c0, etendueFine: f1 - f0 };
 }
 
 // Nature du palier dense d'après le texte lu : la hauteur d'x s'il porte plus de minuscules
@@ -362,10 +376,15 @@ export function natureDuTexte(texte) {
 
 // Corps en pixels. Sans texte, un palier surmonté de hampes (dessus ≥ 20 % du palier) est
 // une hauteur d'x, un palier nu une hauteur de capitale. Avec hampes, la hauteur d'x et
-// celle de la capitale donnent deux estimations, dont on prend la moyenne.
-export function corpsDepuisProfil(profil, nature = null) {
-  const p = paliers(profil);
+// celle de la capitale donnent deux estimations, dont on prend la moyenne. `court`
+// ({ largeur } de la découpe) désigne un texte d'une ou deux capitales ou chiffres : voir
+// ETENDUE_COURTE.
+export function corpsDepuisProfil(profil, nature = null, court = null) {
+  const p = paliers(profil, court ? court.largeur : null);
   if (!p || p.palier <= 0) return null;
+  if (court && nature === 'capitale') {
+    return (p.palier >= PALIER_PLEIN_COURT * p.etendueFine ? p.palier : p.etendueFine) / RATIO_CAPITALE;
+  }
   const etendue = p.etendue;
   const avecHampes = p.dessus >= HAMPE_RAPPORT_MIN * p.palier;
   // Capitales, chiffres : le palier donne la hauteur quand il couvre l'essentiel de
@@ -405,8 +424,8 @@ export function directions(boite) {
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
 const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=e80834be70', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=e80834be70', VENDOR).href;
+const ORT = new URL('onnxruntime/ort.wasm.min.js?v=e02e5eea6a', VENDOR).href;
+const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=e02e5eea6a', VENDOR).href;
 const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
 const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 
@@ -556,6 +575,7 @@ export async function detecter(canevas, progres = () => {}, lecteur = null) {
     }
     const incertaine = !lectureUtile(lu) || lu.confiance < CONFIANCE_LECTURE_MIN;
     const nature = incertaine ? null : natureDuTexte(lu.texte);
+    const court = nature === 'capitale' && compteSignes(lu.texte) <= SIGNES_PEU && !/\p{Ll}/u.test(lu.texte);
     const decoupe = decouper(canevas, boite, phi, 1);
     const profil = profilEncre(decoupe.getContext('2d').getImageData(0, 0, decoupe.width, decoupe.height).data, decoupe.width, decoupe.height);
     const contraste = contrasteZone(rgba, canevas.width, canevas.height, bbox);
@@ -563,7 +583,7 @@ export async function detecter(canevas, progres = () => {}, lecteur = null) {
       texte: incertaine ? '?' : lu.texte,
       mots: [bbox],
       bbox,
-      corpsPx: profil ? corpsDepuisProfil(profil, nature) : null,
+      corpsPx: profil ? corpsDepuisProfil(profil, nature, court ? { largeur: decoupe.width } : null) : null,
       contraste,
       exact: false,
       vertical: Math.abs(phi) > Math.PI / 4,

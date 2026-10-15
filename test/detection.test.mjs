@@ -174,6 +174,25 @@ test('le texte lu tranche entre hauteur d’x et hauteur de capitale', () => {
   assert.equal(corpsDepuisProfil(new Float64Array(10), null), null);
 });
 
+test('un texte court en capitales ou chiffres se mesure sur l’étendue de l’encre', () => {
+  // Un 7 : barre dense, montant mince. Sans le mode court, la barre seule fait le palier.
+  const sept = rangees([8, 0], [5, 0.7], [40, 0.06], [8, 0]);
+  const court = { largeur: 70 };
+  assert.ok(corpsDepuisProfil(sept, 'capitale') < 10 / 0.71 + 1);
+  proche(corpsDepuisProfil(sept, 'capitale', court), 45 / 0.71, 2);
+  // Un 4 : pointe fine, barre dense plus bas.
+  const quatre = rangees([6, 0], [4, 0.05], [20, 0.16], [5, 0.45], [12, 0.1], [6, 0]);
+  proche(corpsDepuisProfil(quatre, 'capitale', court), 41 / 0.71, 4);
+  // Un F : deux barres denses, le palier couvre 60 % de la hauteur.
+  const f = rangees([6, 0], [5, 0.5], [8, 0.17], [5, 0.45], [26, 0.17], [6, 0]);
+  proche(corpsDepuisProfil(f, 'capitale', court), 44 / 0.71, 3);
+  // Un 5 dont le palier couvre toute la hauteur garde la mesure du palier.
+  const cinq = rangees([6, 0], [40, 0.4], [6, 0]);
+  proche(corpsDepuisProfil(cinq, 'capitale', court), 40 / 0.71, 1.5);
+  // Un texte en bas de casse n'est pas concerné.
+  proche(corpsDepuisProfil(sept, 'x', court), corpsDepuisProfil(sept, 'x'), 1e-9);
+});
+
 test('directions de lecture : horizontale, verticale, ambiguë, orientée', () => {
   const droite = (a, b) => ({ ux: 1, uy: 0, a, b, oriente: false });
   assert.deepEqual(directions(droite(100, 20)), [0]);
