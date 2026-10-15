@@ -45,7 +45,7 @@
 @media print {
   .ob-serie, .ob-paire, .ob-image { box-shadow: none; border: 1px solid #d6d6cf; }
   .ob-serie, .ob-paire { border-top-width: 5px; }
-  .ob-series { grid-template-columns: 1fr 1fr 1fr; }
+  .ob-series { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ob-paires { grid-template-columns: 1fr; }
   .ob-interrupteur { display: none; }
   .ob-figure { break-inside: avoid; }

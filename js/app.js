@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=67a41e43d8';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=67a41e43d8';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=67a41e43d8';
-import { versHex } from './apca.js?v=67a41e43d8';
-import { ouvrir, ErreurSource } from './sources.js?v=67a41e43d8';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=67a41e43d8';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=67a41e43d8';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=67a41e43d8';
-import { T, langueInitiale, nombre } from './i18n.js?v=67a41e43d8';
-import { rendreObjets, exporterObjets } from './objets.js?v=67a41e43d8';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=36bc6cfe92';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=36bc6cfe92';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=36bc6cfe92';
+import { versHex } from './apca.js?v=36bc6cfe92';
+import { ouvrir, ErreurSource } from './sources.js?v=36bc6cfe92';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=36bc6cfe92';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=36bc6cfe92';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=36bc6cfe92';
+import { T, langueInitiale, nombre } from './i18n.js?v=36bc6cfe92';
+import { rendreObjets, exporterObjets } from './objets.js?v=36bc6cfe92';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -910,12 +910,24 @@ function telechargerExport() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function imprimerRapport() {
+// Met la page en mode rapport : feuille A4, détail des textes ouvert. afterprint défait.
+function preparerRapport() {
   document.body.dataset.impression = 'rapport';
   $('style-impression').textContent = '@page { size: A4; margin: 15mm; }';
   $('details-textes').open = true;
+}
+
+function imprimerRapport() {
+  preparerRapport();
   window.print();
 }
+
+// Ctrl+P depuis la vue des textes imprime le rapport, comme le bouton, et non la page
+// simulée. Les autres vues gardent l'impression de la page à 100 %.
+window.addEventListener('beforeprint', () => {
+  if (document.body.dataset.impression || !etat.source || !etat.lecture || etat.onglet !== 'rapport') return;
+  preparerRapport();
+});
 
 window.addEventListener('afterprint', () => {
   if (document.body.dataset.impression !== 'rapport') return;
