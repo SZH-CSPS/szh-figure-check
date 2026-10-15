@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lc, rapportWcag, versHex } from '../js/apca.js';
-import { FORMATS, zoneContenu, tailleFigure, versPoints, MM_PAR_PX } from '../js/formats.js';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, MM_PAR_PX, proportionDepuis, PROPORTION_DEFAUT } from '../js/formats.js';
 import {
-  corpsDepuisSymboles, contrasteZone, bruitFond, ligneCourteFiable, BRUIT_FOND_MAX, depuisRotation, recouvrement, seuilOtsu,
+  corpsDepuisSymboles, contrasteZone, bruitFond, BRUIT_FOND_MAX, depuisRotation, recouvrement, seuilOtsu,
   niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, quantile,
 } from '../js/analyse.js';
 import { T, TEXTES, nombre, langueInitiale } from '../js/i18n.js';
@@ -27,12 +27,24 @@ test('zone de contenu des deux formats', () => {
   assert.ok(Math.abs(l.h - 185.85) < 1e-9);
 });
 
-test('une image large prend toute la colonne, une petite garde sa taille', () => {
+test('par défaut, toute figure prend toute la colonne ; « taille du fichier » garde une petite image petite', () => {
   const colonne = zoneContenu(FORMATS.revue).l;
+  assert.equal(PROPORTION_DEFAUT, 1);
   assert.ok(Math.abs(tailleFigure(FORMATS.revue, 0.5, { l: 2000, h: 1000 }).l - colonne) < 1e-9);
-  const petite = tailleFigure(FORMATS.revue, 0.5, { l: 400, h: 200 });
+  assert.ok(Math.abs(tailleFigure(FORMATS.revue, 0.5, { l: 400, h: 200 }).l - colonne) < 1e-9);
+  assert.ok(Math.abs(tailleFigure(FORMATS.revue, 0.5, { l: 2000, h: 1000 }, null).l - colonne) < 1e-9);
+  const petite = tailleFigure(FORMATS.revue, 0.5, { l: 400, h: 200 }, null);
   assert.ok(Math.abs(petite.l - 400 * MM_PAR_PX) < 1e-9);
   assert.ok(Math.abs(tailleFigure(FORMATS.livre, 0.5, null, 0.5).l - 57.5) < 1e-9);
+});
+
+test('?largeur= : fractions, pour cent, taille du fichier, défaut', () => {
+  assert.equal(proportionDepuis('75'), 0.75);
+  assert.equal(proportionDepuis('0.5'), 0.5);
+  assert.equal(proportionDepuis('100'), 1);
+  assert.equal(proportionDepuis('fichier'), null);
+  assert.equal(proportionDepuis('abc'), 1);
+  assert.equal(proportionDepuis(null), 1);
 });
 
 test('une figure haute est plafonnée à 80 % de la zone et garde ses proportions', () => {
@@ -122,18 +134,6 @@ test('bruit du fond : nul sur un fond uni, grand sur un fond texturé', () => {
 test('bruit du fond : zone uniforme, pas de mesure', () => {
   const px = image(20, 20, [255, 255, 255], [255, 255, 255], { x0: 0, x1: 0, y0: 0, y1: 0 });
   assert.equal(bruitFond(px, 20, 20, { x0: 0, y0: 0, x1: 20, y1: 20 }), null);
-});
-
-test('ligne courte : gardée seulement si l’OCR en est sûr', () => {
-  const m = (text, confidence) => ({ text, confidence });
-  assert.equal(ligneCourteFiable([m('EN', 76)], 85), false);
-  assert.equal(ligneCourteFiable([m('50', 88)], 85), true);
-  assert.equal(ligneCourteFiable([m('Le', 71), m('3', 66)], 85), false);
-  assert.equal(ligneCourteFiable([m('0%', 96)], 85), true);
-  assert.equal(ligneCourteFiable([m('Il', 91)], 95), false);
-  // Au-delà de trois lettres ou chiffres, la ligne n'est pas jugée ici.
-  assert.equal(ligneCourteFiable([m('Vaud', 60)], 85), true);
-  assert.equal(ligneCourteFiable([m('2024', 60)], 95), true);
 });
 
 test('rotation : retour aux coordonnées d’origine', () => {

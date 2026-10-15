@@ -13,6 +13,23 @@ export const SEUILS_LC = [75, 90];
 export const LC_MIN = SEUILS_LC[0];
 export const ECART_GRAVE_LC = 15;
 
+// Largeur de la figure, en fraction de la colonne. Pronto imprime toute figure en pleine
+// largeur : c'est le défaut. null garde la taille du fichier (dépôt direct par la rédaction).
+export const PROPORTIONS = [1, 0.75, 0.5];
+export const PROPORTION_DEFAUT = 1;
+// En dessous de 150 ppp à la taille imprimée, une image bitmap est floue.
+export const PPP_MIN = 150;
+
+// Fraction de colonne demandée par `?largeur=` : « 100 », « 75 », « 50 » (ou 1, 0.75,
+// 0.5), « fichier » pour la taille du fichier ; toute autre valeur donne le défaut.
+export function proportionDepuis(valeur) {
+  if (valeur === 'fichier') return null;
+  const n = parseFloat(valeur);
+  if (PROPORTIONS.includes(n)) return n;
+  if (PROPORTIONS.includes(n / 100)) return n / 100;
+  return PROPORTION_DEFAUT;
+}
+
 export const FORMATS = {
   revue: {
     page: { l: 210, h: 297 },
@@ -40,10 +57,10 @@ export function zoneContenu(format) {
 }
 
 // Taille de la figure sur la page, en mm. `naturel` est la taille intrinsèque en px CSS
-// (1 pixel d'image = 1 px CSS, comme dans WeasyPrint), ou null si elle est inconnue.
-// `proportion` impose une fraction de la largeur de colonne ; null reproduit Pronto :
-// `max-width: 100%; height: auto; max-height: var(--plafond-figure)`.
-export function tailleFigure(format, ratio, naturel, proportion = null) {
+// (1 pixel d'image = 1 px CSS), ou null si elle est inconnue. `proportion` impose une
+// fraction de la largeur de colonne ; null garde la taille du fichier, plafonnée à la
+// colonne : `max-width: 100%; height: auto; max-height: var(--plafond-figure)`.
+export function tailleFigure(format, ratio, naturel, proportion = PROPORTION_DEFAUT) {
   const zone = zoneContenu(format);
   let l;
   if (proportion) l = zone.l * proportion;
