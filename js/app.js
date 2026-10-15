@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=3a3e052dfb';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=3a3e052dfb';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=3a3e052dfb';
-import { versHex } from './apca.js?v=3a3e052dfb';
-import { ouvrir } from './sources.js?v=3a3e052dfb';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=3a3e052dfb';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=3a3e052dfb';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=3a3e052dfb';
-import { T, langueInitiale, nombre } from './i18n.js?v=3a3e052dfb';
-import { rendreObjets, exporterObjets } from './objets.js?v=3a3e052dfb';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=8d304de540';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=8d304de540';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=8d304de540';
+import { versHex } from './apca.js?v=8d304de540';
+import { ouvrir } from './sources.js?v=8d304de540';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=8d304de540';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=8d304de540';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=8d304de540';
+import { T, langueInitiale, nombre } from './i18n.js?v=8d304de540';
+import { rendreObjets, exporterObjets } from './objets.js?v=8d304de540';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -373,6 +373,24 @@ function phraseEndroits(groupes, premier, diag) {
   return phrase.join(' ');
 }
 
+// La première occurrence visible de « Lc » dans la vue porte une infobulle qui l'explique.
+function marquerLc() {
+  const marcheur = document.createTreeWalker($('rapport'), NodeFilter.SHOW_TEXT);
+  for (let n = marcheur.nextNode(); n; n = marcheur.nextNode()) {
+    const el = n.parentElement;
+    if (!/\bLc\b/.test(n.nodeValue) || el.closest('.cartes-impression, abbr, script')) continue;
+    const cache = el.closest('[hidden]');
+    if (cache && $('rapport').contains(cache)) continue;
+    if (el.closest('details:not([open])') && !el.closest('summary')) continue;
+    const i = n.nodeValue.search(/\bLc\b/);
+    const abbr = element('abbr', { title: t('lcAbbr') }, 'Lc');
+    const apres = n.splitText(i);
+    apres.nodeValue = apres.nodeValue.slice(2);
+    n.after(abbr);
+    return;
+  }
+}
+
 function rendreAnalyse() {
   const cadre = $('analyse-figure');
   const tbody = document.querySelector('#table-textes tbody');
@@ -685,6 +703,7 @@ function rendreAnalyse() {
 
   const exact = lignes.length && lignes.every((l) => l.exact);
   $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: etat.seuil, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
+  marquerLc();
 }
 
 const ns = 'http://www.w3.org/2000/svg';

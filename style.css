@@ -446,3 +446,4 @@ dialog h2 { margin-top: 0; }
   .zones { grid-template-columns: 1fr 1fr; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+abbr[title] { text-decoration: underline dotted; cursor: help; }
