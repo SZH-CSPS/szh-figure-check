@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=6aa08b6e2c';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=6aa08b6e2c';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=6aa08b6e2c';
-import { versHex } from './apca.js?v=6aa08b6e2c';
-import { ouvrir } from './sources.js?v=6aa08b6e2c';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=6aa08b6e2c';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=6aa08b6e2c';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=6aa08b6e2c';
-import { T, langueInitiale, nombre } from './i18n.js?v=6aa08b6e2c';
-import { rendreObjets, exporterObjets } from './objets.js?v=6aa08b6e2c';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=b869fb9cfb';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=b869fb9cfb';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=b869fb9cfb';
+import { versHex } from './apca.js?v=b869fb9cfb';
+import { ouvrir } from './sources.js?v=b869fb9cfb';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=b869fb9cfb';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=b869fb9cfb';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=b869fb9cfb';
+import { T, langueInitiale, nombre } from './i18n.js?v=b869fb9cfb';
+import { rendreObjets, exporterObjets } from './objets.js?v=b869fb9cfb';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
