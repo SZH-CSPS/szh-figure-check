@@ -64,7 +64,8 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 /* Étapes en accordéon */
-.etapes { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
+/* minmax(0, 1fr) : la diapositive large défile dans .salle au lieu d'élargir la page. */
+.etapes { list-style: none; padding: 0; margin: 24px 0 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .etape { background: var(--surface); border: 1px solid var(--filet); border-radius: 12px; }
 .etape.ouverte { border-color: var(--encre-2); }
 .etape-titre { margin: 0; font-size: 1.1rem; }

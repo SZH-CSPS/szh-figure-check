@@ -6,13 +6,13 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=2b87de3108';
-import { MM_PAR_PT } from './formats.js?v=2b87de3108';
+import { versHex } from './apca.js?v=cc3cec3d62';
+import { MM_PAR_PT } from './formats.js?v=cc3cec3d62';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=2b87de3108';
-import { T, nombre } from './i18n.js?v=2b87de3108';
+} from './couleur.js?v=cc3cec3d62';
+import { T, nombre } from './i18n.js?v=cc3cec3d62';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
