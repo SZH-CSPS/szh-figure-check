@@ -7,7 +7,8 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=ec2d598e33';
+} from './analyse.js?v=a709c71204';
+import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=a709c71204';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -423,8 +424,8 @@ export function directions(boite) {
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
 const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=ec2d598e33', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=ec2d598e33', VENDOR).href;
+const ORT = new URL('onnxruntime/ort.wasm.min.js?v=a709c71204', VENDOR).href;
+const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=a709c71204', VENDOR).href;
 const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
 const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 
