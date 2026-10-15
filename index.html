@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=6da93eb8c5">
-  <link rel="stylesheet" href="objets.css?v=6da93eb8c5">
+  <link rel="stylesheet" href="style.css?v=2b87de3108">
+  <link rel="stylesheet" href="objets.css?v=2b87de3108">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=6da93eb8c5"></script>
+  <script type="module" src="js/app.js?v=2b87de3108"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -44,8 +44,8 @@
     <ol class="etapes">
       <li class="etape" id="etape-1">
         <h2 class="etape-titre">
-          <button type="button" class="etape-bouton" data-etape="1" aria-controls="etape-1-corps">
-            <span class="etape-num">1</span><span class="etape-nom" data-t="etape1"></span><span class="etape-resume" id="resume-1"></span>
+          <button type="button" class="etape-bouton" data-etape="1" aria-controls="etape-1-corps" aria-labelledby="etape-1-num etape-1-nom" aria-describedby="resume-1">
+            <span class="etape-num" id="etape-1-num">1</span><span class="etape-nom" id="etape-1-nom" data-t="etape1"></span><span class="etape-resume" id="resume-1"></span>
           </button>
         </h2>
         <div class="etape-corps" id="etape-1-corps">
@@ -74,8 +74,8 @@
 
       <li class="etape" id="etape-2">
         <h2 class="etape-titre">
-          <button type="button" class="etape-bouton" data-etape="2" aria-controls="etape-2-corps">
-            <span class="etape-num">2</span><span class="etape-nom" data-t="etape2"></span><span class="etape-resume" id="resume-2"></span>
+          <button type="button" class="etape-bouton" data-etape="2" aria-controls="etape-2-corps" aria-labelledby="etape-2-num etape-2-nom" aria-describedby="resume-2">
+            <span class="etape-num" id="etape-2-num">2</span><span class="etape-nom" id="etape-2-nom" data-t="etape2"></span><span class="etape-resume" id="resume-2"></span>
           </button>
         </h2>
         <div class="etape-corps" id="etape-2-corps">
@@ -109,8 +109,8 @@
 
       <li class="etape" id="etape-3">
         <h2 class="etape-titre">
-          <button type="button" class="etape-bouton" data-etape="3" aria-controls="etape-3-corps">
-            <span class="etape-num">3</span><span class="etape-nom" data-t="etape3"></span><span class="etape-resume" id="resume-3"></span>
+          <button type="button" class="etape-bouton" data-etape="3" aria-controls="etape-3-corps" aria-labelledby="etape-3-num etape-3-nom" aria-describedby="resume-3">
+            <span class="etape-num" id="etape-3-num">3</span><span class="etape-nom" id="etape-3-nom" data-t="etape3"></span><span class="etape-resume" id="resume-3"></span>
           </button>
         </h2>
         <div class="etape-corps" id="etape-3-corps">
@@ -133,8 +133,8 @@
 
       <li class="etape" id="etape-4">
         <h2 class="etape-titre">
-          <button type="button" class="etape-bouton" data-etape="4" aria-controls="etape-4-corps">
-            <span class="etape-num">4</span><span class="etape-nom" data-t="etape4"></span><span class="etape-resume" id="resume-4"></span>
+          <button type="button" class="etape-bouton" data-etape="4" aria-controls="etape-4-corps" aria-labelledby="etape-4-num etape-4-nom" aria-describedby="resume-4">
+            <span class="etape-num" id="etape-4-num">4</span><span class="etape-nom" id="etape-4-nom" data-t="etape4"></span><span class="etape-resume" id="resume-4" aria-live="polite"></span>
           </button>
         </h2>
         <div class="etape-corps" id="etape-4-corps">
@@ -203,7 +203,7 @@
               <div class="explorateur-figure">
                 <div class="analyse-figure" id="analyse-figure"></div>
               </div>
-              <div class="explorateur-panneau" id="panneau" role="tabpanel" aria-live="polite"></div>
+              <div class="explorateur-panneau" id="panneau" role="region"></div>
             </div>
             <div class="cartes-impression">
               <h4 id="zones-titre" hidden></h4>

@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=6da93eb8c5';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=6da93eb8c5';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=6da93eb8c5';
-import { versHex } from './apca.js?v=6da93eb8c5';
-import { ouvrir } from './sources.js?v=6da93eb8c5';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=6da93eb8c5';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=6da93eb8c5';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=6da93eb8c5';
-import { T, langueInitiale, nombre } from './i18n.js?v=6da93eb8c5';
-import { rendreObjets, exporterObjets } from './objets.js?v=6da93eb8c5';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=2b87de3108';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=2b87de3108';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=2b87de3108';
+import { versHex } from './apca.js?v=2b87de3108';
+import { ouvrir } from './sources.js?v=2b87de3108';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=2b87de3108';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=2b87de3108';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=2b87de3108';
+import { T, langueInitiale, nombre } from './i18n.js?v=2b87de3108';
+import { rendreObjets, exporterObjets } from './objets.js?v=2b87de3108';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -79,6 +79,7 @@ function appliquerLangue() {
   }
   for (const el of document.querySelectorAll('[data-t-aria]')) el.setAttribute('aria-label', t(el.dataset.tAria));
   rendreResumes();
+  nommerPanneau();
   $('langue').textContent = t('autreLangue');
   $('langue').lang = etat.langue === 'fr' ? 'de' : 'fr';
   if (etat.source) { rendrePage(); rendreAnalyse(); rendreCouleurs(); }
@@ -1087,7 +1088,7 @@ function validerCalibration() {
   etat.pxParMm = Math.abs(v - PX_PAR_MM_NOMINAL) < 0.005 ? null : v;
   ecrireCalibration(etat.pxParMm);
   if (etat.source) { rendrePage(); rendreProjection(); }
-  ouvrirEtape(4);
+  ouvrirEtape(4, true);
 }
 
 // ── Étapes et vues ──────────────────────────────────────────────────────────────
@@ -1106,11 +1107,17 @@ const RESUMES = {
 };
 
 function rendreResumes() {
-  for (const n of [1, 2, 3, 4]) $(`resume-${n}`).textContent = RESUMES[n]();
+  // Un texte inchangé n'est pas réécrit : le résumé de l'étape 4 est une zone vive.
+  for (const n of [1, 2, 3, 4]) {
+    const texte = RESUMES[n]();
+    if ($(`resume-${n}`).textContent !== texte) $(`resume-${n}`).textContent = texte;
+  }
 }
 
 // Une seule étape ouverte. Les étapes passées portent une coche.
-function ouvrirEtape(n) {
+// `focus` : après un geste de l'utilisateur, le focus suit sur le bouton de l'étape ouverte
+// (le bouton « Continuer » disparaît avec son étape).
+function ouvrirEtape(n, focus = false) {
   etat.etape = n;
   for (const k of [1, 2, 3, 4]) {
     const ouverte = k === n;
@@ -1127,6 +1134,13 @@ function ouvrirEtape(n) {
   rendreResumes();
   const li = $(`etape-${n}`);
   if (li.getBoundingClientRect().top < 0) li.scrollIntoView({ block: 'start' });
+  if (focus) document.querySelector(`.etape-bouton[data-etape="${n}"]`).focus({ preventScroll: true });
+}
+
+// Le panneau des cartes porte le titre de la vue active.
+function nommerPanneau() {
+  const actif = document.querySelector('.onglets-analyse [role="tab"][aria-selected="true"] b > span');
+  if (actif) $('panneau').setAttribute('aria-label', actif.textContent);
 }
 
 // Une seule vue de l'analyse à la fois.
@@ -1138,6 +1152,7 @@ function montrerVue(id) {
     b.tabIndex = actif ? 0 : -1;
     $(b.dataset.vue).hidden = !actif;
   }
+  nommerPanneau();
   if (id === 'vue-page' && etat.source) zoomer();
   if (id === 'vue-projection') rendreProjection();
 }
@@ -1261,9 +1276,9 @@ function brancher() {
   // Étapes
   for (const b of document.querySelectorAll('.etape-bouton')) {
     b.disabled = b.dataset.etape !== '1';
-    b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.etape)));
+    b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.etape), true));
   }
-  for (const b of document.querySelectorAll('[data-aller]')) b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.aller)));
+  for (const b of document.querySelectorAll('[data-aller]')) b.addEventListener('click', () => ouvrirEtape(Number(b.dataset.aller), true));
 
   // Paramètres
   synchroniserReglages();
@@ -1288,8 +1303,8 @@ function brancher() {
   $('carte-plus').addEventListener('click', () => { $('carte-curseur').value = parseFloat($('carte-curseur').value) + 0.02; montrerCarte(); });
   $('carte-reinitialiser').addEventListener('click', () => { $('carte-curseur').value = PX_PAR_MM_NOMINAL; montrerCarte(); });
   $('carte-valider').addEventListener('click', validerCalibration);
-  $('carte-passer').addEventListener('click', () => ouvrirEtape(4));
-  $('calibrer').addEventListener('click', () => ouvrirEtape(3));
+  $('carte-passer').addEventListener('click', () => ouvrirEtape(4, true));
+  $('calibrer').addEventListener('click', () => ouvrirEtape(3, true));
 
   // Projection : une salle type remplit la largeur et la distance, modifiables ensuite.
   for (const r of document.querySelectorAll('input[name="salle"]')) {

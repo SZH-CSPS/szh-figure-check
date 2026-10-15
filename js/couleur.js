@@ -2,7 +2,7 @@
 // contraste d'une couleur avec le fond et écart entre deux couleurs selon la vision. Aucune
 // fonction n'a besoin du DOM ; objets.js s'en sert pour les séries d'un graphique.
 
-import { lc, luminanceApca, rapportWcag } from './apca.js?v=6da93eb8c5';
+import { lc, luminanceApca, rapportWcag } from './apca.js?v=2b87de3108';
 
 // ── Seuils ──────────────────────────────────────────────────────────────────────
 
