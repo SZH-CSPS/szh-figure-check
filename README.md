@@ -37,9 +37,11 @@ Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler 
 lire l’analyse. L’analyse montre une vue à la fois, choisie par cinq tuiles : aperçu à taille
 réelle, taille et contraste des textes, objets du graphique (séries de barres, courbes et
 formes, leurs contrastes et l’épaisseur de leurs traits), vision (daltonismes et basse
-vision), et projection. Dans la vue des objets, une puce numérotée par carte de série ou de paire
-met en évidence ses contours sur la figure : le survol montre un aperçu, le clic la rend
-active, et la première série à corriger l’est au départ. Pour un résultat exact, la page
+vision), et projection. La vue des objets a la même présentation que celle des textes (module `js/explorateur.js`, partagé) : trois boîtes
+« À corriger », « À améliorer » et « Conforme », une puce numérotée par endroit (chaque série, puis chaque paire de séries
+difficiles à distinguer, à corriger d’abord), la figure à gauche et la carte de l’endroit à droite. Le survol d’une puce
+montre un aperçu (contours sur la figure, carte dans le panneau), le clic la rend active, et le premier endroit l’est au
+départ. Le rapport imprimé reprend toutes les cartes, numérotées. Pour un résultat exact, la page
 demande dès la première étape le PDF ou le SVG de la figure plutôt qu’une capture d’écran :
 les tailles y sont lues dans le fichier, alors que dans une image elles sont estimées.
 
@@ -140,6 +142,7 @@ rend la lecture courante, le même objet que le bouton « Exporter la lecture (J
 | `js/chargeur.js` | recouvrement du premier lancement et des messages de l’environnement |
 | `js/i18n.js` | libellés fr et de |
 | `js/app.js` | interface |
+| `js/explorateur.js` | mécanique commune aux vues des textes et des objets : boîtes de niveaux, puces numérotées, panneau (aperçu au survol, endroit actif au clic) |
 
 ## Ce que mesure l’outil
 

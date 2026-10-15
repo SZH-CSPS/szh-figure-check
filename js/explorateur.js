@@ -62,3 +62,37 @@ export function explorateur({ panneau, boutons, rangee, total, carteDe, surFigur
   montrer(choix.epingle);
   return { montrer, epingler, epingle: () => choix.epingle };
 }
+
+export const SYMBOLES = { corriger: '✕', ameliorer: '!', ok: '✓' };
+const NIVEAUX = ['corriger', 'ameliorer', 'ok'];
+
+function el(nom, attributs = {}, ...enfants) {
+  const e = document.createElement(nom);
+  for (const [k, v] of Object.entries(attributs)) {
+    if (k === 'class') e.className = v;
+    else e.setAttribute(k, v);
+  }
+  e.append(...enfants);
+  return e;
+}
+
+// Une puce numérotée : le bouton de l'endroit `n`, à la couleur de son niveau.
+export function puce(niveau, n, libelle, panneau = 'panneau') {
+  return el('button', { type: 'button', 'aria-pressed': 'false', 'aria-controls': panneau, class: `puce ${niveau}`, 'aria-label': libelle }, String(n));
+}
+
+// Les boîtes « À corriger », « À améliorer » et « Conforme », chacune avec le compte de ses
+// endroits, sa légende et ses puces ; `niveaux[i]` est le niveau de `boutons[i]`. Une boîte
+// sans endroit n'est pas rendue. Renvoie la rangée à placer dans le conteneur des puces.
+export function rangeeNiveaux(boutons, niveaux, t) {
+  return el('div', { class: 'boites-niveaux' }, ...NIVEAUX.filter((niveau) => niveaux.includes(niveau)).map((niveau) => {
+    const ici = boutons.filter((b, i) => niveaux[i] === niveau);
+    return el('section', { class: `boite-niveau ${niveau}`, 'aria-label': t(`niveau_${niveau}`) },
+      el('p', { class: 'boite-titre' },
+        el('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[niveau]), ' ',
+        el('b', {}, t(`niveau_${niveau}`)), ' ',
+        el('span', { class: 'discret' }, t('nEndroits', { n: ici.length }))),
+      el('p', { class: 'boite-legende discret' }, t(`legende_${niveau}`)),
+      el('div', { class: 'boite-puces' }, ...ici));
+  }));
+}

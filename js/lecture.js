@@ -10,11 +10,11 @@
 import {
   corpsDepuisSymboles, hauteurGlyphe, contrasteZone, bruitFond, BRUIT_FOND_MAX,
   depuisRotation, recouvrement, unionBoites, mediane,
-} from './analyse.js?v=2ef3bef3da';
-import { versPoints } from './formats.js?v=2ef3bef3da';
-import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=2ef3bef3da';
-import { TESSERACT, TESSERACT_WORKER, TESSERACT_CORE_DOSSIER, TESSDATA_DOSSIER } from './fichiers.js?v=2ef3bef3da';
-import { statutInitial, visible, zonesEncre, mesurerZone } from './residu.js?v=2ef3bef3da';
+} from './analyse.js?v=b514a3395f';
+import { versPoints } from './formats.js?v=b514a3395f';
+import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=b514a3395f';
+import { TESSERACT, TESSERACT_WORKER, TESSERACT_CORE_DOSSIER, TESSDATA_DOSSIER } from './fichiers.js?v=b514a3395f';
+import { statutInitial, visible, zonesEncre, mesurerZone } from './residu.js?v=b514a3395f';
 
 // Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
 // la page (adresses dans fichiers.js) : rien n'est demandé à un autre serveur.

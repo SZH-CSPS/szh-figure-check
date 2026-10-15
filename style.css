@@ -229,7 +229,7 @@ abbr[title] { text-decoration: underline dotted; cursor: help; }
 .explorateur { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 900px) { .explorateur { grid-template-columns: minmax(0, 1fr); } }
 .explorateur-panneau { position: sticky; top: 16px; }
-.explorateur-panneau .zone { margin: 0; list-style: none; }
+.explorateur-panneau :is(.zone, .ob-carte) { margin: 0; list-style: none; }
 .puces { margin-bottom: 14px; }
 /* Sous-grille : titres, définitions et numéros alignés d'une boîte à l'autre. Quatre
    boîtes : les trois degrés et « À vérifier ». */
@@ -325,7 +325,7 @@ input[type="checkbox"] { width: 20px; height: 20px; margin: 0; flex: none; accen
 }
 .panneau-etat { margin: 0 0 8px; font-size: 0.9rem; color: var(--encre-2); }
 .panneau-etat.apercu { color: var(--accent); font-weight: 700; }
-.explorateur-panneau.apercu .zone { outline: 2px dashed var(--accent); outline-offset: 3px; }
+.explorateur-panneau.apercu :is(.zone, .ob-carte) { outline: 2px dashed var(--accent); outline-offset: 3px; }
 
 .analyse-figure { position: relative; background: #fff; box-shadow: var(--ombre); }
 .analyse-figure img { display: block; width: 100%; height: auto; }
@@ -342,16 +342,16 @@ input[type="checkbox"] { width: 20px; height: 20px; margin: 0; flex: none; accen
 
 h3 { font-size: 1.1rem; margin: 24px 0 12px; }
 .zones { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
-.zone { background: var(--surface); border-radius: 8px; box-shadow: var(--ombre); padding: 12px 16px 8px; border-top: 5px solid var(--inconnu); break-inside: avoid; }
-.zone.corriger { border-top-color: var(--corriger); }
-.zone.ameliorer { border-top-color: var(--ameliorer); }
-.zone.ok { border-top-color: var(--ok); }
+:is(.zone, .ob-carte) { background: var(--surface); border-radius: 8px; box-shadow: var(--ombre); padding: 12px 16px 8px; border-top: 5px solid var(--inconnu); break-inside: avoid; }
+:is(.zone, .ob-carte).corriger { border-top-color: var(--corriger); }
+:is(.zone, .ob-carte).ameliorer { border-top-color: var(--ameliorer); }
+:is(.zone, .ob-carte).ok { border-top-color: var(--ok); }
 .zone-tete { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
 .numero { display: inline-grid; place-items: center; min-width: 1.8em; height: 1.8em; border-radius: 50%; background: #d0021b; color: #fff; font-weight: 700; }
-.zone.ameliorer .numero { background: var(--ameliorer); }
-.zone.ok .numero { background: var(--ok); }
-.zone img { display: block; max-width: 100%; height: auto; border: 1px solid var(--filet); background: #fff; margin-bottom: 8px; }
-.zone dl { margin: 0; font-size: 0.92rem; }
+:is(.zone, .ob-carte).ameliorer .numero { background: var(--ameliorer); }
+:is(.zone, .ob-carte).ok .numero { background: var(--ok); }
+:is(.zone, .ob-carte) img { display: block; max-width: 100%; height: auto; border: 1px solid var(--filet); background: #fff; margin-bottom: 8px; }
+:is(.zone, .ob-carte) dl { margin: 0; font-size: 0.92rem; }
 .mesure { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--filet); }
 .mesure dt { color: var(--encre-2); }
 .mesure dd { margin: 0; overflow-wrap: anywhere; }
@@ -359,7 +359,7 @@ h3 { font-size: 1.1rem; margin: 24px 0 12px; }
 .mesure dd.ameliorer b { color: var(--ameliorer); }
 .mesure dd .badge { margin-left: 4px; font-size: 0.8rem; }
 .que-faire { margin: 10px 0 2px; }
-.zone ul { margin: 0 0 6px; padding-left: 1.2em; font-size: 0.92rem; }
+:is(.zone, .ob-carte) ul { margin: 0 0 6px; padding-left: 1.2em; font-size: 0.92rem; }
 @media (max-width: 480px) { .mesure { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 
 details { margin-top: 20px; }
@@ -460,7 +460,7 @@ dialog h2 { margin-top: 0; }
   .groupe .cadre { display: none !important; }
   .a-verifier-actions, .trancher-tout, #table-textes button { display: none !important; }
 
-  .zone, .analyse-figure { box-shadow: none; border: 1px solid #d6d6cf; }
+  :is(.zone, .ob-carte), .analyse-figure { box-shadow: none; border: 1px solid #d6d6cf; }
   .zones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

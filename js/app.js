@@ -3,21 +3,21 @@
 // graphique). Dans la vue des textes, la vue résidu masque les textes connus pour laisser
 // voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=2ef3bef3da';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=2ef3bef3da';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=2ef3bef3da';
-import { versHex } from './apca.js?v=2ef3bef3da';
-import { ouvrir, ErreurSource } from './sources.js?v=2ef3bef3da';
-import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=2ef3bef3da';
-import { chargerDetecteur, fournirModele } from './detection.js?v=2ef3bef3da';
-import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=2ef3bef3da';
-import { precharger } from './prechargement.js?v=2ef3bef3da';
-import { creerChargeur } from './chargeur.js?v=2ef3bef3da';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=2ef3bef3da';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=2ef3bef3da';
-import { T, langueInitiale, nombre } from './i18n.js?v=2ef3bef3da';
-import { explorateur } from './explorateur.js?v=2ef3bef3da';
-import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=2ef3bef3da';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=b514a3395f';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=b514a3395f';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=b514a3395f';
+import { versHex } from './apca.js?v=b514a3395f';
+import { ouvrir, ErreurSource } from './sources.js?v=b514a3395f';
+import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=b514a3395f';
+import { chargerDetecteur, fournirModele } from './detection.js?v=b514a3395f';
+import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=b514a3395f';
+import { precharger } from './prechargement.js?v=b514a3395f';
+import { creerChargeur } from './chargeur.js?v=b514a3395f';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=b514a3395f';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=b514a3395f';
+import { T, langueInitiale, nombre } from './i18n.js?v=b514a3395f';
+import { explorateur, puce, rangeeNiveaux } from './explorateur.js?v=b514a3395f';
+import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=b514a3395f';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -590,20 +590,7 @@ function rendreAnalyse() {
   // Quatre boîtes : une par degré, avec ses numéros, et « À vérifier », avec ses textes
   // douteux et, pour chacun, les deux réponses possibles.
   const puces = $('puces');
-  const boutons = explorables.map((g, i) => element('button', {
-    type: 'button', 'aria-pressed': 'false', 'aria-controls': 'panneau', class: `puce ${g.niveau}`,
-    'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
-  }, String(i + 1)));
-  const boitesNiveaux = ['corriger', 'ameliorer', 'ok'].map((niveau) => {
-    const ici = boutons.filter((b, i) => explorables[i].niveau === niveau);
-    return element('section', { class: `boite-niveau ${niveau}`, 'aria-label': t(`niveau_${niveau}`) },
-      element('p', { class: 'boite-titre' },
-        element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[niveau]), ' ',
-        element('b', {}, t(`niveau_${niveau}`)), ' ',
-        element('span', { class: 'discret' }, t('nEndroits', { n: ici.length }))),
-      element('p', { class: 'boite-legende discret' }, t(`legende_${niveau}`)),
-      element('div', { class: 'boite-puces' }, ...(ici.length ? ici : [element('span', { class: 'discret' }, t('aucunEndroit'))])));
-  });
+  const boutons = explorables.map((g, i) => puce(g.niveau, i + 1, t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) })));
   const itemVerifier = (l) => {
     const texteAria = l.texte || t('texteNonLu');
     const oui = element('button', { type: 'button', class: 'oui', 'aria-label': t('estTexteAria', { texte: texteAria }) }, t('estTexte'));
@@ -675,8 +662,7 @@ function rendreAnalyse() {
   // « À vérifier » reste tant qu'on peut annuler une réponse groupée. Sans aucun texte, un
   // seul message du bilan remplace les boîtes.
   const sansTexte = !lignes.length && !aVerifier.length && !annulable;
-  const rangee = element('div', { class: 'boites-niveaux' },
-    ...boitesNiveaux.filter((b, i) => explorables.some((g) => g.niveau === ['corriger', 'ameliorer', 'ok'][i])));
+  const rangee = rangeeNiveaux(boutons, explorables.map((g) => g.niveau), t);
   puces.replaceChildren(...(sansTexte || !rangee.childElementCount ? [] : [rangee]));
   // La boîte « À vérifier » vient sous la figure, en pleine largeur : sa hauteur ne décale
   // plus les trois boîtes de verdict.

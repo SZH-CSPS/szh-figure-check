@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  objetsBitmap, analyserObjets, niveauEpaisseur, serieParDefaut,
+  objetsBitmap, analyserObjets, niveauEpaisseur, ordonnerEndroits,
   TAUX_RECTANGLE, TAUX_ELLIPSE, EPAISSEUR_AMELIORER_PT, EPAISSEUR_CORRIGER_PT, SURFACE_MIN_MM2,
 } from '../js/objets.js';
 import { MM_PAR_PT } from '../js/formats.js';
@@ -320,10 +320,12 @@ test('quadrillage coupé par des barres : les tronçons restent la même ligne, 
   assert.ok(rouge.voisins.length <= 1);
 });
 
-test('série active par défaut : la première à corriger, sinon la première à améliorer, sinon la 1', () => {
+test('endroits : à corriger d’abord, puis à améliorer, puis conforme ; séries avant paires à niveau égal', () => {
   const serie = (id, niveau) => ({ id, niveau });
-  assert.equal(serieParDefaut([serie(1, 'ok'), serie(2, 'ameliorer'), serie(3, 'corriger'), serie(4, 'corriger')]), 3);
-  assert.equal(serieParDefaut([serie(1, 'ok'), serie(2, 'ameliorer'), serie(3, 'ameliorer')]), 2);
-  assert.equal(serieParDefaut([serie(1, 'ok'), serie(2, 'ok')]), 1);
-  assert.equal(serieParDefaut([]), null);
+  const paire = (a, b, niveau) => ({ a: { id: a }, b: { id: b }, niveau });
+  const noms = (liste) => ordonnerEndroits(...liste).map((e) => (e.paire ? `p${e.paire.a.id}${e.paire.b.id}` : `s${e.serie.id}`));
+  assert.deepEqual(noms([[serie(1, 'ok'), serie(2, 'ameliorer'), serie(3, 'corriger'), serie(4, 'corriger')], []]), ['s3', 's4', 's2', 's1']);
+  assert.deepEqual(noms([[serie(1, 'ok'), serie(2, 'ameliorer'), serie(3, 'ok')], [paire(1, 2, 'corriger'), paire(2, 3, 'ameliorer')]]), ['p12', 's2', 'p23', 's1', 's3']);
+  assert.deepEqual(noms([[serie(1, 'ok'), serie(2, 'ok')], []]), ['s1', 's2']);
+  assert.deepEqual(ordonnerEndroits([], []), []);
 });

@@ -6,13 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=2ef3bef3da';
-import { MM_PAR_PT } from './formats.js?v=2ef3bef3da';
+import { versHex } from './apca.js?v=b514a3395f';
+import { MM_PAR_PT } from './formats.js?v=b514a3395f';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=2ef3bef3da';
-import { T, nombre } from './i18n.js?v=2ef3bef3da';
+} from './couleur.js?v=b514a3395f';
+import { T, nombre } from './i18n.js?v=b514a3395f';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=b514a3395f';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -1009,7 +1010,6 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
 
 // ── Bloc du rapport ─────────────────────────────────────────────────────────────
 
-const SYMBOLES = { corriger: '✕', ameliorer: '!', ok: '✓' };
 // Couleurs des contours superposés à la figure, une par série, répétées au-delà de huit.
 export const PALETTE_CONTOURS = ['#0b5cad', '#e6007e', '#008b8b', '#ff7f00', '#6a0dad', '#2e8b57', '#b22222', '#8b5a2b'];
 
@@ -1017,7 +1017,7 @@ const cache = new WeakMap();   // lecture → { largeurMm, brut, promesse, erreu
 let appel = null;              // dernier appel à rendreObjets, rejoué quand la détection finit
 let dernier = null;            // { analyse, echelle } du dernier bloc rendu
 let resumeCourant = null;      // résumé d'une ligne du dernier bloc rendu
-let choix = { lecture: null, id: null };   // série rendue active, gardée d'un rendu à l'autre
+let choix = { lecture: null, cle: null };   // endroit actif, gardé d'un rendu à l'autre
 
 function element(nom, attributs = {}, ...enfants) {
   const el = document.createElement(nom);
@@ -1061,12 +1061,19 @@ async function detecter(lecture, source, mmParPx) {
   return brut;
 }
 
-// Série mise en évidence au chargement : la première à corriger, sinon la première à
-// améliorer, sinon la première série. null sans série.
-export function serieParDefaut(series) {
-  const pire = series.find((s) => s.niveau === 'corriger') || series.find((s) => s.niveau === 'ameliorer') || series[0];
-  return pire ? pire.id : null;
+// Les endroits à montrer : chaque série, puis chaque paire de séries difficiles à distinguer,
+// rangés de l'endroit à corriger au conforme (à niveau égal, séries d'abord, dans l'ordre).
+// Un endroit porte son niveau et sa série (`serie`) ou sa paire (`paire`).
+export function ordonnerEndroits(series, paires) {
+  const rang = { corriger: 0, ameliorer: 1, ok: 2 };
+  return [...series.map((serie) => ({ niveau: serie.niveau, serie })), ...paires.map((paire) => ({ niveau: paire.niveau, paire }))]
+    .map((e, i) => ({ e, i }))
+    .sort((x, y) => rang[x.e.niveau] - rang[y.e.niveau] || x.i - y.i)
+    .map(({ e }) => e);
 }
+
+// Séries qu'un endroit entoure sur la figure.
+const endroitIds = (e) => (e.paire ? [e.paire.a.id, e.paire.b.id] : [e.serie.id]);
 
 // Calque des contours : un canevas dont `montrer(ids)` ne dessine que les séries demandées,
 // à la couleur de la série, sur un halo blanc ; pour une source exacte, la boîte de chaque
@@ -1216,27 +1223,22 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
     element('p', {}, [t('objetsIntro', { n: analyse.objets.filter((o) => o.serie != null).length, surfaces: nSurfaces, traits: nTraits }),
       analyse.degrades ? t('objetsDegrades', { n: analyse.degrades }) : null].filter(Boolean).join(' ')));
 
-  // Figure et calque des contours : seule la série mise en évidence y est dessinée.
+  // Figure et calque des contours : seuls les contours de l'endroit actif ou en aperçu y sont
+  // dessinés.
   const calque = calqueContours(analyse, entree.brut);
-  const figure = element('div', { class: 'ob-figure' },
-    element('div', { class: 'ob-image' }, element('img', { src: source.url, alt: '' }), calque));
-  // Une puce numérotée par carte, une carte par série puis par paire. `cibles` garde, pour
-  // chacune, les séries qu'elle montre sur la figure.
-  const cibles = [];
-  const puce = (niveau, libelle, n = cibles.length + 1) => element('button', { type: 'button', 'aria-pressed': 'false', class: `puce ${niveau}`, 'aria-label': libelle }, String(n));
+  const figure = element('div', { class: 'analyse-figure' }, element('img', { src: source.url, alt: '' }), calque);
 
   const fond = element('p', { class: 'ob-fond' }, pastille(analyse.fond, 'petite'), ' ', t('objetsFond', { hex: versHex(analyse.fond) }));
 
-  const series = element('ul', { class: 'ob-series' }, ...analyse.series.map((s) => {
+  const ligne = (libelle, valeur, niveau) => element('div', { class: 'mesure' }, element('dt', {}, libelle), element('dd', { class: niveau || '' }, valeur, niveau && niveau !== 'ok' ? badge(niveau) : null));
+  const valeursContraste = (c) => t('objetsContrasteValeurs', { wcag: wcag(c.wcag), min: WCAG_GRAPHIQUE, lc: Math.round(c.lc), lcmin: LC_GRAPHIQUE });
+  const entete = (numero, niveau, ...suite) => element('div', { class: 'zone-tete ob-tete' }, element('span', { class: 'numero' }, String(numero)), badge(niveau), ...suite);
+
+  // Carte d'une série : couleur, types d'objets, contrastes, trait le plus fin, que faire.
+  const carteSerie = (s, numero) => {
     const k = s.contrasteFond;
-    const mesures = [];
-    const ligne = (libelle, valeur, niveau) => element('div', { class: 'ob-mesure' }, element('dt', {}, libelle), element('dd', { class: niveau || '' }, valeur, niveau && niveau !== 'ok' ? badge(niveau) : null));
-    mesures.push(ligne(t('objetsContrasteFond'), s.quadrillage
-      ? `${wcag(k.wcag)} : 1, Lc ${Math.round(k.lc)}. ${t('objetsQuadrillage')}`
-      : t('objetsContrasteValeurs', { wcag: wcag(k.wcag), min: WCAG_GRAPHIQUE, lc: Math.round(k.lc), lcmin: LC_GRAPHIQUE }), s.quadrillage ? null : k.niveau));
-    for (const v of s.voisins) {
-      mesures.push(ligne(t('objetsContrasteVoisin', { n: v.serie }), t('objetsContrasteValeurs', { wcag: wcag(v.wcag), min: WCAG_GRAPHIQUE, lc: Math.round(v.lc), lcmin: LC_GRAPHIQUE }), v.niveau));
-    }
+    const mesures = [ligne(t('objetsContrasteFond'), s.quadrillage ? `${wcag(k.wcag)} : 1, Lc ${Math.round(k.lc)}. ${t('objetsQuadrillage')}` : valeursContraste(k), s.quadrillage ? null : k.niveau)];
+    for (const v of s.voisins) mesures.push(ligne(t('objetsContrasteVoisin', { n: v.serie }), valeursContraste(v), v.niveau));
     if (s.epaisseurMinMm != null) {
       mesures.push(ligne(t('objetsEpaisseur'), t('objetsEpaisseurValeur', { pt: pt(s.epaisseurMinPt), mm: mm(s.epaisseurMinMm), min: nombre(EPAISSEUR_AMELIORER_PT) }), s.niveauEpaisseur));
     }
@@ -1254,97 +1256,86 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
     if (s.voisins.some((v) => v.niveau !== 'ok')) conseils.push(element('li', {}, t('objetsConseilVoisin')));
     if (s.niveauEpaisseur && s.niveauEpaisseur !== 'ok') conseils.push(element('li', {}, t('objetsConseilEpaisseur', { pt: nombre(EPAISSEUR_AMELIORER_PT) })));
     const types = Object.entries(s.types).sort((a, b) => b[1] - a[1]).map(([type, n]) => nomType(type, n)).join(', ');
-    const bouton = puce(s.niveau, t('objetsPuceAria', { n: s.id }), s.id);
-    const carte = element('li', { class: `ob-serie ${s.niveau}` },
-      element('div', { class: 'ob-tete' }, bouton, pastille(s.couleur), contour(s.id),
-        element('span', { class: 'ob-nom' }, element('b', {}, t('objetsSerie', { n: s.id })), ' ', element('span', { class: 'discret' }, versHex(s.couleur)), element('br'),
-          `${types}${s.legende ? `, ${t('objetsLegende')}` : ''}`),
-        badge(s.niveau)),
+    return element('li', { class: `ob-carte ${s.niveau}` },
+      entete(numero, s.niveau, pastille(s.couleur), contour(s.id)),
+      element('p', { class: 'ob-nom' }, element('b', {}, t('objetsSerie', { n: s.id })), ' ', element('span', { class: 'discret' }, versHex(s.couleur)), element('br'),
+        `${types}${s.legende ? `, ${t('objetsLegende')}` : ''}`),
       element('dl', {}, ...mesures),
-      ...(conseils.length ? [element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))), element('ul', {}, ...conseils)] : []));
-    cibles.push({ ids: [s.id], bouton, carte, annonce: t('objetsAnnonce', { n: s.id }) });
-    return carte;
-  }));
+      ...(conseils.length ? [element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))), element('ul', {}, ...conseils)] : [element('p', { class: 'que-faire' }, t('objetsConformeRien'))]));
+  };
 
-  const cartes = element('div', { class: 'ob-cartes' }, series);
-  const blocs = [methode, bilan, figure, fond, cartes];
-  if (analyse.paires.length) {
-    cartes.append(element('h5', {}, t('objetsPairesTitre', { n: analyse.paires.length })));
-    cartes.append(element('ul', { class: 'ob-paires' }, ...analyse.paires.slice(0, PAIRES_MAX).map((p) => {
-      const visions = p.visions.map((v) => element('li', {},
-        element('span', { class: 'ob-duo' }, pastille(simuler(p.a.couleur, v)), pastille(simuler(p.b.couleur, v))),
-        element('span', {}, element('b', {}, t(`objetsVision_${v}`)), ' ',
-          t(p.ecarts[v] < DELTA_E_CONFONDU ? 'objetsConfondues' : 'objetsProches'),
-          ' ', element('span', { class: 'discret' }, t('objetsEcart', { e: Math.round(p.ecarts[v]), min: DELTA_E_DISTINCT })))));
-      const conseils = [];
-      if (p.visions.includes('normale')) conseils.push(t('objetsConseilNormale'));
-      if (p.visions.includes('gris')) conseils.push(t('objetsConseilClarte'));
-      conseils.push(t(p.a.groupe === 'trait' ? 'objetsConseilMotifTrait' : 'objetsConseilMotif'));
-      const bouton = puce(p.niveau, t('objetsPuceAriaPaire', { a: p.a.id, b: p.b.id }));
-      const carte = element('li', { class: `ob-paire ${p.niveau}` },
-        element('div', { class: 'ob-tete' }, bouton, element('span', { class: 'ob-duo' }, pastille(p.a.couleur), pastille(p.b.couleur)),
-          element('b', {}, `${t('objetsSerie', { n: p.a.id })} / ${t('objetsSerie', { n: p.b.id })}`), badge(p.niveau)),
-        element('ul', { class: 'ob-visions' }, ...visions),
-        element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
-        element('ul', {}, ...conseils.map((c) => element('li', {}, c))));
-      cibles.push({ ids: [p.a.id, p.b.id], bouton, carte, annonce: t('objetsAnnoncePaire', { a: p.a.id, b: p.b.id }) });
-      return carte;
-    })));
-    if (analyse.paires.length > PAIRES_MAX) cartes.append(element('p', { class: 'discret' }, t('objetsPairesReste', { n: analyse.paires.length - PAIRES_MAX })));
-  } else if (analyse.series.length > 1) {
-    cartes.append(element('p', {}, t('objetsPairesOk')));
-  }
+  // Carte d'une paire de séries difficiles à distinguer : la vue de chaque vision, que faire.
+  const cartePaire = (p, numero) => {
+    const visions = p.visions.map((v) => element('li', {},
+      element('span', { class: 'ob-duo' }, pastille(simuler(p.a.couleur, v)), pastille(simuler(p.b.couleur, v))),
+      element('span', {}, element('b', {}, t(`objetsVision_${v}`)), ' ',
+        t(p.ecarts[v] < DELTA_E_CONFONDU ? 'objetsConfondues' : 'objetsProches'),
+        ' ', element('span', { class: 'discret' }, t('objetsEcart', { e: Math.round(p.ecarts[v]), min: DELTA_E_DISTINCT })))));
+    const conseils = [];
+    if (p.visions.includes('normale')) conseils.push(t('objetsConseilNormale'));
+    if (p.visions.includes('gris')) conseils.push(t('objetsConseilClarte'));
+    conseils.push(t(p.a.groupe === 'trait' ? 'objetsConseilMotifTrait' : 'objetsConseilMotif'));
+    return element('li', { class: `ob-carte ${p.niveau}` },
+      entete(numero, p.niveau, element('span', { class: 'ob-duo' }, pastille(p.a.couleur), pastille(p.b.couleur))),
+      element('p', { class: 'ob-nom' }, element('b', {}, `${t('objetsSerie', { n: p.a.id })} / ${t('objetsSerie', { n: p.b.id })}`)),
+      element('ul', { class: 'ob-visions' }, ...visions),
+      element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
+      element('ul', {}, ...conseils.map((c) => element('li', {}, c))));
+  };
+
+  // Les endroits : les séries et les paires, numérotés en continu, à corriger d'abord.
+  const endroits = ordonnerEndroits(analyse.series, analyse.paires.slice(0, PAIRES_MAX));
+  const carte = (e, numero) => (e.paire ? cartePaire(e.paire, numero) : carteSerie(e.serie, numero));
+  const boutons = endroits.map((e, i) => puce(e.niveau, i + 1, e.paire
+    ? t('objetsPuceAriaPaire', { n: i + 1, niveau: t(`niveau_${e.niveau}`), a: e.paire.a.id, b: e.paire.b.id })
+    : t('objetsPuceAria', { n: i + 1, niveau: t(`niveau_${e.niveau}`), s: e.serie.id }), 'ob-panneau'));
+  const rangee = rangeeNiveaux(boutons, endroits.map((e) => e.niveau), t);
+  const panneau = element('div', { class: 'explorateur-panneau', id: 'ob-panneau', role: 'region' });
+  const cartes = new Map();
+  const carteDe = (i) => {
+    if (!cartes.has(i)) cartes.set(i, carte(endroits[i], i + 1));
+    return cartes.get(i);
+  };
+
   const decimal = (v) => String(v).replace('.', ',');
-  blocs.push(element('p', { class: 'discret' }, t('objetsNote', {
-    min: WCAG_GRAPHIQUE, lc: LC_GRAPHIQUE, distinct: DELTA_E_DISTINCT, confondu: DELTA_E_CONFONDU,
-    ameliorer: decimal(EPAISSEUR_AMELIORER_PT), corriger: decimal(EPAISSEUR_CORRIGER_PT), surface: decimal(SURFACE_MIN_MM2),
-  })));
+  const reste = analyse.paires.length > PAIRES_MAX ? t('objetsPairesReste', { n: analyse.paires.length - PAIRES_MAX })
+    : !analyse.paires.length && analyse.series.length > 1 ? t('objetsPairesOk') : null;
   resumeCourant = resumeObjets(analyse, t);
-  conteneur.replaceChildren(element('section', { class: 'ob' }, ...blocs));
-  brancherCartes(cibles, calque, serieActive(analyse, lecture));
-  rappel();
-}
+  conteneur.replaceChildren(element('section', { class: 'ob' },
+    methode, bilan,
+    element('div', { class: 'puces' }, rangee),
+    fond,
+    element('div', { class: 'explorateur' }, element('div', { class: 'explorateur-figure' }, figure), panneau),
+    // Le rapport imprimé reprend toutes les cartes, chacune avec son numéro.
+    element('div', { class: 'cartes-impression' },
+      element('h4', {}, t('objetsEndroitsTitre', { n: endroits.length })),
+      element('ol', { class: 'zones' }, ...endroits.map((e, i) => carte(e, i + 1)))),
+    ...(reste ? [element('p', {}, reste)] : []),
+    element('p', { class: 'discret' }, t('objetsNote', {
+      min: WCAG_GRAPHIQUE, lc: LC_GRAPHIQUE, distinct: DELTA_E_DISTINCT, confondu: DELTA_E_CONFONDU,
+      ameliorer: decimal(EPAISSEUR_AMELIORER_PT), corriger: decimal(EPAISSEUR_CORRIGER_PT), surface: decimal(SURFACE_MIN_MM2),
+    }))));
 
-// Série active gardée d'un rendu à l'autre tant que la lecture est la même.
-function serieActive(analyse, lecture) {
-  const defaut = serieParDefaut(analyse.series);
-  const id = choix.lecture === lecture && analyse.series.some((s) => s.id === choix.id) ? choix.id : defaut;
-  choix = { lecture, id };
-  return id;
-}
-
-// Survol ou focus d'une carte : aperçu sur la figure ; clic ou Entrée sur sa puce : elle
-// devient active. Tant que le pointeur reste dans la zone des cartes, l'aperçu reste ; en
-// sortir revient à la carte active. Un changement d'active est annoncé une fois.
-function brancherCartes(cibles, calque, idActif) {
-  if (!cibles.length) return;
-  let actif = Math.max(0, cibles.findIndex((c) => c.ids.length === 1 && c.ids[0] === idActif));
-  const montrer = (i) => {
-    calque.montrer(cibles[i].ids);
-    cibles.forEach((c, k) => {
-      c.bouton.setAttribute('aria-pressed', String(k === actif));
-      c.carte.classList.toggle('actif', k === actif);
-      c.carte.classList.toggle('apercu', k === i && k !== actif);
-      c.bouton.classList.toggle('apercu', k === i && k !== actif);
-    });
-  };
-  const epingler = (i) => {
-    const change = i !== actif;
-    actif = i;
-    if (cibles[i].ids.length === 1) choix.id = cibles[i].ids[0];
-    montrer(i);
-    const annonce = document.getElementById('objets-annonce');
-    if (change && annonce) annonce.textContent = cibles[i].annonce;
-  };
-  cibles.forEach((c, i) => {
-    c.carte.addEventListener('mouseenter', () => montrer(i));
-    c.bouton.addEventListener('focus', () => montrer(i));
-    c.bouton.addEventListener('click', () => epingler(i));
+  // L'endroit actif est gardé d'un rendu à l'autre tant que la lecture est la même ; sinon
+  // c'est le premier. Un changement d'endroit actif est annoncé une fois.
+  const cle = (e) => (e.paire ? `p${e.paire.a.id}-${e.paire.b.id}` : `s${e.serie.id}`);
+  const retenu = Math.max(0, choix.lecture === lecture ? endroits.findIndex((e) => cle(e) === choix.cle) : -1);
+  choix = { lecture, cle: cle(endroits[retenu]) };
+  explorateur({
+    panneau, boutons, rangee, total: endroits.length, carteDe, t, vide: '', actif: retenu,
+    surFigure: (i) => calque.montrer(i == null ? [] : endroitIds(endroits[i])),
+    auChoix: (i) => {
+      const e = endroits[i];
+      choix = { lecture, cle: cle(e) };
+      const annonce = document.getElementById('objets-annonce');
+      if (annonce) {
+        annonce.textContent = e.paire
+          ? t('objetsAnnoncePaire', { n: i + 1, a: e.paire.a.id, b: e.paire.b.id })
+          : t('objetsAnnonce', { n: i + 1, s: e.serie.id });
+      }
+    },
   });
-  const zone = cibles[0].carte.closest('.ob-cartes');
-  zone.addEventListener('mouseleave', () => montrer(actif));
-  zone.addEventListener('focusout', (e) => { if (!zone.contains(e.relatedTarget)) montrer(actif); });
-  montrer(actif);
+  rappel();
 }
 
 // Dernier résultat rendu, prêt pour l'export : boîtes en pixels de l'image d'origine (px
