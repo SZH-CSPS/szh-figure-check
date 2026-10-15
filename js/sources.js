@@ -1,7 +1,8 @@
 // Ouvre une figure déposée : image bitmap, SVG ou première page d'un PDF. Chaque source
 // donne une URL pour <img>, son rapport hauteur / largeur, sa taille intrinsèque en px CSS
-// (ou null), une fonction qui la dessine sur un canevas d'une largeur donnée et, pour le
-// SVG et le PDF, la liste exacte de ses textes.
+// (ou null), son espace de coordonnées d'origine (`espace`, celui de l'export : pixels de
+// l'image, unités du SVG, points du PDF), une fonction qui la dessine sur un canevas d'une
+// largeur donnée et, pour le SVG et le PDF, la liste exacte de ses textes.
 
 const PDFJS = new URL('../vendor/pdfjs/', import.meta.url).href;
 
@@ -39,6 +40,7 @@ async function ouvrirBitmap(fichier) {
     ratio: image.height / image.width,
     naturel: { l: image.width, h: image.height },
     pixels: { l: image.width, h: image.height },
+    espace: { l: image.width, h: image.height },
     dessiner(l) {
       const c = canevas(l, l * image.height / image.width);
       c.getContext('2d').drawImage(image, 0, 0, c.width, c.height);
@@ -82,6 +84,7 @@ async function ouvrirSvg(fichier) {
     ratio: h / l,
     naturel: lAttr ? { l: lAttr, h: hAttr || lAttr * h / l } : null,
     pixels: null,
+    espace: { l, h },
     dessiner(largeur) {
       const c = canevas(largeur, largeur * h / l);
       c.getContext('2d').drawImage(image, 0, 0, c.width, c.height);
@@ -119,8 +122,8 @@ let pdfjs = null;
 
 async function ouvrirPdf(fichier) {
   if (!pdfjs) {
-    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=fc46882b66');
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=fc46882b66';
+    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=a674e7ea0d');
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=a674e7ea0d';
   }
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()), isEvalSupported: false }).promise;
   const page = await pdf.getPage(1);
@@ -144,6 +147,7 @@ async function ouvrirPdf(fichier) {
     ratio: base.height / base.width,
     naturel: { l: base.width * 96 / 72, h: base.height * 96 / 72 },
     pixels: null,
+    espace: { l: base.width, h: base.height },
     dessiner: rendre,
     async textesExacts(largeur) {
       const vue = page.getViewport({ scale: largeur / base.width });

@@ -67,8 +67,10 @@ console.log(await evaluer(`[document.getElementById('dimensions').textContent,
   ...[...document.querySelectorAll('#table-textes tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join(' | ')),
   document.getElementById('erreur').hidden ? '' : 'ERREUR ' + document.getElementById('erreur').textContent].join('\\n')`));
 // CAPTURE_JS : script joué avant la capture (survol simulé, par exemple) ;
-// CAPTURE_CLIP : sélecteur de l'élément à capturer seul.
+// CAPTURE_CLIP : sélecteur de l'élément à capturer seul ;
+// CAPTURE_MEDIA=print : la page telle que l'imprimante la voit, en capture d'écran.
 if (process.env.CAPTURE_JS) await evaluer(process.env.CAPTURE_JS);
+if (process.env.CAPTURE_MEDIA) await cdp('Emulation.setEmulatedMedia', { media: process.env.CAPTURE_MEDIA });
 if (sortie.endsWith('.pdf')) {
   // Rapport imprimé, tel que le donne le bouton « Imprimer le rapport » ; avec
   // CAPTURE_IMPRESSION=page, la page simulée seule, comme le bouton « Imprimer à 100 % ».

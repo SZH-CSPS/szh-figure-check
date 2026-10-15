@@ -7,7 +7,11 @@ figure et on voit :
 - **la figure sur la page**, à sa taille imprimée, entourée du texte courant au bon corps,
   dans le format de la Revue (A4) ou du livre (155 × 225 mm) ;
 - **la taille et le contraste de chaque texte** de la figure, à l’impression : minimum
-  8 pt et contraste APCA Lc 75 (Lc 90 recommandé) ;
+  8 pt et contraste APCA Lc 75 (Lc 90 recommandé). L’outil montre plutôt qu’il ne devine :
+  chaque texte lu a un statut (confirmé, à vérifier, ajouté, retiré), seuls les textes
+  confirmés ou ajoutés décident du verdict, et une **vue résidu** masque les textes connus
+  pour laisser voir ce qui a été oublié ; l’humain complète à la souris ou au clavier, et
+  exporte la lecture en JSON ;
 - **une figure qu’on explore** : une rangée de numéros, un par endroit à revoir ; le
   survol d’un numéro met en évidence ce seul endroit sur la figure, voile le reste et
   affiche sa carte à côté (dessous sur un écran étroit) ; le clic le rend actif, et sortir
@@ -31,7 +35,9 @@ figure et on voit :
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
 (format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
 lire l’analyse. L’analyse montre une vue à la fois : aperçu à taille réelle, taille et
-contraste des textes, couleurs.
+contraste des textes, couleurs. Pour un résultat exact, la page demande dès la première
+étape le PDF ou le SVG de la figure plutôt qu’une capture d’écran : les tailles y sont lues
+dans le fichier, alors que dans une image elles sont estimées.
 
 La figure ne quitte pas le navigateur. Interface en français et en allemand.
 
@@ -74,17 +80,23 @@ mélange pas une nouvelle page avec un ancien module, chaque référence interne
 échoue tant qu’une référence n’a pas la version du contenu actuel. Une nouvelle référence
 s’écrit sans suffixe : l’outil l’ajoute.
 
-`?exemple=png|svg` charge la figure d’exemple, `?etape=2|3|4` ouvre une étape, `?vue=page|textes|couleurs` choisit la vue de l’analyse, `?lc=75` le seuil de contraste, `?figure=tmp/nom.png` une figure du dossier
+`?exemple=png|svg` charge la figure d’exemple, `?etape=2|3|4` ouvre une étape, `?vue=page|textes|couleurs` choisit la vue de l’analyse, `?lc=75` le seuil de contraste, `?largeur=100|75|50|fichier` la
+largeur de la figure (toute la colonne par défaut), `?figure=tmp/nom.png` (ou `tmp/dossier/nom.png`) une figure du dossier
 `tmp/` (non suivi : les figures d’auteurs ne vont pas dans le dépôt), `?langue=de` et `?format=livre` fixent la
 langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
-`body[data-etat="fini"]`, imprime le tableau des textes et enregistre une capture.
+`body[data-etat="fini"]`, imprime le tableau des textes et enregistre une capture ;
+`CAPTURE_JS` joue un script avant la capture (cocher « Masquer les textes reconnus », par
+exemple), `CAPTURE_CLIP` cadre un élément, `CAPTURE_MEDIA=print` montre la page telle que
+l’imprimante la voit. Dans la page, `window.szhFigureCheck.exporter()`
+rend la lecture courante, le même objet que le bouton « Exporter la lecture (JSON) ».
 
 | Fichier | Rôle |
 |---|---|
 | `js/formats.js` | géométrie des pages de Pronto, seuils, place de la figure, conversion en points |
 | `js/sources.js` | ouverture d’une image, d’un SVG ou de la première page d’un PDF |
-| `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
+| `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR ; statut de chaque texte, suggestions, lecture d’une zone ajoutée |
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste et bruit du fond d’une zone, degré de non-conformité, couleur proposée, regroupement |
+| `js/residu.js` | sans DOM : règle du statut, mesure d’une zone par son profil d’encre, zones d’encre restantes (suggestions), coordonnées de l’image d’origine, export |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
 | `js/couleurs-graphique.js` | couleurs des éléments graphiques : aplats dominants, contraste avec le fond, écart entre deux couleurs selon la vision ; bloc du rapport (styles dans `couleurs-graphique.css`) |
 | `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
@@ -94,23 +106,97 @@ langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 
 ## Ce que mesure l’outil
 
-**Place de la figure.** Celle de Pronto : `max-width: 100%; height: auto; max-height: 80vh`,
-un pixel d’image valant un pixel CSS. Une image de moins de 650 px de large reste donc plus
-étroite que la colonne de la Revue. Les marges et corps viennent de
+**Place de la figure.** Pronto imprime toute figure sur toute la largeur de la colonne
+(172 mm dans la Revue, 115 mm dans un livre), plafonnée à 80 % de la hauteur de la zone de
+texte : c’est la largeur par défaut. Les trois quarts et la moitié de la colonne se
+choisissent, et « Taille du fichier » reproduit un dépôt direct par la rédaction, un pixel
+d’image valant un pixel CSS. Une image étroite étirée à la pleine largeur manque de pixels :
+sous 150 ppp à la taille imprimée, une alerte le dit. Les marges et corps viennent de
 `pipeline/styles/print.css`, `socle.css` et `livre/normal.css`. Un PDF est pris page
 entière : il doit être recadré sur la figure.
 
 **Corps d’un texte.** Dans un SVG (éléments `<text>`) ou un PDF (texte non vectorisé), il
 est lu dans le fichier. Dans une image, Tesseract trouve les mots (mode « texte épars », sur
 une copie en gris assombrie pour ne pas perdre le gris clair, puis une seconde fois tournée
-d’un quart de tour pour les textes verticaux). Sur une photo ou une peinture, l’OCR prend
-des taches pour des lettres ; deux règles les écartent. Un mot n’est gardé que si le fond
-autour de lui est uni : la variation du fond, loin des bords des lettres, doit rester sous
-0,17 fois l’écart entre texte et fond. Une ligne de trois lettres ou chiffres au plus exige
-une confiance de l’OCR de 85, et de 95 sur l’image tournée. La hauteur d’encre des minuscules sans hampe
+d’un quart de tour pour les textes verticaux). La hauteur d’encre des minuscules sans hampe
 et des capitales est mesurée sur les pixels et convertie en corps (hauteur d’x 0,52 em,
 capitale 0,71 em). Sur la figure d’exemple, l’écart avec les tailles exactes du SVG reste
 sous 4 % pour les textes droits.
+
+**Statut des textes.** L’OCR n’est pas fiable sur une figure : il manque des textes et en
+invente sur les photos. Plutôt que de trancher à sa place, l’outil donne un statut à chaque
+texte. Un texte lu dans un SVG ou un PDF est *confirmé*. Un texte de l’OCR est *à vérifier*
+dès que l’une de quatre raisons se présente : confiance moyenne de l’OCR sous 80
+(`CONFIANCE_SURE`), deux lettres ou chiffres au plus (`SIGNES_PEU`, « 50 », « 0 % »), fond
+bruité (variation du fond, loin des bords des lettres, au-delà de 0,17 fois l’écart entre
+texte et fond, `BRUIT_FOND_MAX`, comme dans une photo), ou texte trouvé seulement sur l’image
+tournée ; sinon il est *confirmé*. Un texte posé par l’humain est *ajouté*, un texte qu’il
+écarte est *retiré*. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
+trop petite » ne comptent que les textes confirmés et ajoutés. Les textes à vérifier vont
+dans une quatrième boîte, chacun avec deux réponses : « C’est bien un texte » le confirme,
+« Ce n’est pas un texte » le retire. Un texte retiré disparaît de la figure et des comptes,
+mais reste dans l’export.
+
+**Vue résidu.** Dans la vue des textes, l’interrupteur « Masquer les textes reconnus » couvre
+d’un masque blanc hachuré chaque texte confirmé, à vérifier ou ajouté. Ce qui reste lisible
+sur la figure a été oublié ; un masque posé là où il n’y a pas de texte est une fausse
+lecture. Un clic sur un masque ouvre une petite fenêtre (« Ce n’est pas un texte », et
+« C’est bien un texte » pour un texte à vérifier). Un rectangle glissé sur une zone non
+masquée devient un texte *ajouté*, que l’outil mesure sans le lire : Otsu sépare l’encre du
+fond dans le rectangle, et le profil d’encre des rangées donne, par deux paliers de densité,
+la hauteur d’x (rangées qui atteignent 0,6 fois la médiane des rangées encrées) et la
+hauteur de capitale (du haut de l’encre au bas de la bande dense) ; si la bande dense couvre
+85 % de l’encre, le texte n’a que des capitales ou des chiffres. Les hauteurs sont converties
+en corps avec les mêmes rapports (0,52 et 0,71 em), le contraste se mesure comme pour tout
+texte ; une zone nettement plus haute que large se lit par colonnes (texte vertical). L’OCR
+tente ensuite de donner un libellé au découpage, agrandi ; la mesure ne dépend pas de ce
+résultat. Sans souris, le bouton « Ajouter une zone au clavier » pose un cadre au centre de
+la figure : flèches pour le déplacer (un centième de la figure), Maj + flèches pour le
+redimensionner, Entrée pour ajouter, Échap pour annuler ; les textes à vérifier se tranchent
+par les boutons de la quatrième boîte, et « Ce n’est pas un texte » est aussi dans la liste
+de tous les textes. Sur la figure d’exemple, un texte ajouté à la main sur « Berne » est
+mesuré à 9,9 pt, contre 9,65 pt à l’OCR et 9,7 pt d’après le SVG.
+
+**Suggestions.** Une fois les textes connus masqués, une détection d’encre simple cherche
+sur le résidu ce qui ressemble encore à du texte, et le propose *à vérifier*, mesuré comme
+une zone ajoutée. Sur une copie réduite à 1200 px, un pixel est de l’encre, sombre ou
+claire, s’il s’écarte de plus de 40 de la clarté moyenne de son voisinage ; les deux signes
+se séparent pour qu’un texte blanc dans une barre ne se soude pas à la barre, et une
+composante de la clarté du fond de la figure n’est pas de l’encre. Les composantes
+connexes de hauteur plausible (hauteur d’x d’environ 4 pt à capitale d’environ 30 pt), pas
+trop allongées et pas pleines (une lettre laisse du fond dans sa boîte ; seul un trait
+mince la remplit) sont des signes ; alignés, de hauteurs proches et séparés d’au plus deux
+hauteurs, ils forment une ligne, retenue dès deux signes ou un seul signe large comme un
+mot. Au plus 30 suggestions, celles qui ont le plus de signes d’abord ; une zone dont le
+fond est très bruité (une photo) n’est pas proposée. La copie réduite se dessine depuis la
+source, jamais plus large que ses pixels : agrandie, une photo serait lissée et passerait
+pour un aplat. Une photo ou une trame n’a pas de fond où chercher : quand plus de 28 % des
+pixels bordent un changement (un voisin qui diffère de plus de 16 sur un canal), rien n’est
+proposé. Mesuré à la résolution native : de 4 à 15 % sur les graphiques du corpus, 23 % sur
+un schéma dense, 31 % sur un camembert tramé, 32 et 43 % sur deux photos. Une photo peu
+texturée passe sous le seuil (22 % sur une photo de classe) et reçoit alors des suggestions
+jusqu’au plafond : elles ne comptent pas, et chacune se retire d’un clic. Une suggestion
+fausse ne coûte qu’un clic : elle ne fait que demander.
+
+**Export.** « Exporter la lecture (JSON) », ou `window.szhFigureCheck.exporter()`, rend la
+lecture complète, statuts compris, en pixels de l’image d’origine (pour un SVG, dans ses
+unités ; pour un PDF, dans les points de la page), ce qui en fait une vérité de terrain une
+fois corrigée par l’humain :
+
+```
+{ version: 1,
+  figure: { nom, type: 'bitmap'|'svg'|'pdf', largeurPx, hauteurPx },
+  reglages: { format: 'revue'|'livre', proportion: 1|0.75|0.5|null, seuilLc: 75|90,
+              largeurMm, hauteurMm, pxParMm },          // pxParMm : pixels d’origine par mm imprimé
+  verdict: 'ok'|'ameliorer'|'corriger',
+  textes: [ { id, texte, boite: { x0, y0, x1, y1 }, exact, statut, origine: 'ocr'|'fichier'|'suggestion'|'humain',
+              corpsPt, lc, couleurTexte: '#RRGGBB'|null, couleurFond, niveauTaille, niveauContraste, niveau } ],
+  objets: [], series: [],                                // réservés
+  diagnosticEnsemble: { total, petits, bas, haut, mediane, facteur } | null }
+```
+
+`proportion` vaut `null` pour « Taille du fichier ». `lc` est signé (négatif pour un texte
+clair sur fond sombre), comme la mesure.
 
 **Contraste.** Mesuré sur les pixels de chaque mot : Otsu sépare texte et fond, le fond est
 le groupe le plus nombreux, la couleur du texte est la moyenne des 20 % de pixels les plus
@@ -154,8 +240,14 @@ et blanc (écart 7) et pour une personne deutéranope (écart 11), et le jaune n
 contraste de 1,6:1 avec le fond blanc.
 
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression
-peut échapper à l’OCR. Le « taille réelle » de l’écran n’est juste qu’après le réglage par
-carte bancaire ; l’impression à 100 % reste la référence.
+peut échapper à l’OCR ; la vue résidu le montre, et l’humain l’ajoute. La mesure d’une zone
+ajoutée suppose une seule ligne de texte droite ou verticale par bande d’encre : un
+rectangle qui prend aussi un filet ou une icône est mesuré avec. Les suggestions proposent
+volontiers des rangées de points ou de petits symboles alignés ; elles ne lisent rien, et une
+photo peut en recevoir plusieurs dizaines (plafond : 30). Le cadre au clavier se déplace par
+pas d’un centième de la figure : un petit texte demande quelques frappes. Le « taille
+réelle » de l’écran n’est juste qu’après le réglage par carte bancaire ; l’impression à
+100 % reste la référence.
 
 ## Licence
 

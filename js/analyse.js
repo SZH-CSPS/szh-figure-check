@@ -1,8 +1,8 @@
 // Calculs sans DOM : taille d'un texte reconnu, contraste d'une zone de pixels, passage
 // des coordonnées de l'image tournée à l'image d'origine, degré de non-conformité, couleur conforme.
 
-import { lc, luminanceApca } from './apca.js?v=fc46882b66';
-import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './formats.js?v=fc46882b66';
+import { lc, luminanceApca } from './apca.js?v=a674e7ea0d';
+import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './formats.js?v=a674e7ea0d';
 
 // Rapport hauteur du glyphe / corps, moyen sur les sans-serif courantes (Arial, Open Sans,
 // Calibri, Helvetica). Les minuscules sans hampe donnent la hauteur d'x, les capitales et
@@ -10,7 +10,7 @@ import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './format
 const SANS_HAMPE = new Set('acemnorsuvwxz');
 const CAPITALE = /^[A-HK-PR-Z0-9]$/;
 export const RATIO_X = 0.52;
-const RATIO_CAPITALE = 0.71;
+export const RATIO_CAPITALE = 0.71;
 
 const TOLERANCE_LC = 0.5;                // comme apca.TOLERANCE_SEUIL de Pronto
 
@@ -138,7 +138,7 @@ export function contrasteZone(rgba, largeur, hauteur, bbox, marge = 2) {
 // une photo ou une peinture, l'OCR prend pour des lettres des taches dont le fond varie
 // presque autant que l'écart qui les en sépare. Rend null si la boîte ne se mesure pas.
 // Mesuré : 0,14 au plus sur les textes de graphiques et de schémas, 0,19 au moins sur les
-// faux textes lus dans des photos.
+// faux textes lus dans des photos. Au-delà de BRUIT_FOND_MAX, un texte lu est à vérifier.
 export const BRUIT_FOND_MAX = 0.17;
 
 export function bruitFond(rgba, largeur, hauteur, bbox, marge = 2) {
@@ -160,17 +160,6 @@ export function bruitFond(rgba, largeur, hauteur, bbox, marge = 2) {
   const ecart = Math.abs(moyenne(texte) - moyenne(fond));
   if (!ecart) return null;
   return Math.sqrt(Math.max(0, carres / n - (somme / n) ** 2)) / ecart;
-}
-
-// Une ligne de trois lettres ou chiffres au plus (« EN », « Il », « 525 ») ne se garde
-// que si la confiance moyenne de ses mots atteint `confianceMin` : sur une photo, l'OCR
-// lit volontiers une tache comme une lettre isolée. `mots` : [{ text, confidence }].
-export const CARACTERES_COURT = 3;
-
-export function ligneCourteFiable(mots, confianceMin) {
-  const caracteres = mots.reduce((n, m) => n + (m.text.match(/[\p{L}\p{N}]/gu) || []).length, 0);
-  if (caracteres > CARACTERES_COURT) return true;
-  return mots.reduce((s, m) => s + m.confidence, 0) / mots.length >= confianceMin;
 }
 
 // L'image tournée d'un quart de tour horaire, de hauteur d'origine `hauteur`, ramène son
