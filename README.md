@@ -45,6 +45,27 @@ La figure ne quitte pas le navigateur. Interface en français et en allemand.
 Pour faire produire des figures conformes par un agent d’IA, voir le méta-prompt
 `docs/meta-prompt-figures.md`.
 
+## Navigateur
+
+L’outil demande au navigateur trois choses, vérifiées au démarrage :
+
+- **WebAssembly**, dans la page et dans un Web Worker : le détecteur de texte et l’OCR en dépendent ;
+- les **Web Workers** : l’OCR tourne dans l’un d’eux ;
+- la **lecture des pixels d’un canevas** (`getImageData`) : toutes les mesures en dépendent.
+
+Ce qui les bloque : les bloqueurs de scripts (NoScript, uBlock Origin en mode strict) pour WebAssembly,
+et la protection contre le pistage de Firefox (`privacy.resistFingerprinting`, protection renforcée) pour
+la lecture des pixels. Dans le premier cas, un message dit d’autoriser le site puis de recharger la page.
+Dans le second, le bouton « Autoriser » refait le test dans un clic, ce qui fait apparaître la demande de
+Firefox ; sans autorisation, « Continuer sans mesures » laisse l’aperçu à taille réelle seul. Autre voie :
+autoriser « l’accès aux données d’image » depuis l’icône à gauche de l’adresse, ou ajouter le site à
+`privacy.resistFingerprinting.exemptedDomains` dans `about:config`.
+
+Le **premier chargement télécharge environ 26 Mo, une fois** (moteur et modèle de détection, 17 Mo,
+plus l’OCR et ses trois langues) : un recouvrement bloque la page, avec une barre de progression,
+le temps de tout télécharger et de préparer le détecteur et l’OCR (`js/prechargement.js`). Il ne
+s’affiche que si cela dure plus de 400 ms ; ensuite le cache du navigateur sert les fichiers.
+
 ## Héberger
 
 Aucun serveur applicatif ni build : copier le dossier sur n’importe quel hébergement de
@@ -66,6 +87,7 @@ les requêtes de fichiers comme pour toute page web (journaux de GitHub Pages).
 
 ```
 node outils/serveur.mjs          # http://localhost:8123/ ; les modules ES refusent file://
+SERVEUR_CACHE=1 node outils/serveur.mjs   # idem avec le cache de dix minutes de GitHub Pages
 node --test test/*.test.mjs      # calculs : APCA, géométrie, contraste, verdicts, i18n, versions
 node outils/version.mjs          # version des références internes, avant chaque publication
 node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
@@ -107,6 +129,9 @@ rend la lecture courante, le même objet que le bouton « Exporter la lecture (J
 | `js/objets.js` | objets du graphique : lus dans le SVG ou le PDF, sinon cherchés sur les pixels ; séries, contrastes, épaisseur des traits ; bloc du rapport (styles dans `objets.css`) et `exporterObjets()` |
 | `js/vision.js` | basse vision : flou d’acuité, seuils de lecture, contraste local par bandes (Peli) |
 | `js/projection.js` | diapositive 16:9, salles types, taille apparente, minimum DISCAS |
+| `js/environnement.js` | WebAssembly, Web Workers et lecture des pixels : vérifications du démarrage |
+| `js/fichiers.js`, `js/prechargement.js` | adresses des fichiers lourds ; téléchargement anticipé avec progression |
+| `js/chargeur.js` | recouvrement du premier lancement et des messages de l’environnement |
 | `js/i18n.js` | libellés fr et de |
 | `js/app.js` | interface |
 
@@ -139,7 +164,7 @@ pour texte. Une boîte dont le fond varie presque autant que l’écart entre te
 tache de photo) est écartée : la variation du fond, loin des bords des lettres, doit rester
 sous 0,17 fois cet écart.
 
-**Repli.** Si WebAssembly manque, ou si l’exécuteur ou le modèle ne se charge pas, la page
+**Repli.** Si l’exécuteur ou le modèle du détecteur ne se charge pas, la page
 le dit et l’OCR lit l’image entière, comme avec `?moteur=tesseract` : Tesseract trouve les
 mots en mode « texte épars » sur une copie en gris assombrie, puis une seconde fois tournée
 d’un quart de tour pour les textes verticaux ; une ligne de trois lettres ou chiffres au
