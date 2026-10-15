@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=cc3cec3d62';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=cc3cec3d62';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=cc3cec3d62';
-import { versHex } from './apca.js?v=cc3cec3d62';
-import { ouvrir } from './sources.js?v=cc3cec3d62';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=cc3cec3d62';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=cc3cec3d62';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=cc3cec3d62';
-import { T, langueInitiale, nombre } from './i18n.js?v=cc3cec3d62';
-import { rendreObjets, exporterObjets } from './objets.js?v=cc3cec3d62';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=ff5624a8ce';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=ff5624a8ce';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=ff5624a8ce';
+import { versHex } from './apca.js?v=ff5624a8ce';
+import { ouvrir } from './sources.js?v=ff5624a8ce';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=ff5624a8ce';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=ff5624a8ce';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=ff5624a8ce';
+import { T, langueInitiale, nombre } from './i18n.js?v=ff5624a8ce';
+import { rendreObjets, exporterObjets } from './objets.js?v=ff5624a8ce';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -720,8 +720,15 @@ function rendreResidu(actives, W, H) {
   return svg;
 }
 
+// Première phrase visible ; le reste, s'il y en a un, dans un « En savoir plus ».
 function aide(cle, valeurs) {
-  $('residu-aide').textContent = cle ? t(cle, valeurs) : '';
+  const zone = $('residu-aide');
+  const texte = cle ? t(cle, valeurs) : '';
+  const coupe = /^(.+?[.!?])\s+(\S.*)$/s.exec(texte);
+  if (!coupe) { zone.textContent = texte; return; }
+  zone.replaceChildren(
+    element('p', {}, coupe[1]),
+    element('details', {}, element('summary', {}, t('enSavoirPlus')), element('p', {}, coupe[2])));
 }
 
 function cadreClavier() {

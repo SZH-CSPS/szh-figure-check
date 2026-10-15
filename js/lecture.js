@@ -10,18 +10,18 @@
 import {
   corpsDepuisSymboles, hauteurGlyphe, contrasteZone, bruitFond, BRUIT_FOND_MAX,
   depuisRotation, recouvrement, unionBoites, mediane,
-} from './analyse.js?v=cc3cec3d62';
-import { versPoints } from './formats.js?v=cc3cec3d62';
-import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=cc3cec3d62';
-import { statutInitial, visible, zonesEncre, mesurerZone } from './residu.js?v=cc3cec3d62';
+} from './analyse.js?v=ff5624a8ce';
+import { versPoints } from './formats.js?v=ff5624a8ce';
+import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=ff5624a8ce';
+import { statutInitial, visible, zonesEncre, mesurerZone } from './residu.js?v=ff5624a8ce';
 
 // Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
 // la page : rien n'est demandé à un autre serveur. Les chemins sont absolus, parce que le
 // travailleur les résout depuis sa propre adresse.
 const VENDOR = new URL('../vendor/', import.meta.url);
-const TESSERACT = new URL('tesseract/tesseract.min.js?v=cc3cec3d62', VENDOR).href;
+const TESSERACT = new URL('tesseract/tesseract.min.js?v=ff5624a8ce', VENDOR).href;
 const OPTIONS_TESSERACT = {
-  workerPath: new URL('tesseract/worker.min.js?v=cc3cec3d62', VENDOR).href,
+  workerPath: new URL('tesseract/worker.min.js?v=ff5624a8ce', VENDOR).href,
   workerBlobURL: false,
   corePath: new URL('tesseract-core/', VENDOR).href,
   langPath: new URL('tessdata/', VENDOR).href,

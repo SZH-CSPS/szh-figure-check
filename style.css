@@ -245,6 +245,11 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .residu-commandes { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin-bottom: 6px; }
 .interrupteur { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; cursor: pointer; }
 #residu-aide { margin-bottom: 10px; max-width: 90ch; }
+#residu-aide p { margin: 0; }
+#residu-aide details { margin-top: 2px; }
+#residu-aide summary { font-weight: 400; padding: 2px 0; }
+/* Cases à cocher : 20 px, au même niveau que leur libellé. */
+input[type="checkbox"] { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--accent); cursor: pointer; }
 .analyse-figure svg.residu { pointer-events: none; }
 .analyse-figure.residu svg.residu { pointer-events: auto; cursor: crosshair; }
 .analyse-figure.residu .voile, .analyse-figure.residu .groupe .cadre, .analyse-figure.residu .neutres rect { display: none !important; }
