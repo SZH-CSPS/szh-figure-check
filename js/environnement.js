@@ -49,7 +49,7 @@ export function verifierEnvironnement(globale = globalThis, creerCanevas = canev
   };
 }
 
-const SONDE = new URL('./sonde-travailleur.js?v=8aa7eff363', import.meta.url).href;
+const SONDE = new URL('./sonde-travailleur.js?v=7d9fcb2a91', import.meta.url).href;
 
 // Lance le travailleur d'essai : { wasm, worker } vus depuis un travailleur. Un travailleur qui
 // ne démarre pas (erreur) vaut « pas de Worker » ; un silence au-delà du délai ne conclut rien.
