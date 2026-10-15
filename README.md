@@ -35,9 +35,9 @@ figure et on voit :
 Le parcours tient en quatre étapes, en accordéon : choisir la figure, régler les paramètres
 (format, largeur, contraste minimal Lc 75 par défaut ou Lc 90 recommandé), régler l’écran,
 lire l’analyse. L’analyse montre une vue à la fois, choisie par cinq tuiles : aperçu à taille
-réelle, taille et contraste des textes, vision (daltonismes et basse vision), projection, et
-objets du graphique (séries de barres, courbes et formes, leurs contrastes et l’épaisseur de
-leurs traits). Dans la vue des objets, une puce numérotée par carte de série ou de paire
+réelle, taille et contraste des textes, objets du graphique (séries de barres, courbes et
+formes, leurs contrastes et l’épaisseur de leurs traits), vision (daltonismes et basse
+vision), et projection. Dans la vue des objets, une puce numérotée par carte de série ou de paire
 met en évidence ses contours sur la figure : le survol montre un aperçu, le clic la rend
 active, et la première série à corriger l’est au départ. Pour un résultat exact, la page
 demande dès la première étape le PDF ou le SVG de la figure plutôt qu’une capture d’écran :
