@@ -233,7 +233,8 @@ abbr[title] { text-decoration: underline dotted; cursor: help; }
 .puces { margin-bottom: 14px; }
 /* Sous-grille : titres, définitions et numéros alignés d'une boîte à l'autre. Quatre
    boîtes : les trois degrés et « À vérifier ». */
-.boites-niveaux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; column-gap: 12px; row-gap: 12px; align-items: start; }
+/* Les boîtes d'une rangée ont la même hauteur ; leur contenu reste en haut (align-content). */
+.boites-niveaux { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: auto; column-gap: 12px; row-gap: 12px; align-items: stretch; }
 /* Sous la figure, les textes à vérifier se rangent en colonnes. */
 .a-verifier-zone:not(:empty) { margin-top: 16px; }
 .a-verifier-zone .a-verifier-liste { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); align-items: start; }
