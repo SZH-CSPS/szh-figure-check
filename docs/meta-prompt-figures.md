@@ -22,8 +22,8 @@ Si l'une de ces informations manque, demande-la en une seule question groupée :
 2. **La langue** : français ou allemand.
 3. **Les données ou le contenu** à représenter, et le message principal que la figure doit
    faire passer, en une phrase.
-4. **Le format de sortie** souhaité (SVG de préférence, sinon PNG) et l'outil à utiliser
-   s'il est imposé.
+4. **Le format de sortie** souhaité (PDF ou SVG avec du vrai texte de préférence, sinon
+   PNG) et l'outil à utiliser s'il est imposé.
 
 ## Contraintes non négociables
 
@@ -69,10 +69,12 @@ Si l'une de ces informations manque, demande-la en une seule question groupée :
   différence (motif ou hachure, forme de symbole, style de trait) ou, mieux, une
   **étiquette directe** au bout de chaque courbe ou sur chaque série, à la place d'une légende
   séparée. Évite d'opposer le rouge et le vert.
-- **Pas de texte dans une image bitmap si tu peux l'éviter** : exporte en **SVG avec du vrai
-  texte** (polices non converties en tracés). Si un PNG est nécessaire, au moins
-  **300 ppp à la taille imprimée** : 2000 px de large pour la Revue, 1360 px pour le livre.
-  Fond blanc, pas de transparence.
+- **PDF ou SVG d'abord, avec du vrai texte** (polices non converties en tracés) : l'outil
+  de contrôle y lit les tailles exactement, alors que dans une image il les estime. Dans
+  Word, Excel ou PowerPoint : Enregistrer sous, PDF ; dans un logiciel de graphiques :
+  exporter en SVG ou en PDF. Si un PNG est nécessaire, au moins **300 ppp à la taille
+  imprimée** : 2000 px de large pour la Revue, 1360 px pour le livre. Fond blanc, pas de
+  transparence.
 - **Le numéro et le titre de la figure ne sont pas dans l'image** : la mise en page les
   ajoute au-dessus (« Figure 1 » et le titre). La source et les notes vont dans la note sous
   la figure, pas dans l'image, sauf demande contraire.
@@ -133,8 +135,8 @@ Attends la réponse avant de produire la figure.
 
 ### 4. Produire
 
-Dessine à la taille finale, avec les règles ci-dessus. Exporte en SVG (texte conservé) ou en
-PNG à 300 ppp.
+Dessine à la taille finale, avec les règles ci-dessus. Exporte en PDF ou en SVG (texte
+conservé), à défaut en PNG à 300 ppp.
 
 ### 5. Vérifier avant de livrer
 
@@ -156,7 +158,8 @@ textes », « Vision » et « Projection » si elle doit être présentée en sa
 
 ### 6. Livrer
 
-- Le fichier (SVG ou PNG) et, si l'outil l'a produit, le script ou la source de la figure.
+- Le fichier (PDF ou SVG, sinon PNG) et, si l'outil l'a produit, le script ou la source de
+  la figure.
 - **Un titre** proposé pour la légende.
 - **Un texte alternatif** de une à deux phrases qui dit ce que la figure montre (le message,
   pas la description des couleurs), et, pour un graphique de données, la mention du tableau

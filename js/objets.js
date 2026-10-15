@@ -6,13 +6,13 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=9055eac22a';
-import { MM_PAR_PT } from './formats.js?v=9055eac22a';
+import { versHex } from './apca.js?v=4a5e2ee91c';
+import { MM_PAR_PT } from './formats.js?v=4a5e2ee91c';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=9055eac22a';
-import { T, nombre } from './i18n.js?v=9055eac22a';
+} from './couleur.js?v=4a5e2ee91c';
+import { T, nombre } from './i18n.js?v=4a5e2ee91c';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -1127,7 +1127,9 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue) {
     return;
   }
   const analyse = analyserObjets(entree.brut, { mmParPx, boites: boitesTextes(lecture) });
-  dernier = { analyse, echelle: (source.naturel ? source.naturel.l : lecture.canevas.width) / lecture.canevas.width, duree: entree.duree };
+  // Boîtes de l'export en pixels de l'image d'origine (son espace, comme la lecture).
+  const origine = source.espace?.l ?? source.naturel?.l ?? lecture.canevas.width;
+  dernier = { analyse, echelle: origine / lecture.canevas.width, duree: entree.duree };
 
   const badge = (niveau) => element('span', { class: `badge ${niveau}` },
     element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[niveau]), ' ', t(`niveau_${niveau}`));

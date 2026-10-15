@@ -1,15 +1,17 @@
 // Interface : quatre étapes en accordéon (figure, paramètres, écran, analyse) ; l'analyse
-// montre une vue à la fois (aperçu à taille réelle, textes, couleurs).
+// montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
+// textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js?v=9055eac22a';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=9055eac22a';
-import { versHex } from './apca.js?v=9055eac22a';
-import { ouvrir } from './sources.js?v=9055eac22a';
-import { lire } from './lecture.js?v=9055eac22a';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=9055eac22a';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=9055eac22a';
-import { T, langueInitiale, nombre } from './i18n.js?v=9055eac22a';
-import { rendreObjets } from './objets.js?v=9055eac22a';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=4a5e2ee91c';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=4a5e2ee91c';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=4a5e2ee91c';
+import { versHex } from './apca.js?v=4a5e2ee91c';
+import { ouvrir } from './sources.js?v=4a5e2ee91c';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=4a5e2ee91c';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=4a5e2ee91c';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=4a5e2ee91c';
+import { T, langueInitiale, nombre } from './i18n.js?v=4a5e2ee91c';
+import { rendreObjets, exporterObjets } from './objets.js?v=4a5e2ee91c';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -22,8 +24,9 @@ const params = new URLSearchParams(location.search);
 const etat = {
   langue: langueInitiale(params.get('langue'), navigator.language),
   format: FORMATS[params.get('format')] ? params.get('format') : 'revue',
-  proportion: null,
+  proportion: proportionDepuis(params.get('largeur')),
   seuil: SEUILS_LC.includes(Number(params.get('lc'))) ? Number(params.get('lc')) : SEUILS_LC[0],
+  masquer: false,
   etape: 1,
   onglet: 'vue-page',
   tailleVue: 'reelle',
@@ -120,9 +123,11 @@ function rendrePage() {
   if (!etat.proportion && s.type === 'bitmap' && s.naturel.l * MM_PAR_PX < zone.l - 1) {
     alertes.push(t('petiteNaturelle', { px: s.naturel.l }));
   }
+  // Une image étroite étirée à la largeur de la colonne manque de pixels : elle est floue.
   if (s.pixels) {
     const ppp = s.pixels.l / (fig.l / 25.4);
-    if (ppp < 150) alertes.push(t('resolutionFaible', { ppp: Math.round(ppp) }));
+    const etiree = Boolean(etat.proportion) && s.naturel.l * MM_PAR_PX < fig.l - 0.5;
+    if (ppp < PPP_MIN) alertes.push(t(etiree ? 'petiteEtiree' : 'resolutionFaible', { ppp: Math.round(ppp), px: s.pixels.l }));
   }
   $('alertes-page').replaceChildren(...alertes.map((a) => element('li', {}, a)));
   zoomer();
@@ -155,11 +160,12 @@ async function analyser() {
   etat.endroits = null;
   rendreAnalyse();
   try {
-    const lecture = await lire(etat.source, (etape, p) => {
+    const lecture = await lire(etat.source, figureSurPage().l, (etape, p) => {
       if (jeton !== etat.jeton) return;
       if (etape === 'rendu') statut('preparation');
       else if (etape === 'chargement') statut('chargementOcr');
       else if (etape === 'ocr') statut('lectureOcr', { p: Math.round(p * 100) });
+      else if (etape === 'suggestions') statut('rechercheSuggestions');
     });
     if (jeton !== etat.jeton) return;
     etat.lecture = lecture;
@@ -173,27 +179,34 @@ async function analyser() {
   document.body.dataset.etat = 'fini';
 }
 
+// Tous les textes de la lecture, statuts compris, avec leurs mesures à l'impression.
 function mesures() {
   const { canevas, lignes } = etat.lecture;
   const fig = figureSurPage();
-  return lignes.map((l, id) => {
+  return lignes.map((l) => {
     const pt = l.corpsPx ? versPoints(l.corpsPx, canevas.width, fig.l) : null;
     const lcv = l.contraste ? l.contraste.lc : null;
     // Le degré se décide sur la valeur affichée, arrondie comme elle s'écrit.
     const nt = niveauTaille(pt == null ? null : Math.round(pt * 10) / 10);
     const nc = niveauContraste(lcv == null ? null : Math.round(lcv), etat.seuil);
-    return { ...l, id, pt, lc: lcv, nt, nc, niveau: pireNiveau(nt, nc) };
+    return { ...l, pt, lc: lcv, nt, nc, niveau: pireNiveau(nt, nc) };
   });
 }
 
+// Verdict de la figure d'après les textes qui comptent.
+function verdictGlobal(lignes) {
+  if (lignes.some((l) => l.niveau === 'corriger')) return 'corriger';
+  return lignes.some((l) => l.niveau === 'ameliorer') ? 'ameliorer' : 'ok';
+}
+
 // Extrait de la figure autour d'une zone, la zone entourée de rouge.
-function extrait(canevas, bbox) {
+function extrait(canevas, bbox, maxL = 560, maxH = 240) {
   const lb = bbox.x1 - bbox.x0, hb = bbox.y1 - bbox.y0;
   const marge = Math.max(30, Math.min(lb, hb) * 1.5);
   const sx = Math.max(0, bbox.x0 - marge * 1.6), sy = Math.max(0, bbox.y0 - marge);
   const sl = Math.min(canevas.width, bbox.x1 + marge * 1.6) - sx;
   const sh = Math.min(canevas.height, bbox.y1 + marge) - sy;
-  const e = Math.min(2, 560 / sl, 240 / sh);
+  const e = Math.min(2, maxL / sl, maxH / sh);
   const c = document.createElement('canvas');
   c.width = Math.round(sl * e);
   c.height = Math.round(sh * e);
@@ -224,6 +237,15 @@ function texteTaille(l) {
 
 function texteContraste(l) {
   return l.lc == null ? t('nonMesure') : `Lc ${Math.round(Math.abs(l.lc))}`;
+}
+
+// Libellé d'un texte : ce qui a été lu, sinon « texte non lu » en retrait.
+function libelle(l) {
+  return l.texte ? l.texte : element('i', {}, t(l.origine === 'suggestion' ? 'suggestionTexte' : 'texteNonLu'));
+}
+
+function etiquetteStatut(statut) {
+  return element('span', { class: `statut-etiquette ${statut}` }, t(`statut_${statut}`));
 }
 
 function conseils(l, plusieurs) {
@@ -330,20 +352,26 @@ function rendreAnalyse() {
   $('rapport-fichier').textContent = t('rapportFichier', {
     nom: etat.source.nom, format: t(etat.format === 'revue' ? 'formatRevue' : 'formatLivre'),
   });
+  fermerFenetreMasque();
   if (!etat.lecture) {
+    cadre.className = 'analyse-figure';
     cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }));
-    for (const id of ['bilan', 'niveaux', 'zones-titre', 'details-textes', 'imprimer-rapport']) $(id).hidden = true;
-    $('zones').replaceChildren();
-    $('puces').replaceChildren();
-    $('panneau').replaceChildren();
-    $('ensemble').replaceChildren();
+    for (const id of ['bilan', 'niveaux', 'zones-titre', 'statuts-titre', 'details-textes', 'imprimer-rapport', 'exporter-lecture', 'residu-commandes']) $(id).hidden = true;
+    for (const id of ['zones', 'statuts-impression', 'puces', 'panneau', 'ensemble']) $(id).replaceChildren();
     $('zones-reste').textContent = '';
+    $('residu-aide').textContent = '';
     tbody.replaceChildren();
     $('note-mesure').textContent = '';
     return;
   }
   const { canevas } = etat.lecture;
-  const lignes = mesures();
+  // Seuls les textes confirmés et ajoutés comptent ; ceux à vérifier sont montrés à part,
+  // les retirés n'apparaissent plus.
+  const toutes = mesures();
+  const actives = toutes.filter((l) => visible(l.statut));
+  const lignes = actives.filter((l) => compte(l.statut));
+  const aVerifier = actives.filter((l) => l.statut === 'a-verifier');
+  const ajoutes = actives.filter((l) => l.statut === 'ajoute');
   // Quand la figure entière est trop petite, un encadré le dit une fois pour toutes ; les
   // cartes ne portent alors plus que sur le contraste, par style de texte.
   const diag = diagnosticEnsemble(lignes);
@@ -366,12 +394,6 @@ function rendreAnalyse() {
   // Le groupe 1 est actif au départ. Sa carte s'affiche dans le panneau. La puce active est
   // pleine et soulignée, celle qu'on survole n'est que teintée, et le panneau dit s'il
   // montre l'endroit actif ou un aperçu. Les groupes conformes s'encadrent en vert.
-  const ns = 'http://www.w3.org/2000/svg';
-  const svgEl = (nom, attributs = {}) => {
-    const el = document.createElementNS(ns, nom);
-    for (const [k, v] of Object.entries(attributs)) el.setAttribute(k, v);
-    return el;
-  };
   const W = canevas.width, H = canevas.height;
   const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
   const voile = svgEl('path', { class: 'voile', 'fill-rule': 'evenodd' });
@@ -379,15 +401,16 @@ function rendreAnalyse() {
   const m = 4;
   const boite = (l) => ({ x: l.bbox.x0 - m, y: l.bbox.y0 - m, w: l.bbox.x1 - l.bbox.x0 + 2 * m, h: l.bbox.y1 - l.bbox.y0 + 2 * m });
 
-  // Cadres des textes sans carte : invisibles, montrés un par un depuis la liste des textes.
+  // Cadres des textes sans carte, à vérifier compris : invisibles, montrés un par un depuis
+  // les listes.
   const rectDe = new Map();
   const groupeDe = new Map();
   explorables.forEach((g, i) => g.membres.forEach((l) => groupeDe.set(l.id, i)));
   const neutres = svgEl('g', { class: 'neutres' });
-  for (const l of lignes) {
+  for (const l of actives) {
     if (groupeDe.has(l.id)) continue;
     const b = boite(l);
-    const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: l.niveau || 'inconnu' });
+    const r = svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, class: l.statut === 'a-verifier' ? 'a-verifier' : (l.niveau || 'inconnu') });
     neutres.append(r);
     rectDe.set(l.id, r);
   }
@@ -406,14 +429,16 @@ function rendreAnalyse() {
     svg.append(calque);
     return calque;
   });
+  const surligner = (id, oui) => rectDe.get(id)?.classList.toggle('actif', oui);
 
-  // Trois boîtes identiques, une par degré, chacune avec ses numéros.
+  // Quatre boîtes : une par degré, avec ses numéros, et « À vérifier », avec ses textes
+  // douteux et, pour chacun, les deux réponses possibles.
   const puces = $('puces');
   const boutons = explorables.map((g, i) => element('button', {
     type: 'button', 'aria-pressed': 'false', 'aria-controls': 'panneau', class: `puce ${g.niveau}`,
     'aria-label': t('puceAria', { n: i + 1, niveau: t(`niveau_${g.niveau}`) }),
   }, String(i + 1)));
-  const rangee = element('div', { class: 'boites-niveaux' }, ...['corriger', 'ameliorer', 'ok'].map((niveau) => {
+  const boitesNiveaux = ['corriger', 'ameliorer', 'ok'].map((niveau) => {
     const ici = boutons.filter((b, i) => explorables[i].niveau === niveau);
     return element('section', { class: `boite-niveau ${niveau}`, 'aria-label': t(`niveau_${niveau}`) },
       element('p', { class: 'boite-titre' },
@@ -422,7 +447,34 @@ function rendreAnalyse() {
         element('span', { class: 'discret' }, t('nEndroits', { n: ici.length }))),
       element('p', { class: 'boite-legende discret' }, t(`legende_${niveau}`)),
       element('div', { class: 'boite-puces' }, ...(ici.length ? ici : [element('span', { class: 'discret' }, t('aucunEndroit'))])));
-  }));
+  });
+  const itemVerifier = (l) => {
+    const texteAria = l.texte || t('texteNonLu');
+    const oui = element('button', { type: 'button', class: 'oui', 'aria-label': t('estTexteAria', { texte: texteAria }) }, t('estTexte'));
+    const non = element('button', { type: 'button', class: 'non', 'aria-label': t('pasTexteAria', { texte: texteAria }) }, t('pasTexte'));
+    oui.addEventListener('click', () => changerStatut(l.id, 'confirme'));
+    non.addEventListener('click', () => changerStatut(l.id, 'retire'));
+    const item = element('li', { class: 'a-verifier-item' },
+      element('img', { src: extrait(canevas, l.bbox, 200, 80), alt: '' }),
+      element('span', { class: 'texte-lu' }, libelle(l), ' ', element('span', { class: 'discret' }, `${texteTaille(l)} · ${texteContraste(l)}`)),
+      element('span', { class: 'a-verifier-actions' }, oui, non));
+    const activer = (actif) => { item.classList.toggle('actif', actif); surligner(l.id, actif); };
+    item.addEventListener('mouseenter', () => activer(true));
+    item.addEventListener('mouseleave', () => activer(false));
+    item.addEventListener('focusin', () => activer(true));
+    item.addEventListener('focusout', () => activer(false));
+    return item;
+  };
+  const boiteVerifier = element('section', { class: 'boite-niveau a-verifier', 'aria-label': t('statut_a-verifier') },
+    element('p', { class: 'boite-titre' },
+      element('span', { class: 'symbole', 'aria-hidden': 'true' }, '?'), ' ',
+      element('b', {}, t('statut_a-verifier')), ' ',
+      element('span', { class: 'discret' }, t('nTextes', { n: aVerifier.length }))),
+    element('p', { class: 'boite-legende discret' }, t('legende_verifier')),
+    aVerifier.length
+      ? element('ul', { class: 'a-verifier-liste' }, ...aVerifier.map(itemVerifier))
+      : element('div', { class: 'boite-puces' }, element('span', { class: 'discret' }, t('aVerifierVide'))));
+  const rangee = element('div', { class: 'boites-niveaux' }, ...boitesNiveaux, boiteVerifier);
   puces.replaceChildren(rangee);
 
   const cartes = new Map();
@@ -475,24 +527,30 @@ function rendreAnalyse() {
     });
   });
   montrer(choix.epingle);
-  cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }), svg);
+  cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }), svg, rendreResidu(actives, W, H));
+  cadre.classList.toggle('residu', etat.masquer);
+  $('residu-commandes').hidden = false;
+  $('zone-clavier').hidden = !etat.masquer;
 
   // Bilan
+  const global = verdictGlobal(lignes);
+  const tailles = lignes.map((l) => l.pt).filter((v) => v != null);
   const nCorriger = lignes.filter((l) => l.niveau === 'corriger').length;
   const nAmeliorer = lignes.filter((l) => l.niveau === 'ameliorer').length;
-  const global = nCorriger ? 'corriger' : nAmeliorer ? 'ameliorer' : 'ok';
-  const tailles = lignes.map((l) => l.pt).filter((v) => v != null);
   const bilan = $('bilan');
   bilan.className = `bilan ${lignes.length ? global : 'inconnu'}`;
-  bilan.replaceChildren(...(lignes.length ? [
-    element('p', { class: 'bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`)),
+  bilan.replaceChildren(
+    element('p', { class: 'bilan-titre' },
+      ...(lignes.length ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`)] : [t('aucunTexte')])),
     element('p', {}, [
-      t('textesLus', { n: lignes.length }),
+      lignes.length ? t('textesLus', { n: lignes.length }) : null,
       nCorriger ? t('compte_corriger', { n: nCorriger }) + '.' : null,
       nAmeliorer ? t('compte_ameliorer', { n: nAmeliorer }) + '.' : null,
+      ajoutes.length ? t('compte_ajoute', { n: ajoutes.length }) + '.' : null,
+      aVerifier.length ? t('compte_aVerifier', { n: aVerifier.length }) + '.' : null,
       tailles.length ? t('plusPetitTexte', { pt: nombre(Math.min(...tailles)), min: TAILLE_MIN_PT }) : null,
     ].filter(Boolean).join(' ')),
-  ] : [element('p', { class: 'bilan-titre' }, t('aucunTexte'))]));
+    etat.source.type === 'bitmap' ? element('p', { class: 'discret' }, t('lectureApprochee')) : null);
   bilan.hidden = false;
   $('niveaux').hidden = !lignes.length;
 
@@ -503,32 +561,253 @@ function rendreAnalyse() {
   $('zones').replaceChildren(...affiches.map((g, i) => carteZone(g, i + 1, canevas)));
   $('zones-reste').textContent = groupes.length > affiches.length ? t('autresGroupes', { n: groupes.length - affiches.length }) : '';
 
-  // Tous les textes
-  tbody.replaceChildren(...lignes.map((l) => {
+  // À l'impression : les textes ajoutés et ceux à vérifier, avec leur statut.
+  const statuts = [...ajoutes, ...aVerifier];
+  $('statuts-titre').hidden = !statuts.length;
+  $('statuts-titre').textContent = t('statutsTitre', { n: statuts.length });
+  $('statuts-impression').replaceChildren(...statuts.map((l) => element('li', {},
+    element('img', { src: extrait(canevas, l.bbox, 200, 80), alt: '' }),
+    element('span', {}, etiquetteStatut(l.statut), ' ', libelle(l)),
+    element('span', { class: 'discret' }, `${texteTaille(l)} · ${texteContraste(l)} · ${t(`origine_${l.origine}`)}`))));
+
+  // Tous les textes visibles, avec leur statut ; « Ce n'est pas un texte » y est accessible
+  // au clavier pour chacun.
+  tbody.replaceChildren(...actives.map((l) => {
     const cellule = (valeur, niveau) => element('td', { class: niveau || 'inconnu' }, valeur,
       niveau && niveau !== 'ok' ? element('span', { class: 'etiquette' }, t(`niveau_${niveau}`)) : null);
+    const retirer = element('button', { type: 'button', class: 'lien', 'aria-label': t('pasTexteAria', { texte: l.texte || t('texteNonLu') }) }, t('pasTexte'));
+    retirer.addEventListener('click', () => changerStatut(l.id, 'retire'));
     const tr = element('tr', {},
-      element('td', { class: 'texte-lu' }, l.texte, l.vertical ? element('span', { class: 'etiquette discret' }, t('vertical')) : null),
+      element('td', { class: 'texte-lu' }, libelle(l), l.vertical ? element('span', { class: 'etiquette discret' }, t('vertical')) : null),
       cellule(texteTaille(l), l.nt),
       cellule(texteContraste(l), l.nc),
-      element('td', {}, l.contraste ? nuancier(l.contraste.texte, l.contraste.fond) : null));
+      element('td', {}, l.contraste ? nuancier(l.contraste.texte, l.contraste.fond) : null),
+      element('td', { title: t(`origine_${l.origine}`) }, etiquetteStatut(l.statut), element('span', { class: 'etiquette' }, retirer)));
     const activer = (oui) => {
       tr.classList.toggle('actif', oui);
       if (groupeDe.has(l.id)) montrer(oui ? groupeDe.get(l.id) : choix.epingle);
-      rectDe.get(l.id).classList.toggle('actif', oui);
+      surligner(l.id, oui);
     };
     tr.addEventListener('mouseenter', () => activer(true));
     tr.addEventListener('mouseleave', () => activer(false));
     return tr;
   }));
-  $('details-textes').hidden = !lignes.length;
-  $('details-titre').textContent = t('tousTextes', { n: lignes.length });
-  $('imprimer-rapport').hidden = !lignes.length;
+  $('details-textes').hidden = !actives.length;
+  $('details-titre').textContent = t('tousTextes', { n: actives.length });
+  $('imprimer-rapport').hidden = !actives.length;
+  $('exporter-lecture').hidden = false;
   rendreProjection();
   rendreLecture();
 
   const exact = lignes.length && lignes.every((l) => l.exact);
   $('note-mesure').textContent = `${t('seuils', { min: TAILLE_MIN_PT, lc: etat.seuil, corps: nombre(f.corpsPt) })} ${lignes.length ? t(exact ? 'noteExacte' : 'noteEstimation') : ''}`;
+}
+
+const ns = 'http://www.w3.org/2000/svg';
+function svgEl(nom, attributs = {}) {
+  const el = document.createElementNS(ns, nom);
+  for (const [k, v] of Object.entries(attributs)) el.setAttribute(k, v);
+  return el;
+}
+
+// ── Vue résidu ──────────────────────────────────────────────────────────────────
+
+// Un masque hachuré par texte visible. Clic sur un masque : la petite fenêtre qui permet de
+// dire que ce n'est pas un texte (ou que c'en est bien un). Rectangle glissé ailleurs : un
+// texte ajouté, mesuré sans être lu. Un cadre au clavier remplace la souris.
+function rendreResidu(actives, W, H) {
+  const svg = svgEl('svg', { class: 'residu', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', tabindex: '-1', 'aria-label': t('masquerTextes') });
+  const pas = Math.max(8, W / 90);
+  const motif = svgEl('pattern', { id: 'hachures', patternUnits: 'userSpaceOnUse', width: pas, height: pas, patternTransform: 'rotate(45)' });
+  motif.append(svgEl('rect', { width: pas, height: pas, fill: '#fff' }), svgEl('line', { x1: 0, y1: 0, x2: 0, y2: pas, stroke: '#9a9a92', 'stroke-width': pas / 4 }));
+  const defs = svgEl('defs');
+  defs.append(motif);
+  svg.append(defs);
+  const m = 4;
+  for (const l of actives) {
+    const r = svgEl('rect', {
+      x: l.bbox.x0 - m, y: l.bbox.y0 - m, width: l.bbox.x1 - l.bbox.x0 + 2 * m, height: l.bbox.y1 - l.bbox.y0 + 2 * m,
+      class: `masque ${l.statut}`, tabindex: '-1',
+    });
+    r.addEventListener('click', (e) => { e.stopPropagation(); ouvrirFenetreMasque(l, r); });
+    svg.append(r);
+  }
+
+  // Glisser un rectangle sur une zone non masquée.
+  const point = (e) => {
+    const r = svg.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+  };
+  let depart = null, trace = null;
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target !== svg) return;
+    fermerFenetreMasque();
+    depart = point(e);
+    trace = svgEl('rect', { class: 'trace', x: depart.x, y: depart.y, width: 0, height: 0 });
+    svg.append(trace);
+    try { svg.setPointerCapture(e.pointerId); } catch { /* pointeur simulé : pas de capture */ }
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!depart) return;
+    const b = boiteNormalisee(depart, point(e), W, H);
+    trace.setAttribute('x', b.x0); trace.setAttribute('y', b.y0);
+    trace.setAttribute('width', b.x1 - b.x0); trace.setAttribute('height', b.y1 - b.y0);
+  });
+  const finir = (e) => {
+    if (!depart) return;
+    const b = boiteNormalisee(depart, point(e), W, H);
+    depart = null;
+    trace.remove();
+    if (b.x1 - b.x0 >= 4 && b.y1 - b.y0 >= 4) ajouterZone(b);
+  };
+  svg.addEventListener('pointerup', finir);
+  svg.addEventListener('pointercancel', () => { depart = null; trace?.remove(); });
+
+  // Cadre au clavier : flèches pour déplacer, Maj + flèches pour redimensionner, Entrée
+  // pour ajouter, Échap pour annuler.
+  svg.addEventListener('keydown', (e) => {
+    const cadre = svg.querySelector('.cadre-clavier');
+    if (!cadre) return;
+    const d = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] }[e.key];
+    const lire = (a) => parseFloat(cadre.getAttribute(a));
+    if (d) {
+      e.preventDefault();
+      const pasX = W / 100, pasY = H / 100;
+      if (e.shiftKey) {
+        cadre.setAttribute('width', Math.max(pasX, lire('width') + d[0] * pasX));
+        cadre.setAttribute('height', Math.max(pasY, lire('height') + d[1] * pasY));
+      } else {
+        cadre.setAttribute('x', Math.min(W - lire('width'), Math.max(0, lire('x') + d[0] * pasX)));
+        cadre.setAttribute('y', Math.min(H - lire('height'), Math.max(0, lire('y') + d[1] * pasY)));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const b = { x0: lire('x'), y0: lire('y'), x1: lire('x') + lire('width'), y1: lire('y') + lire('height') };
+      cadre.remove();
+      ajouterZone(b);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cadre.remove();
+      aide('residuAide');
+    }
+  });
+  return svg;
+}
+
+function aide(cle, valeurs) {
+  $('residu-aide').textContent = cle ? t(cle, valeurs) : '';
+}
+
+function cadreClavier() {
+  const svg = $('analyse-figure').querySelector('svg.residu');
+  if (!svg) return;
+  const [, , W, H] = svg.getAttribute('viewBox').split(' ').map(Number);
+  svg.querySelector('.cadre-clavier')?.remove();
+  svg.append(svgEl('rect', { class: 'cadre-clavier', x: W * 0.4375, y: H * 0.46875, width: W / 8, height: H / 16 }));
+  aide('clavierAide');
+  svg.focus();
+}
+
+function fermerFenetreMasque() {
+  $('analyse-figure').querySelector('.fenetre-masque')?.remove();
+}
+
+function ouvrirFenetreMasque(l, rect) {
+  fermerFenetreMasque();
+  const cadre = $('analyse-figure');
+  const [, , W, H] = rect.ownerSVGElement.getAttribute('viewBox').split(' ').map(Number);
+  const mesure = mesures().find((x) => x.id === l.id) || l;
+  const fermer = element('button', { type: 'button' }, t('fermer'));
+  const non = element('button', { type: 'button', class: 'non' }, t('pasTexte'));
+  const oui = l.statut === 'a-verifier' ? element('button', { type: 'button', class: 'oui' }, t('estTexte')) : null;
+  const fenetre = element('div', {
+    class: 'fenetre-masque', role: 'dialog', 'aria-label': t('fenetreMasque'),
+    style: { left: `${Math.min(70, l.bbox.x0 / W * 100)}%`, top: `${Math.min(92, l.bbox.y1 / H * 100 + 1)}%` },
+  },
+  element('p', {}, etiquetteStatut(l.statut), ' ', element('b', {}, libelle(l))),
+  element('p', { class: 'discret' }, `${texteTaille(mesure)} · ${texteContraste(mesure)} · ${t(`origine_${l.origine}`)}`),
+  element('div', { class: 'actions' }, oui, non, fermer));
+  const quitter = () => { fenetre.remove(); rect.focus(); };
+  fermer.addEventListener('click', quitter);
+  non.addEventListener('click', () => changerStatut(l.id, 'retire'));
+  oui?.addEventListener('click', () => changerStatut(l.id, 'confirme'));
+  fenetre.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); quitter(); } });
+  cadre.append(fenetre);
+  (oui || non).focus();
+}
+
+// Identifiant d'un texte ajouté : le suivant du plus grand.
+function prochainId(lignes) {
+  return `t${lignes.reduce((max, l) => Math.max(max, Number(String(l.id).slice(1)) || 0), 0) + 1}`;
+}
+
+function changerStatut(id, statut) {
+  const ligne = etat.lecture?.lignes.find((l) => l.id === id);
+  if (!ligne) return;
+  ligne.statut = statut;
+  if (statut === 'confirme' && !ligne.texte) libeller(ligne);
+  rendreAnalyse();
+}
+
+// Un rectangle posé par l'humain devient un texte ajouté, mesuré sans être lu ; l'OCR tente
+// ensuite de lui donner un libellé.
+function ajouterZone(bbox) {
+  const { canevas, lignes } = etat.lecture;
+  if (recouvreUnTexte(bbox, lignes)) { aide('zoneDeja'); return; }
+  const mesure = mesurerAjout(canevas, bbox);
+  if (!mesure) { aide('zoneVide'); return; }
+  const ligne = { ...mesure, id: prochainId(lignes), origine: 'humain', statut: 'ajoute' };
+  lignes.push(ligne);
+  rendreAnalyse();
+  const l = mesures().find((x) => x.id === ligne.id);
+  aide('zoneAjoutee', { taille: texteTaille(l), contraste: texteContraste(l) });
+  libeller(ligne);
+}
+
+async function libeller(ligne) {
+  const lecture = etat.lecture;
+  try {
+    const texte = await lireZone(lecture.canevas, ligne.bbox, ligne.vertical);
+    if (texte && lecture === etat.lecture && ligne.statut !== 'retire') {
+      ligne.texte = texte;
+      rendreAnalyse();
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ── Export ──────────────────────────────────────────────────────────────────────
+
+// La lecture complète, en pixels de l'image d'origine : window.szhFigureCheck.exporter().
+function exporter() {
+  if (!etat.source || !etat.lecture) return null;
+  const s = etat.source;
+  const fig = figureSurPage();
+  const toutes = mesures();
+  const lignes = toutes.filter((l) => compte(l.statut));
+  const donnees = exporterLecture({
+    figure: { nom: s.nom, type: s.type, largeurPx: s.espace.l, hauteurPx: s.espace.h },
+    reglages: { format: etat.format, proportion: etat.proportion, seuilLc: etat.seuil, largeurMm: fig.l, hauteurMm: fig.h, pxParMm: s.espace.l / fig.l },
+    verdict: verdictGlobal(lignes),
+    lignes: toutes,
+    echelle: s.espace.l / etat.lecture.canevas.width,
+    diagnosticEnsemble: diagnosticEnsemble(lignes),
+  });
+  // Objets et séries du graphique (objets.js), dans le même espace de pixels.
+  const objets = exporterObjets();
+  return { ...donnees, objets: objets ? objets.objets : [], series: objets ? objets.series : [] };
+}
+
+function telechargerExport() {
+  const donnees = exporter();
+  if (!donnees) return;
+  const url = URL.createObjectURL(new Blob([JSON.stringify(donnees, null, 2)], { type: 'application/json' }));
+  const a = element('a', { href: url, download: `${etat.source.nom.replace(/\.[^.]+$/, '')}.lecture.json` });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function imprimerRapport() {
@@ -617,7 +896,7 @@ function vignettes(vues) {
 function rendreLecture() {
   const tableau = $('lecture-acuite');
   if (!BASSE_VISION || !etat.lecture) { tableau.replaceChildren(); return; }
-  const tailles = mesures().map((l) => l.pt).filter((v) => v != null);
+  const tailles = mesures().filter((l) => compte(l.statut)).map((l) => l.pt).filter((v) => v != null);
   const lignes = [[0.5, 'vueAcuite5'], [0.3, 'vueAcuite3']].map(([acuite, cle]) => {
     const { seuil, confort } = lectureAcuite(acuite);
     const sousSeuil = tailles.filter((v) => v < seuil).length;
@@ -736,6 +1015,8 @@ function autreFigure() {
   etat.source = null;
   etat.lecture = null;
   etat.endroits = null;
+  etat.masquer = false;
+  $('masquer').checked = false;
   $('fichier').value = '';
   $('choix-figure').hidden = false;
   $('figure-choisie').hidden = true;
@@ -867,7 +1148,8 @@ function rendreProjection() {
     bilan.replaceChildren(element('p', {}, t('projectionAttente')));
     return;
   }
-  const { canevas, lignes } = etat.lecture;
+  const { canevas } = etat.lecture;
+  const lignes = etat.lecture.lignes.filter((l) => compte(l.statut));
   const figureCm = cadre.l * etat.ecranCm;
   // Hauteur d'x estimée depuis le corps, aussi pour les textes en capitales.
   const hauteurs = lignes.filter((l) => l.corpsPx).map((l) => l.corpsPx / canevas.width * figureCm * RATIO_X);
@@ -889,7 +1171,7 @@ function rendreProjection() {
 function synchroniserReglages() {
   for (const r of document.querySelectorAll('input[name="format"]')) r.checked = r.value === etat.format;
   for (const r of document.querySelectorAll('input[name="seuil"]')) r.checked = Number(r.value) === etat.seuil;
-  $('proportion').value = etat.proportion ? String(etat.proportion) : '';
+  $('proportion').value = etat.proportion ? String(etat.proportion) : 'fichier';
 }
 
 function reglagesChanges() {
@@ -963,7 +1245,7 @@ function brancher() {
   for (const r of document.querySelectorAll('input[name="seuil"]')) {
     r.addEventListener('change', () => { etat.seuil = Number(r.value); reglagesChanges(); });
   }
-  $('proportion').addEventListener('change', (e) => { etat.proportion = parseFloat(e.target.value) || null; reglagesChanges(); });
+  $('proportion').addEventListener('change', (e) => { etat.proportion = proportionDepuis(e.target.value); reglagesChanges(); });
 
   // Info-bulle : un clic l'ouvre ou la ferme, Échap ou un clic ailleurs la ferme.
   const bulle = $('info-seuil'), boutonInfo = $('info-seuil-bouton');
@@ -1020,13 +1302,26 @@ function brancher() {
   $('dialogue-couleurs').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('imprimer').addEventListener('click', () => window.print());
   $('imprimer-rapport').addEventListener('click', imprimerRapport);
+  $('exporter-lecture').addEventListener('click', telechargerExport);
+
+  // Vue résidu : l'interrupteur masque les textes connus ; le cadre au clavier remplace la souris.
+  $('masquer').addEventListener('change', (e) => {
+    etat.masquer = e.target.checked;
+    $('analyse-figure').classList.toggle('residu', etat.masquer);
+    $('zone-clavier').hidden = !etat.masquer;
+    fermerFenetreMasque();
+    aide(etat.masquer ? 'residuAide' : null);
+  });
+  $('zone-clavier').addEventListener('click', cadreClavier);
   window.addEventListener('resize', () => etat.source && etat.vue === 'page' && zoomer());
 }
 
 brancher();
 appliquerLangue();
 ouvrirEtape(1);
+window.szhFigureCheck = { exporter };
 const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs', projection: 'vue-projection' }[params.get('vue')];
 if (vueDemandee) etat.onglet = vueDemandee;
+const figureDemandee = params.get('figure') || '';
 if (params.get('exemple')) chargerExemple(params.get('exemple'));
-else if (/^tmp\/[\w.-]+$/.test(params.get('figure') || '')) chargerUrl(params.get('figure'));
+else if (/^tmp\/[\w./-]+$/.test(figureDemandee) && !figureDemandee.includes('..')) chargerUrl(figureDemandee);
