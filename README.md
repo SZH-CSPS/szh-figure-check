@@ -131,7 +131,7 @@ et gardée si la probabilité moyenne atteint 0,5. L’image donnée au réseau 
 sur son grand côté. *Mesure* : le corps se déduit du profil d’encre de la ligne, sans la
 lire : la densité d’encre par rangée a un palier, qui est la hauteur d’x (hauteur de
 capitale pour des capitales et des chiffres) ; avec des hampes au-dessus du palier, les deux
-estimations se moyennent (hauteur d’x 0,52 em, capitale 0,71 em). Un texte de un ou deux signes, tous capitales ou chiffres (un 4, un 7, un F, des sigles), se mesure sur l’étendue de son encre quand le palier n’en couvre pas 80 %. Le contraste se mesure
+estimations se moyennent (hauteur d’x 0,52 em, capitale 0,71 em). Un texte de un ou deux signes, tous capitales ou chiffres (un 4, un 7, un F, des sigles), se mesure sur l’étendue de son encre quand le palier n’en couvre pas 80 %. Une boîte du détecteur n’est jamais confirmée quand la mesure contredit la boîte (corps sous la moitié de son petit côté) ou la lecture (lecture sûre d’un texte mesuré sous 4 pt), ni quand un texte de un ou deux signes est un seul bloc d’encre aussi large que haut (cercle, carré, triangle, pictogramme) : ils vont dans « à vérifier ». Le contraste se mesure
 sur les pixels de la boîte. *Lecture* : chaque boîte est découpée (tournée à l’horizontale
 si elle est verticale), agrandie à 56 px de haut et lue par Tesseract en mode « une seule
 ligne », pour le libellé seulement ; une lecture vide ou absurde garde la boîte, avec « ? »

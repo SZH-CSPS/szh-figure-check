@@ -7,8 +7,8 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=e67790f5b6';
-import { compteSignes, SIGNES_PEU } from './residu.js?v=e67790f5b6';
+} from './analyse.js?v=e70fae9215';
+import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=e70fae9215';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -424,8 +424,8 @@ export function directions(boite) {
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
 const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=e67790f5b6', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=e67790f5b6', VENDOR).href;
+const ORT = new URL('onnxruntime/ort.wasm.min.js?v=e70fae9215', VENDOR).href;
+const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=e70fae9215', VENDOR).href;
 const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
 const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 
@@ -591,6 +591,7 @@ export async function detecter(canevas, progres = () => {}, lecteur = null) {
       origine: 'detecteur',
       score: boite.score,
       bruit,
+      forme: compteSignes(incertaine ? '' : lu.texte) <= SIGNES_PEU && formeCompacte(rgba, canevas.width, canevas.height, bbox),
     };
     if (incertaine) ligne.lectureIncertaine = true;
     lignes.push(ligne);

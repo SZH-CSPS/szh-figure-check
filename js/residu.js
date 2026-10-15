@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=e67790f5b6';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=e70fae9215';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
@@ -44,6 +44,47 @@ export const RAPPORT_CORPS_MIN = 0.5;
 // jusqu'à 5,2 pt ; aucune n'existe entre 3 et 5 pt hors mesures fausses.
 export const PLANCHER_LECTURE_PT = 4;
 
+// Un texte d'un ou deux signes dont l'encre forme un seul bloc à peu près aussi large que
+// haut (largeur sur hauteur entre FORME_ASPECT_MIN et FORME_ASPECT_MAX : un cercle ou un
+// carré vaut 1, un triangle équilatéral 1,15) est une forme plus qu'une lettre : l'OCR est
+// sûr de lui sur des formes, la lecture ne tranche pas. Un chiffre est plus haut que large
+// (un 0 : 0,55 à 0,7) ou fait plusieurs blocs, un mot de deux lettres soudées est plus large
+// (1,2 à 2,7). Les blocs de moins de 10 % du plus gros (points, accents) ne comptent pas.
+export const FORME_ASPECT_MIN = 0.85;
+export const FORME_ASPECT_MAX = 1.2;
+const BLOC_MIN = 0.1;
+
+export function formeCompacte(rgba, largeur, hauteur, bbox) {
+  const x0 = Math.max(0, Math.floor(bbox.x0)), x1 = Math.min(largeur, Math.ceil(bbox.x1));
+  const y0 = Math.max(0, Math.floor(bbox.y0)), y1 = Math.min(hauteur, Math.ceil(bbox.y1));
+  const l = x1 - x0, h = y1 - y0;
+  if (l < 3 || h < 3) return false;
+  const lumas = new Uint8Array(l * h);
+  const histogramme = new Uint32Array(256);
+  for (let y = 0, k = 0; y < h; y++) {
+    for (let x = 0; x < l; x++, k++) {
+      const v = Math.min(255, Math.round(luma(rgba, ((y0 + y) * largeur + x0 + x) * 4)));
+      lumas[k] = v;
+      histogramme[v]++;
+    }
+  }
+  const seuil = seuilOtsu(histogramme, l * h);
+  let sombres = 0;
+  for (let k = 0; k < lumas.length; k++) if (lumas[k] <= seuil) sombres++;
+  if (Math.min(sombres, l * h - sombres) < 4) return false;
+  const encreSombre = sombres < l * h - sombres;
+  const carte = new Uint8Array(l * h);
+  for (let k = 0; k < carte.length; k++) carte[k] = (lumas[k] <= seuil) === encreSombre ? 1 : 0;
+  const blocs = composantes(carte, l, h).filter((c) => c.n >= 3);
+  if (!blocs.length) return false;
+  const gros = Math.max(...blocs.map((c) => c.n));
+  const retenus = blocs.filter((c) => c.n >= BLOC_MIN * gros);
+  if (retenus.length !== 1) return false;
+  const c = retenus[0];
+  const aspect = (c.x1 - c.x0) / (c.y1 - c.y0);
+  return aspect >= FORME_ASPECT_MIN && aspect <= FORME_ASPECT_MAX;
+}
+
 export function compteSignes(texte) {
   return (String(texte || '').match(/[\p{L}\p{N}]/gu) || []).length;
 }
@@ -66,7 +107,7 @@ function lectureContredite({ confiance, corpsPt }) {
   return confiance != null && confiance >= CONFIANCE_SURE_COURTE && corpsPt != null && corpsPt < PLANCHER_LECTURE_PT;
 }
 
-// `ligne` : { origine, texte, confiance, bruit, vertical, score, bbox, corpsPx, corpsPt }.
+// `ligne` : { origine, texte, confiance, bruit, vertical, score, bbox, corpsPx, corpsPt, forme }.
 // Une boîte du détecteur dont la mesure contredit la boîte, ou la lecture, n'est jamais
 // confirmée, quel que soit le chemin : l'outil se trompe alors sur l'un des deux.
 export function statutInitial(ligne) {
@@ -74,7 +115,7 @@ export function statutInitial(ligne) {
   if (ligne.origine === 'suggestion') return 'a-verifier';
   if (ligne.origine === 'detecteur' && ligne.score != null) {
     if (!boiteCoherente(ligne)) return 'a-verifier';
-    if (lectureContredite(ligne)) return 'a-verifier';
+    if (lectureContredite(ligne) || ligne.forme) return 'a-verifier';
     const fondCalme = ligne.bruit == null || ligne.bruit <= BRUIT_FOND_MAX;
     if (ligne.score >= SCORE_SUR && fondCalme) return 'confirme';
   }
