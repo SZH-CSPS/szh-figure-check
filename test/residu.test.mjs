@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  statutInitial, compte, visible, compteSignes, CONFIANCE_SURE, SIGNES_PEU,
+  statutInitial, compte, visible, compteSignes, CONFIANCE_SURE, CONFIANCE_SURE_COURTE, CONFIANCE_SURE_TOURNEE, SIGNES_PEU,
   profilEncre, mesurerProfil, mesurerZone, PALIER_DENSE,
   carteEncre, composantes, signePossible, alignerSignes, zonesEncre, masquer, partBords, BORDS_MAX,
   versOrigine, versCanevas, boiteNormalisee, recouvreUnTexte,
@@ -16,18 +16,38 @@ test('statut initial : lu dans le fichier, confirmé ; suggestion, à vérifier'
   assert.equal(statutInitial({ origine: 'suggestion', texte: '' }), 'a-verifier');
 });
 
-test('statut initial d’un texte OCR : les quatre raisons d’être à vérifier', () => {
+test('statut initial d’un texte OCR : les raisons d’être à vérifier', () => {
   const sur = { origine: 'ocr', texte: 'Effectif', confiance: 92, bruit: 0.05, vertical: false };
   assert.equal(statutInitial(sur), 'confirme');
   assert.equal(statutInitial({ ...sur, confiance: CONFIANCE_SURE - 1 }), 'a-verifier');
   assert.equal(statutInitial({ ...sur, confiance: CONFIANCE_SURE }), 'confirme');
-  assert.equal(statutInitial({ ...sur, texte: '12' }), 'a-verifier');            // SIGNES_PEU signes
-  assert.equal(statutInitial({ ...sur, texte: '12 %' }), 'a-verifier');          // le % ne compte pas
   assert.equal(statutInitial({ ...sur, texte: '125' }), 'confirme');
   assert.equal(statutInitial({ ...sur, bruit: BRUIT_FOND_MAX + 0.01 }), 'a-verifier');
-  assert.equal(statutInitial({ ...sur, vertical: true }), 'a-verifier');
+  assert.equal(statutInitial({ ...sur, origine: 'suggestion' }), 'a-verifier');
   assert.equal(SIGNES_PEU, 2);
   assert.equal(compteSignes('a-b 7'), 3);
+});
+
+test('statut initial : texte court, à vérifier seulement si l’OCR n’en est pas très sûr', () => {
+  const court = { origine: 'ocr', texte: '50', confiance: 95, bruit: 0.05, vertical: false };
+  assert.equal(statutInitial(court), 'confirme');                                  // court et sûr → confirme
+  assert.equal(statutInitial({ ...court, texte: '0 %' }), 'confirme');
+  assert.equal(statutInitial({ ...court, confiance: CONFIANCE_SURE_COURTE }), 'confirme');
+  assert.equal(statutInitial({ ...court, confiance: CONFIANCE_SURE_COURTE - 1 }), 'a-verifier'); // court et peu sûr → a-verifier
+  assert.equal(statutInitial({ ...court, confiance: null }), 'a-verifier');        // zone non lue
+  assert.equal(statutInitial({ ...court, texte: '', confiance: null }), 'a-verifier');
+  assert.equal(statutInitial({ ...court, texte: '12', confiance: CONFIANCE_SURE - 1 }), 'a-verifier');
+});
+
+test('statut initial : texte vertical, à vérifier s’il est peu sûr ou court', () => {
+  const tourne = { origine: 'ocr', texte: 'Effectif', confiance: 92, bruit: 0.05, vertical: true };
+  assert.equal(statutInitial(tourne), 'confirme');                                  // vertical sûr et long → confirme
+  assert.equal(statutInitial({ ...tourne, confiance: CONFIANCE_SURE_TOURNEE }), 'confirme');
+  assert.equal(statutInitial({ ...tourne, confiance: CONFIANCE_SURE_TOURNEE - 1 }), 'a-verifier'); // vertical peu sûr → a-verifier
+  assert.equal(statutInitial({ ...tourne, texte: '50', confiance: 99 }), 'a-verifier');      // vertical court et sûr → a-verifier
+  assert.equal(statutInitial({ ...tourne, confiance: null }), 'a-verifier');
+  assert.equal(CONFIANCE_SURE_COURTE, 85);
+  assert.equal(CONFIANCE_SURE_TOURNEE, 90);
 });
 
 test('seuls confirmé et ajouté comptent ; retiré n’est plus visible', () => {

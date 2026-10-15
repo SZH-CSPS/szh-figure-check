@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=a674e7ea0d';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=a674e7ea0d';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=a674e7ea0d';
-import { versHex } from './apca.js?v=a674e7ea0d';
-import { ouvrir } from './sources.js?v=a674e7ea0d';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=a674e7ea0d';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=a674e7ea0d';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=a674e7ea0d';
-import { T, langueInitiale, nombre } from './i18n.js?v=a674e7ea0d';
-import { rendreCouleursGraphique } from './couleurs-graphique.js?v=a674e7ea0d';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=805391e06a';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=805391e06a';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture } from './residu.js?v=805391e06a';
+import { versHex } from './apca.js?v=805391e06a';
+import { ouvrir } from './sources.js?v=805391e06a';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=805391e06a';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=805391e06a';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=805391e06a';
+import { T, langueInitiale, nombre } from './i18n.js?v=805391e06a';
+import { rendreCouleursGraphique } from './couleurs-graphique.js?v=805391e06a';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';

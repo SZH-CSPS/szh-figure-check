@@ -127,12 +127,13 @@ sous 4 % pour les textes droits.
 **Statut des textes.** L’OCR n’est pas fiable sur une figure : il manque des textes et en
 invente sur les photos. Plutôt que de trancher à sa place, l’outil donne un statut à chaque
 texte. Un texte lu dans un SVG ou un PDF est *confirmé*. Un texte de l’OCR est *à vérifier*
-dès que l’une de quatre raisons se présente : confiance moyenne de l’OCR sous 80
-(`CONFIANCE_SURE`), deux lettres ou chiffres au plus (`SIGNES_PEU`, « 50 », « 0 % »), fond
-bruité (variation du fond, loin des bords des lettres, au-delà de 0,17 fois l’écart entre
-texte et fond, `BRUIT_FOND_MAX`, comme dans une photo), ou texte trouvé seulement sur l’image
-tournée ; sinon il est *confirmé*. Un texte posé par l’humain est *ajouté*, un texte qu’il
-écarte est *retiré*. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
+dès que l’une de ces raisons se présente : confiance moyenne de l’OCR sous 80
+(`CONFIANCE_SURE`) ; deux lettres ou chiffres au plus (`SIGNES_PEU`, « 50 », « 0 % »), avec une
+confiance sous 85 (`CONFIANCE_SURE_COURTE`) ; fond bruité (variation du fond, loin des bords
+des lettres, au-delà de 0,17 fois l’écart entre texte et fond, `BRUIT_FOND_MAX`, comme dans une
+photo) ; texte vertical, avec une confiance sous 90
+(`CONFIANCE_SURE_TOURNEE`) ou s’il est court ; sinon il est *confirmé*. Un texte posé par
+l’humain est *ajouté*, un texte qu’il écarte est *retiré*. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
 trop petite » ne comptent que les textes confirmés et ajoutés. Les textes à vérifier vont
 dans une quatrième boîte, chacun avec deux réponses : « C’est bien un texte » le confirme,
 « Ce n’est pas un texte » le retire. Un texte retiré disparaît de la figure et des comptes,

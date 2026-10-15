@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=a674e7ea0d';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=805391e06a';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
@@ -13,10 +13,17 @@ import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvreme
 export const STATUTS = ['confirme', 'a-verifier', 'ajoute', 'retire'];
 export const ORIGINES = ['ocr', 'fichier', 'suggestion', 'humain'];
 
-// Un texte de l'OCR est à vérifier si sa confiance moyenne est sous CONFIANCE_SURE, s'il a
-// SIGNES_PEU lettres ou chiffres au plus, si son fond est bruité (bruitFond au-delà de
-// BRUIT_FOND_MAX, comme sur une photo) ou s'il n'a été trouvé que sur l'image tournée.
+// Un texte de l'OCR est à vérifier si sa confiance moyenne est sous CONFIANCE_SURE, si son
+// fond est bruité (bruitFond au-delà de BRUIT_FOND_MAX, comme sur une photo) ou s'il n'a été
+// trouvé que sur l'image tournée. Un texte court (SIGNES_PEU lettres ou chiffres au plus)
+// ou un texte tourné demandent une confiance plus haute : CONFIANCE_SURE_COURTE, et
+// CONFIANCE_SURE_TOURNEE pour un texte vertical.
 export const CONFIANCE_SURE = 80;
+// Une lecture courte (« 50 », « 0 % ») n'a que quelques signes à se tromper : elle n'est
+// fiable que si l'OCR en est très sûr.
+export const CONFIANCE_SURE_COURTE = 85;
+// Lu à l'envers, l'OCR invente davantage : un texte vertical demande plus de confiance.
+export const CONFIANCE_SURE_TOURNEE = 90;
 export const SIGNES_PEU = 2;
 
 export function compteSignes(texte) {
@@ -28,9 +35,11 @@ export function statutInitial(ligne) {
   if (ligne.origine === 'fichier') return 'confirme';
   if (ligne.origine === 'suggestion') return 'a-verifier';
   if (ligne.confiance != null && ligne.confiance < CONFIANCE_SURE) return 'a-verifier';
-  if (compteSignes(ligne.texte) <= SIGNES_PEU) return 'a-verifier';
+  // Sans confiance (zone non lue), rien ne garantit la lecture : le texte court reste à vérifier.
+  const court = compteSignes(ligne.texte) <= SIGNES_PEU;
+  if (court && (ligne.confiance == null || ligne.confiance < CONFIANCE_SURE_COURTE)) return 'a-verifier';
   if (ligne.bruit != null && ligne.bruit > BRUIT_FOND_MAX) return 'a-verifier';
-  if (ligne.vertical) return 'a-verifier';
+  if (ligne.vertical && (court || ligne.confiance == null || ligne.confiance < CONFIANCE_SURE_TOURNEE)) return 'a-verifier';
   return 'confirme';
 }
 
