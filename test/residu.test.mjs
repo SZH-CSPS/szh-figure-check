@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  statutInitial, verdictProvisoire, SCORE_SUR, HAUTEUR_BOITE_MIN, RAPPORT_CORPS_MIN, compte, visible, compteSignes, CONFIANCE_SURE, CONFIANCE_SURE_COURTE, CONFIANCE_SURE_TOURNEE, SIGNES_PEU,
+  statutInitial, verdictProvisoire, SCORE_SUR, HAUTEUR_BOITE_MIN, RAPPORT_CORPS_MIN, PLANCHER_LECTURE_PT, compte, visible, compteSignes, CONFIANCE_SURE, CONFIANCE_SURE_COURTE, CONFIANCE_SURE_TOURNEE, SIGNES_PEU,
   profilEncre, mesurerProfil, mesurerZone, PALIER_DENSE,
   carteEncre, composantes, signePossible, alignerSignes, zonesEncre, masquer, partBords, BORDS_MAX,
   versOrigine, versCanevas, boiteNormalisee, recouvreUnTexte,
@@ -304,6 +304,21 @@ test('statut initial d’une boîte du détecteur : le score confirme, même san
   assert.equal(statutInitial({ ...sure, corpsPx: RAPPORT_CORPS_MIN * 20 - 1 }), 'a-verifier'); // corps incohérent avec la boîte
   assert.equal(statutInitial({ ...sure, corpsPx: RAPPORT_CORPS_MIN * 20 }), 'confirme');
   assert.equal(statutInitial({ ...sure, corpsPx: null }), 'confirme');                       // corps non mesuré
+});
+
+test('statut initial d’une boîte du détecteur : une mesure qui contredit la boîte ou la lecture ne confirme jamais', () => {
+  const lue = { origine: 'detecteur', texte: 'Physiotherapie', confiance: 90, score: SCORE_SUR - 0.2, bruit: 0.05, vertical: false, bbox: { x0: 0, y0: 0, x1: 80, y1: 20 }, corpsPx: 14, corpsPt: 8 };
+  assert.equal(statutInitial(lue), 'confirme');
+  // corps incohérent avec la boîte : même chemin de lecture, même veto que pour le score
+  assert.equal(statutInitial({ ...lue, corpsPx: RAPPORT_CORPS_MIN * 20 - 1 }), 'a-verifier');
+  assert.equal(statutInitial({ ...lue, bbox: { x0: 0, y0: 0, x1: 80, y1: HAUTEUR_BOITE_MIN - 1 } }), 'a-verifier');
+  // lecture sûre d'un texte mesuré sous le plancher physique
+  assert.equal(statutInitial({ ...lue, corpsPt: PLANCHER_LECTURE_PT }), 'confirme');
+  assert.equal(statutInitial({ ...lue, corpsPt: PLANCHER_LECTURE_PT - 0.1 }), 'a-verifier');
+  assert.equal(statutInitial({ ...lue, confiance: CONFIANCE_SURE - 1, corpsPt: 1.34 }), 'a-verifier'); // peu sûr : la lecture décide déjà
+  assert.equal(statutInitial({ ...lue, corpsPt: 1.34, score: SCORE_SUR }), 'a-verifier');   // sûr par le score, lecture sûre contredite
+  assert.equal(statutInitial({ ...lue, confiance: 0, texte: '?', score: SCORE_SUR, corpsPt: 3 }), 'confirme'); // vrai texte minuscule, rien de lu : le score tient
+  assert.equal(statutInitial({ ...lue, corpsPt: null }), 'confirme');
 });
 
 test('statut initial d’une boîte du détecteur sous le score sûr : la lecture décide, comme pour l’OCR', () => {

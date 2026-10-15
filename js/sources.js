@@ -123,8 +123,8 @@ let pdfjs = null;
 
 async function ouvrirPdf(fichier) {
   if (!pdfjs) {
-    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=e02e5eea6a');
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=e02e5eea6a';
+    pdfjs = await import(PDFJS + 'pdf.min.mjs?v=e67790f5b6');
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.mjs?v=e67790f5b6';
   }
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()), isEvalSupported: false }).promise;
   const page = await pdf.getPage(1);

@@ -7,8 +7,8 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=e02e5eea6a';
-import { compteSignes, SIGNES_PEU } from './residu.js?v=e02e5eea6a';
+} from './analyse.js?v=e67790f5b6';
+import { compteSignes, SIGNES_PEU } from './residu.js?v=e67790f5b6';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -424,8 +424,8 @@ export function directions(boite) {
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
 const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=e02e5eea6a', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=e02e5eea6a', VENDOR).href;
+const ORT = new URL('onnxruntime/ort.wasm.min.js?v=e67790f5b6', VENDOR).href;
+const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=e67790f5b6', VENDOR).href;
 const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
 const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 

@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=e02e5eea6a';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=e67790f5b6';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
@@ -38,6 +38,11 @@ export const HAUTEUR_BOITE_MIN = 6;
 // médiane est de 0,86). Sous RAPPORT_CORPS_MIN de cette hauteur, la boîte entoure autre
 // chose qu'une ligne (plusieurs lignes, écriture à la main, tache) ou la mesure est fausse.
 export const RAPPORT_CORPS_MIN = 0.5;
+// Sous ce corps imprimé (pt), Tesseract ne lit plus avec assurance : une lecture sûre
+// (CONFIANCE_SURE_COURTE) d'un texte mesuré plus petit est contradictoire, l'une des deux
+// est fausse, et l'humain tranche. Sur les figures de réglage, les lectures sûres vont
+// jusqu'à 5,2 pt ; aucune n'existe entre 3 et 5 pt hors mesures fausses.
+export const PLANCHER_LECTURE_PT = 4;
 
 export function compteSignes(texte) {
   return (String(texte || '').match(/[\p{L}\p{N}]/gu) || []).length;
@@ -56,14 +61,22 @@ function boiteCoherente({ bbox, corpsPx }) {
   return cote >= HAUTEUR_BOITE_MIN && (corpsPx == null || corpsPx >= RAPPORT_CORPS_MIN * cote);
 }
 
-// `ligne` : { origine, texte, confiance, bruit, vertical, score, bbox, corpsPx }.
+// Une lecture sûre d'un texte mesuré sous PLANCHER_LECTURE_PT.
+function lectureContredite({ confiance, corpsPt }) {
+  return confiance != null && confiance >= CONFIANCE_SURE_COURTE && corpsPt != null && corpsPt < PLANCHER_LECTURE_PT;
+}
+
+// `ligne` : { origine, texte, confiance, bruit, vertical, score, bbox, corpsPx, corpsPt }.
+// Une boîte du détecteur dont la mesure contredit la boîte, ou la lecture, n'est jamais
+// confirmée, quel que soit le chemin : l'outil se trompe alors sur l'un des deux.
 export function statutInitial(ligne) {
   if (ligne.origine === 'fichier') return 'confirme';
   if (ligne.origine === 'suggestion') return 'a-verifier';
   if (ligne.origine === 'detecteur' && ligne.score != null) {
+    if (!boiteCoherente(ligne)) return 'a-verifier';
+    if (lectureContredite(ligne)) return 'a-verifier';
     const fondCalme = ligne.bruit == null || ligne.bruit <= BRUIT_FOND_MAX;
-    const hauteurPlausible = boiteCoherente(ligne);
-    if (ligne.score >= SCORE_SUR && fondCalme && hauteurPlausible) return 'confirme';
+    if (ligne.score >= SCORE_SUR && fondCalme) return 'confirme';
   }
   if (ligne.confiance != null && ligne.confiance < CONFIANCE_SURE) return 'a-verifier';
   // Sans confiance (zone non lue), rien ne garantit la lecture : le texte court reste à vérifier.
