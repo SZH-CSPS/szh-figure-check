@@ -3,20 +3,20 @@
 // graphique). Dans la vue des textes, la vue résidu masque les textes connus pour laisser
 // voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=7d9fcb2a91';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=7d9fcb2a91';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=7d9fcb2a91';
-import { versHex } from './apca.js?v=7d9fcb2a91';
-import { ouvrir, ErreurSource } from './sources.js?v=7d9fcb2a91';
-import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=7d9fcb2a91';
-import { chargerDetecteur, fournirModele } from './detection.js?v=7d9fcb2a91';
-import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=7d9fcb2a91';
-import { precharger } from './prechargement.js?v=7d9fcb2a91';
-import { creerChargeur } from './chargeur.js?v=7d9fcb2a91';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=7d9fcb2a91';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=7d9fcb2a91';
-import { T, langueInitiale, nombre } from './i18n.js?v=7d9fcb2a91';
-import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=7d9fcb2a91';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=34a354cfe0';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=34a354cfe0';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=34a354cfe0';
+import { versHex } from './apca.js?v=34a354cfe0';
+import { ouvrir, ErreurSource } from './sources.js?v=34a354cfe0';
+import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=34a354cfe0';
+import { chargerDetecteur, fournirModele } from './detection.js?v=34a354cfe0';
+import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=34a354cfe0';
+import { precharger } from './prechargement.js?v=34a354cfe0';
+import { creerChargeur } from './chargeur.js?v=34a354cfe0';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=34a354cfe0';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=34a354cfe0';
+import { T, langueInitiale, nombre } from './i18n.js?v=34a354cfe0';
+import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=34a354cfe0';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -511,7 +511,7 @@ function rendreAnalyse() {
     cadre.className = 'analyse-figure';
     cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }));
     for (const id of ['bilan', 'niveaux', 'zones-titre', 'statuts-titre', 'details-textes', 'imprimer-rapport', 'exporter-lecture', 'residu-commandes']) $(id).hidden = true;
-    for (const id of ['zones', 'statuts-impression', 'puces', 'panneau', 'ensemble']) $(id).replaceChildren();
+    for (const id of ['zones', 'statuts-impression', 'puces', 'a-verifier-zone', 'panneau', 'ensemble']) $(id).replaceChildren();
     $('zones-reste').textContent = '';
     $('residu-aide').textContent = '';
     tbody.replaceChildren();
@@ -675,9 +675,11 @@ function rendreAnalyse() {
   // seul message du bilan remplace les boîtes.
   const sansTexte = !lignes.length && !aVerifier.length && !annulable;
   const rangee = element('div', { class: 'boites-niveaux' },
-    ...boitesNiveaux.filter((b, i) => explorables.some((g) => g.niveau === ['corriger', 'ameliorer', 'ok'][i])),
-    ...(aVerifier.length || annulable ? [boiteVerifier] : []));
-  puces.replaceChildren(...(sansTexte ? [] : [rangee]));
+    ...boitesNiveaux.filter((b, i) => explorables.some((g) => g.niveau === ['corriger', 'ameliorer', 'ok'][i])));
+  puces.replaceChildren(...(sansTexte || !rangee.childElementCount ? [] : [rangee]));
+  // La boîte « À vérifier » vient sous la figure, en pleine largeur : sa hauteur ne décale
+  // plus les trois boîtes de verdict.
+  $('a-verifier-zone').replaceChildren(...(aVerifier.length || annulable ? [boiteVerifier] : []));
 
   const cartes = new Map();
   const carteDe = (i) => {

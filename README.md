@@ -193,7 +193,7 @@ est *confirmée* dès que son score (probabilité moyenne de la carte dans la bo
 absurde donne « ? » et l’étiquette « libellé non lu ». Sous 0,75, la lecture décide, comme pour
 l’OCR. Le verdict, les trois boîtes d’endroits à revoir et l’encadré « figure
 trop petite » ne comptent que les textes confirmés et ajoutés. Les textes à vérifier vont
-dans une quatrième boîte, chacun avec deux réponses : « C’est bien un texte » le confirme,
+dans une boîte à part, sous la figure et en pleine largeur, chacun avec deux réponses : « C’est bien un texte » le confirme,
 « Ce n’est pas un texte » le retire. Un texte retiré disparaît de la figure et des comptes,
 mais reste dans l’export.
 
@@ -219,7 +219,7 @@ tente ensuite de donner un libellé au découpage, agrandi ; la mesure ne dépen
 résultat. Sans souris, le bouton « Ajouter une zone au clavier » pose un cadre au centre de
 la figure : flèches pour le déplacer (un centième de la figure), Maj + flèches pour le
 redimensionner, Entrée pour ajouter, Échap pour annuler ; les textes à vérifier se tranchent
-par les boutons de la quatrième boîte, et « Ce n’est pas un texte » est aussi dans la liste
+par les boutons de la boîte « À vérifier », et « Ce n’est pas un texte » est aussi dans la liste
 de tous les textes. Sur la figure d’exemple, un texte ajouté à la main sur « Berne » est
 mesuré à 9,9 pt, contre 9,65 pt à l’OCR et 9,7 pt d’après le SVG.
 
