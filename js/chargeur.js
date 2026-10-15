@@ -5,6 +5,8 @@
 
 export const DELAI_MS = 400;
 export const PHRASE_MS = 4000;
+// Une fois affiché, le recouvrement reste au moins MINIMUM_MS : un éclair de 50 ms serait pris pour un défaut.
+export const MINIMUM_MS = 700;
 
 // Ordre aléatoire d'indices sans répétition avant d'avoir tout vu ; deux tirages de suite ne
 // donnent jamais le même, même à la jonction de deux tours.
@@ -31,11 +33,12 @@ const $ = (id) => document.getElementById(id);
 // langue courante.
 export function creerChargeur({ racines, t }) {
   const surface = $('chargeur');
-  let ouvert = false, minuteur = null, rotation = null, avant = null, ordre = null, phrases = [];
+  let ouvert = false, minuteur = null, rotation = null, avant = null, ordre = null, phrases = [], montreA = 0;
 
   function montrer() {
     if (ouvert) return;
     ouvert = true;
+    montreA = performance.now();
     avant = document.activeElement;
     for (const r of racines) r.inert = true;
     document.body.classList.add('chargeur-ouvert');
@@ -51,8 +54,10 @@ export function creerChargeur({ racines, t }) {
   function fermer() {
     clearTimeout(minuteur);
     minuteur = null;
+    if (!ouvert) { arreterPhrases(); return; }
+    const reste = MINIMUM_MS - (performance.now() - montreA);
+    if (reste > 0) { minuteur = setTimeout(fermer, reste); return; }
     arreterPhrases();
-    if (!ouvert) return;
     ouvert = false;
     surface.hidden = true;
     for (const r of racines) r.inert = false;

@@ -7,9 +7,9 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=64c3d60d2f';
-import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=64c3d60d2f';
-import { ORT, ORT_MJS, ORT_WASM, MODELE } from './fichiers.js?v=64c3d60d2f';
+} from './analyse.js?v=9ef9d97364';
+import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=9ef9d97364';
+import { ORT, ORT_MJS, ORT_WASM, MODELE } from './fichiers.js?v=9ef9d97364';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 

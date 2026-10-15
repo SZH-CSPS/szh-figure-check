@@ -6,7 +6,7 @@
 
 import {
   TESSERACT, TESSERACT_WORKER, TESSERACT_CORE, tessdata, LANGUES_OCR, ORT, ORT_MJS, ORT_WASM, MODELE,
-} from './fichiers.js?v=64c3d60d2f';
+} from './fichiers.js?v=9ef9d97364';
 
 // `taille` : octets du fichier de vendor/ désigné par l'adresse.
 export const TABLE = [
