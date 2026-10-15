@@ -430,7 +430,7 @@ const TEXTES = {
     textesLus: '{n} {n|Text|Texte} gelesen.',
     compte_aVerifier: '{n} zu prüfen, nicht gezählt',
     compte_ajoute: '{n} von Hand hinzugefügt',
-    lectureApprochee: 'Ungefähre Lesung per Texterkennung: Das Werkzeug kann Texte übersehen oder erfunden haben. Prüfen und ergänzen Sie in der Restansicht («Erkannte Texte abdecken», unter der Abbildung).',
+    lectureApprochee: 'Näherungsweise per Texterkennung gelesen: Das Werkzeug kann Texte übersehen oder erfunden haben. Prüfen und ergänzen Sie in der Restansicht («Erkannte Texte abdecken», unter der Abbildung).',
     statut_confirme: 'Bestätigt',
     'statut_a-verifier': 'Zu prüfen',
     statut_ajoute: 'Hinzugefügt',
