@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=e26f448c0d';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=e26f448c0d';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=e26f448c0d';
-import { versHex } from './apca.js?v=e26f448c0d';
-import { ouvrir } from './sources.js?v=e26f448c0d';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=e26f448c0d';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=e26f448c0d';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=e26f448c0d';
-import { T, langueInitiale, nombre } from './i18n.js?v=e26f448c0d';
-import { rendreObjets, exporterObjets } from './objets.js?v=e26f448c0d';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=0791318027';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=0791318027';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=0791318027';
+import { versHex } from './apca.js?v=0791318027';
+import { ouvrir } from './sources.js?v=0791318027';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=0791318027';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=0791318027';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=0791318027';
+import { T, langueInitiale, nombre } from './i18n.js?v=0791318027';
+import { rendreObjets, exporterObjets } from './objets.js?v=0791318027';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -545,8 +545,14 @@ function rendreAnalyse() {
       aVerifier.length
         ? element('div', {}, element('ul', { class: 'a-verifier-liste' }, ...montres.map(itemVerifier)), boutonAutres)
         : element('div', { class: 'boite-puces' }, element('span', { class: 'discret' }, t('aVerifierVide')))));
-  const rangee = element('div', { class: 'boites-niveaux' }, ...boitesNiveaux, boiteVerifier);
-  puces.replaceChildren(rangee);
+  // Une boîte à zéro n'apporte rien : seules celles qui ont un contenu s'affichent, et
+  // « À vérifier » reste tant qu'on peut annuler une réponse groupée. Sans aucun texte, un
+  // seul message du bilan remplace les boîtes.
+  const sansTexte = !lignes.length && !aVerifier.length && !annulable;
+  const rangee = element('div', { class: 'boites-niveaux' },
+    ...boitesNiveaux.filter((b, i) => explorables.some((g) => g.niveau === ['corriger', 'ameliorer', 'ok'][i])),
+    ...(aVerifier.length || annulable ? [boiteVerifier] : []));
+  puces.replaceChildren(...(sansTexte ? [] : [rangee]));
 
   const cartes = new Map();
   const carteDe = (i) => {
@@ -610,8 +616,12 @@ function rendreAnalyse() {
   const nCorriger = lignes.filter((l) => l.niveau === 'corriger').length;
   const nAmeliorer = lignes.filter((l) => l.niveau === 'ameliorer').length;
   const bilan = $('bilan');
+  $('panneau').hidden = !explorables.length;
   bilan.className = `bilan ${provisoire ? 'provisoire' : lignes.length ? global : 'inconnu'}`;
-  bilan.replaceChildren(
+  if (sansTexte) {
+    bilan.className = 'bilan inconnu';
+    bilan.replaceChildren(element('p', {}, t('aucunTexteDetecte')));
+  } else bilan.replaceChildren(
     element('p', { class: 'bilan-titre' },
       ...(provisoire ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES.provisoire), ' ', t('bilan_provisoire', { n: aVerifier.length })]
         : lignes.length ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`), global !== 'ok' && aVerifier.length ? ` ${t('bilan_etAVerifier', { n: aVerifier.length })}` : '']
