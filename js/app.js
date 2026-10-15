@@ -1,15 +1,15 @@
 // Interface : quatre étapes en accordéon (figure, paramètres, écran, analyse) ; l'analyse
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs).
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js?v=fc46882b66';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=fc46882b66';
-import { versHex } from './apca.js?v=fc46882b66';
-import { ouvrir } from './sources.js?v=fc46882b66';
-import { lire } from './lecture.js?v=fc46882b66';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=fc46882b66';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=fc46882b66';
-import { T, langueInitiale, nombre } from './i18n.js?v=fc46882b66';
-import { rendreCouleursGraphique } from './couleurs-graphique.js?v=fc46882b66';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX } from './formats.js?v=91bcfa0342';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=91bcfa0342';
+import { versHex } from './apca.js?v=91bcfa0342';
+import { ouvrir } from './sources.js?v=91bcfa0342';
+import { lire } from './lecture.js?v=91bcfa0342';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=91bcfa0342';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=91bcfa0342';
+import { T, langueInitiale, nombre } from './i18n.js?v=91bcfa0342';
+import { rendreCouleursGraphique } from './couleurs-graphique.js?v=91bcfa0342';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -159,11 +159,13 @@ async function analyser() {
       if (jeton !== etat.jeton) return;
       if (etape === 'rendu') statut('preparation');
       else if (etape === 'chargement') statut('chargementOcr');
+      else if (etape === 'detecteur-chargement') statut('chargementDetecteur');
+      else if (etape === 'detection') statut('detectionTextes');
       else if (etape === 'ocr') statut('lectureOcr', { p: Math.round(p * 100) });
     });
     if (jeton !== etat.jeton) return;
     etat.lecture = lecture;
-    statut(null);
+    statut(lecture.repli ? 'repliOcr' : null);
     rendreAnalyse();
   } catch (e) {
     if (jeton !== etat.jeton) return;

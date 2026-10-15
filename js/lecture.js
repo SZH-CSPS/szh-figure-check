@@ -1,19 +1,23 @@
 // Trouve les textes d'une figure, leur corps en pixels et leur contraste. Les textes d'un
-// SVG ou d'un PDF se lisent tels quels ; ceux d'une image passent par l'OCR (Tesseract.js),
-// une fois à l'endroit et une fois tournée d'un quart de tour, pour les axes verticaux.
+// SVG ou d'un PDF se lisent tels quels. Ceux d'une image sont localisés par le détecteur de
+// texte (detection.js), qui mesure leur corps et leur contraste, puis lus ligne à ligne par
+// l'OCR (Tesseract.js) pour le libellé seulement. Si le détecteur ne se charge pas, ou avec
+// ?moteur=tesseract, l'OCR lit toute l'image, une fois à l'endroit et une fois tournée d'un
+// quart de tour, pour les axes verticaux.
 
 import {
   corpsDepuisSymboles, hauteurGlyphe, contrasteZone, bruitFond, ligneCourteFiable, BRUIT_FOND_MAX,
   depuisRotation, recouvrement, unionBoites, mediane,
-} from './analyse.js?v=fc46882b66';
+} from './analyse.js?v=91bcfa0342';
+import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=91bcfa0342';
 
 // Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
 // la page : rien n'est demandé à un autre serveur. Les chemins sont absolus, parce que le
 // travailleur les résout depuis sa propre adresse.
 const VENDOR = new URL('../vendor/', import.meta.url);
-const TESSERACT = new URL('tesseract/tesseract.min.js?v=fc46882b66', VENDOR).href;
+const TESSERACT = new URL('tesseract/tesseract.min.js?v=91bcfa0342', VENDOR).href;
 const OPTIONS_TESSERACT = {
-  workerPath: new URL('tesseract/worker.min.js?v=fc46882b66', VENDOR).href,
+  workerPath: new URL('tesseract/worker.min.js?v=91bcfa0342', VENDOR).href,
   workerBlobURL: false,
   corePath: new URL('tesseract-core/', VENDOR).href,
   langPath: new URL('tessdata/', VENDOR).href,
@@ -32,27 +36,31 @@ const LARGEUR_COLONNE_MM = 172;
 const PIXELS_MAX = 14e6;
 
 let travailleur = null;
+let modeCourant = null;
 let suivre = () => {};
-
-function charger(url) {
-  return new Promise((ok, ko) => {
-    const s = document.createElement('script');
-    s.src = url;
-    s.onload = ok;
-    s.onerror = () => ko(new Error('cdn'));
-    document.head.append(s);
-  });
-}
 
 async function ocr() {
   if (!travailleur) {
-    if (!window.Tesseract) await charger(TESSERACT);
+    if (!window.Tesseract) await chargerScript(TESSERACT);
     travailleur = await window.Tesseract.createWorker(LANGUES, 1, { ...OPTIONS_TESSERACT, logger: (m) => suivre(m) });
-    // Mode « texte épars » : une figure n'a pas de paragraphes, l'analyse de mise en page
-    // par défaut y perd les graduations et les petites notes.
-    await travailleur.setParameters({ tessedit_pageseg_mode: '11' });
   }
   return travailleur;
+}
+
+// Mode de segmentation de Tesseract : « texte épars » ('11') pour une image entière, où
+// l'analyse de mise en page par défaut perd les graduations et les petites notes ; « une
+// seule ligne » ('7') pour la découpe d'une ligne que le détecteur a déjà localisée.
+async function mode(t, m) {
+  if (modeCourant !== m) await t.setParameters({ tessedit_pageseg_mode: m });
+  modeCourant = m;
+}
+
+// Libellé d'une ligne découpée : { texte, confiance }.
+async function lireLigne(c) {
+  const t = await ocr();
+  await mode(t, '7');
+  const { data } = await t.recognize(foncer(c));
+  return { texte: (data.text || '').replace(/\s+/g, ' ').trim(), confiance: data.confidence };
 }
 
 // Largeur du canevas d'analyse : assez de pixels pour lire un texte de 6 pt, sans dépasser
@@ -122,6 +130,7 @@ function lignesOcr(data, { confiance, confianceCourte }, mesures) {
 
 async function lireOcr(c, progres) {
   const t = await ocr();
+  await mode(t, '11');
   suivre = (m) => m.status === 'recognizing text' && progres('ocr', m.progress / 2);
   const fonce = foncer(c);
   const droit = lignesOcr((await t.recognize(fonce)).data,
@@ -140,6 +149,12 @@ async function lireOcr(c, progres) {
   return droit;
 }
 
+// Moteur de localisation des textes d'une image : le détecteur par défaut, Tesseract seul
+// avec ?moteur=tesseract.
+function moteur() {
+  return new URLSearchParams(location.search).get('moteur');
+}
+
 // `source` vient de sources.js. Rend { canevas, lignes }, les boîtes et les corps étant en
 // pixels du canevas.
 export async function lire(source, progres = () => {}) {
@@ -150,12 +165,26 @@ export async function lire(source, progres = () => {}) {
   if (source.textesExacts) {
     lignes = (await source.textesExacts(c.width)).map((t) => ({ ...t, mots: [t.bbox], exact: true, vertical: false }));
   }
-  if (!lignes.length) {
+  let lectureComplete = !lignes.length, repli = false;
+  if (lectureComplete && source.type === 'bitmap' && moteur() !== 'tesseract') {
+    try {
+      lignes = await detecter(c, progres, async (decoupe) => {
+        if (!travailleur) progres('chargement', 0);
+        return lireLigne(decoupe);
+      });
+      lectureComplete = false;
+    } catch (e) {
+      if (!(e instanceof ErreurDetecteur)) throw e;
+      repli = true;
+    }
+  }
+  if (lectureComplete) {
     progres('chargement', 0);
     lignes = await lireOcr(c, progres);
   }
   const rgba = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
   for (const ligne of lignes) {
+    if (ligne.contraste !== undefined) continue;
     const mesures = ligne.mots.map((b) => contrasteZone(rgba, c.width, c.height, b)).filter(Boolean);
     if (!mesures.length) { ligne.contraste = null; continue; }
     const lcMedian = mediane(mesures.map((m) => Math.abs(m.lc)));
@@ -163,5 +192,5 @@ export async function lire(source, progres = () => {}) {
   }
   lignes.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
   progres('fini', 1);
-  return { canevas: c, lignes };
+  return { canevas: c, lignes, repli };
 }

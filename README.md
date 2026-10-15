@@ -43,8 +43,9 @@ Pour faire produire des figures conformes par un agent d’IA, voir le méta-pro
 Aucun serveur applicatif ni build : copier le dossier sur n’importe quel hébergement de
 fichiers statiques. Il est publié sur GitHub Pages : https://szh-csps.github.io/szh-figure-check/
 
-**Tout est servi par le site lui-même** : polices, OCR (Tesseract.js, son moteur
-WebAssembly et les données de langue fra, deu, eng), lecture des PDF (pdf.js). Les
+**Tout est servi par le site lui-même** : polices, détecteur de texte (onnxruntime-web et
+son modèle de détection, en WebAssembly), OCR (Tesseract.js, son moteur WebAssembly et les
+données de langue fra, deu, eng), lecture des PDF (pdf.js). Les
 bibliothèques sont copiées dans `vendor/`, avec leurs versions, licences et empreintes
 (`vendor/README.md`). La politique de sécurité de contenu de `index.html` interdit au
 navigateur toute connexion vers un autre serveur.
@@ -76,14 +77,16 @@ s’écrit sans suffixe : l’outil l’ajoute.
 
 `?exemple=png|svg` charge la figure d’exemple, `?etape=2|3|4` ouvre une étape, `?vue=page|textes|couleurs` choisit la vue de l’analyse, `?lc=75` le seuil de contraste, `?figure=tmp/nom.png` une figure du dossier
 `tmp/` (non suivi : les figures d’auteurs ne vont pas dans le dépôt), `?langue=de` et `?format=livre` fixent la
-langue et le format. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
+langue et le format, `?moteur=tesseract` force l’ancienne lecture de l’image entière par
+l’OCR, pour comparer. `capture.mjs` ouvre la page dans Edge sans fenêtre, attend
 `body[data-etat="fini"]`, imprime le tableau des textes et enregistre une capture.
 
 | Fichier | Rôle |
 |---|---|
 | `js/formats.js` | géométrie des pages de Pronto, seuils, place de la figure, conversion en points |
 | `js/sources.js` | ouverture d’une image, d’un SVG ou de la première page d’un PDF |
-| `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon par OCR |
+| `js/lecture.js` | textes d’une figure : lus dans le SVG ou le PDF, sinon détectés puis lus ligne à ligne par l’OCR ; repli sur l’OCR seul |
+| `js/detection.js` | détecteur de texte : entrée et post-traitement du réseau, corps mesuré sur le profil d’encre |
 | `js/analyse.js` | calculs sans DOM : corps d’un texte, contraste et bruit du fond d’une zone, degré de non-conformité, couleur proposée, regroupement |
 | `js/apca.js` | APCA-W3 0.1.9, mêmes constantes que `pipeline/apca.py` de Pronto ; valeurs identiques au paquet officiel `apca-w3` |
 | `js/couleurs-graphique.js` | couleurs des éléments graphiques : aplats dominants, contraste avec le fond, écart entre deux couleurs selon la vision ; bloc du rapport (styles dans `couleurs-graphique.css`) |
@@ -101,16 +104,31 @@ un pixel d’image valant un pixel CSS. Une image de moins de 650 px de large re
 entière : il doit être recadré sur la figure.
 
 **Corps d’un texte.** Dans un SVG (éléments `<text>`) ou un PDF (texte non vectorisé), il
-est lu dans le fichier. Dans une image, Tesseract trouve les mots (mode « texte épars », sur
-une copie en gris assombrie pour ne pas perdre le gris clair, puis une seconde fois tournée
-d’un quart de tour pour les textes verticaux). Sur une photo ou une peinture, l’OCR prend
-des taches pour des lettres ; deux règles les écartent. Un mot n’est gardé que si le fond
-autour de lui est uni : la variation du fond, loin des bords des lettres, doit rester sous
-0,17 fois l’écart entre texte et fond. Une ligne de trois lettres ou chiffres au plus exige
-une confiance de l’OCR de 85, et de 95 sur l’image tournée. La hauteur d’encre des minuscules sans hampe
-et des capitales est mesurée sur les pixels et convertie en corps (hauteur d’x 0,52 em,
-capitale 0,71 em). Sur la figure d’exemple, l’écart avec les tailles exactes du SVG reste
-sous 4 % pour les textes droits.
+est lu dans le fichier. Dans une image, trois temps. *Détection* : un réseau de
+segmentation (DBNet, modèle de détection PP-OCRv3 de PaddleOCR, exécuté par onnxruntime-web
+en WebAssembly) rend une carte de probabilité du texte ; on la binarise (0,3), on isole les
+composantes connexes, chacune devient une boîte (orientée si la ligne est allongée et
+franchement inclinée, droite sinon), élargie selon la formule de DB (1,6 × aire / périmètre)
+et gardée si la probabilité moyenne atteint 0,5. L’image donnée au réseau a 1280 px au plus
+sur son grand côté. *Mesure* : le corps se déduit du profil d’encre de la ligne, sans la
+lire : la densité d’encre par rangée a un palier, qui est la hauteur d’x (hauteur de
+capitale pour des capitales et des chiffres) ; avec des hampes au-dessus du palier, les deux
+estimations se moyennent (hauteur d’x 0,52 em, capitale 0,71 em). Le contraste se mesure
+sur les pixels de la boîte. *Lecture* : chaque boîte est découpée (tournée à l’horizontale
+si elle est verticale), agrandie à 56 px de haut et lue par Tesseract en mode « une seule
+ligne », pour le libellé seulement ; une lecture vide ou absurde garde la boîte, avec « ? »
+pour texte. Une boîte dont le fond varie presque autant que l’écart entre texte et fond (une
+tache de photo) est écartée : la variation du fond, loin des bords des lettres, doit rester
+sous 0,17 fois cet écart.
+
+**Repli.** Si WebAssembly manque, ou si l’exécuteur ou le modèle ne se charge pas, la page
+le dit et l’OCR lit l’image entière, comme avec `?moteur=tesseract` : Tesseract trouve les
+mots en mode « texte épars » sur une copie en gris assombrie, puis une seconde fois tournée
+d’un quart de tour pour les textes verticaux ; une ligne de trois lettres ou chiffres au
+plus exige une confiance de 85, et de 95 sur l’image tournée ; la hauteur d’encre des
+minuscules sans hampe et des capitales est convertie en corps. Sur la figure d’exemple,
+l’écart avec les tailles exactes du SVG reste sous 4 % pour les textes droits avec cette
+lecture.
 
 **Contraste.** Mesuré sur les pixels de chaque mot : Otsu sépare texte et fond, le fond est
 le groupe le plus nombreux, la couleur du texte est la moyenne des 20 % de pixels les plus
@@ -154,7 +172,7 @@ et blanc (écart 7) et pour une personne deutéranope (écart 11), et le jaune n
 contraste de 1,6:1 avec le fond blanc.
 
 **Limites.** Un texte incliné, très stylisé ou plus petit qu’environ 4 pt à l’impression
-peut échapper à l’OCR. Le « taille réelle » de l’écran n’est juste qu’après le réglage par
+peut échapper au détecteur et à l’OCR. Le « taille réelle » de l’écran n’est juste qu’après le réglage par
 carte bancaire ; l’impression à 100 % reste la référence.
 
 ## Licence

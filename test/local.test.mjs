@@ -36,7 +36,7 @@ test('la politique de sécurité de contenu n’autorise que le site lui-même',
 test('les bibliothèques de vendor/ ont les empreintes annoncées', () => {
   const bloc = /```\n([\s\S]+?)```/.exec(lire('vendor/README.md'))[1];
   const lignes = bloc.trim().split('\n').map((l) => l.split(/\s+/));
-  assert.ok(lignes.length >= 9);
+  assert.ok(lignes.length >= 13);
   for (const [empreinte, chemin] of lignes) {
     const calcul = createHash('sha256').update(readFileSync(join(racine, 'vendor', chemin))).digest('hex');
     assert.equal(calcul, empreinte, chemin);
