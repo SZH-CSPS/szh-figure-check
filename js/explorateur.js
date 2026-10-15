@@ -1,0 +1,64 @@
+// Mécanique commune des vues à puces numérotées et panneau (textes, objets du graphique).
+// Le survol d'une puce montre un aperçu, le clic la rend active, sortir de la rangée de
+// puces revient à l'endroit actif. Le panneau dit s'il montre l'endroit actif ou un aperçu.
+//   panneau    élément qui reçoit l'en-tête et la carte
+//   boutons    une puce par endroit, dans l'ordre des numéros
+//   rangee     conteneur des puces, dont la sortie du pointeur rend l'actif
+//   carteDe(i) carte de l'endroit i
+//   surFigure(i) met l'endroit i en évidence sur la figure (null : aucun)
+//   vide       phrase du panneau quand aucun endroit n'est montré
+//   actif      endroit actif au départ (null : aucun)
+//   auChoix(i) appelé quand un autre endroit devient actif
+// Renvoie { montrer, epingler, epingle } ; `epingle()` est l'endroit actif.
+export function explorateur({ panneau, boutons, rangee, total, carteDe, surFigure, vide, actif, auChoix, t }) {
+  const choix = { epingle: actif };
+  let hauteur = 0;
+  panneau.style.minHeight = '';
+  const montrer = (i) => {
+    surFigure(i);
+    boutons.forEach((b, k) => {
+      const courant = k === choix.epingle;
+      b.setAttribute('aria-pressed', String(courant));
+      b.tabIndex = courant ? 0 : -1;
+      b.classList.toggle('apercu', k === i && !courant);
+    });
+    if (i == null) {
+      const p = document.createElement('p');
+      p.className = 'discret';
+      p.textContent = vide;
+      panneau.replaceChildren(p);
+      return;
+    }
+    const apercu = i !== choix.epingle;
+    const etat = document.createElement('p');
+    etat.className = `panneau-etat${apercu ? ' apercu' : ''}`;
+    etat.textContent = apercu ? t('panneauApercu', { n: i + 1, actif: choix.epingle + 1 }) : t('panneauActif', { n: i + 1, total });
+    panneau.classList.toggle('apercu', apercu);
+    panneau.replaceChildren(etat, carteDe(i));
+    // Le panneau ne rapetisse jamais pendant qu'on passe d'un numéro à l'autre : en bas de
+    // page, un panneau plus court ferait remonter la page, le numéro sortirait de sous la
+    // souris et l'affichage clignoterait.
+    hauteur = Math.max(hauteur, panneau.offsetHeight);
+    panneau.style.minHeight = `${hauteur}px`;
+  };
+  const epingler = (i) => {
+    const change = i !== choix.epingle;
+    choix.epingle = i;
+    montrer(i);
+    if (change && auChoix) auChoix(i);
+  };
+  rangee.addEventListener('mouseleave', () => montrer(choix.epingle));
+  boutons.forEach((b, i) => {
+    b.addEventListener('mouseenter', () => montrer(i));
+    b.addEventListener('focus', () => epingler(i));
+    b.addEventListener('click', () => epingler(i));
+    b.addEventListener('keydown', (e) => {
+      const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      boutons[(i + d + boutons.length) % boutons.length].focus();
+    });
+  });
+  montrer(choix.epingle);
+  return { montrer, epingler, epingle: () => choix.epingle };
+}

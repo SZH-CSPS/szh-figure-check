@@ -3,20 +3,21 @@
 // graphique). Dans la vue des textes, la vue résidu masque les textes connus pour laisser
 // voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=b295d983d5';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=b295d983d5';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=b295d983d5';
-import { versHex } from './apca.js?v=b295d983d5';
-import { ouvrir, ErreurSource } from './sources.js?v=b295d983d5';
-import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=b295d983d5';
-import { chargerDetecteur, fournirModele } from './detection.js?v=b295d983d5';
-import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=b295d983d5';
-import { precharger } from './prechargement.js?v=b295d983d5';
-import { creerChargeur } from './chargeur.js?v=b295d983d5';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=b295d983d5';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=b295d983d5';
-import { T, langueInitiale, nombre } from './i18n.js?v=b295d983d5';
-import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=b295d983d5';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=2ef3bef3da';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=2ef3bef3da';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=2ef3bef3da';
+import { versHex } from './apca.js?v=2ef3bef3da';
+import { ouvrir, ErreurSource } from './sources.js?v=2ef3bef3da';
+import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=2ef3bef3da';
+import { chargerDetecteur, fournirModele } from './detection.js?v=2ef3bef3da';
+import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=2ef3bef3da';
+import { precharger } from './prechargement.js?v=2ef3bef3da';
+import { creerChargeur } from './chargeur.js?v=2ef3bef3da';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=2ef3bef3da';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=2ef3bef3da';
+import { T, langueInitiale, nombre } from './i18n.js?v=2ef3bef3da';
+import { explorateur } from './explorateur.js?v=2ef3bef3da';
+import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=2ef3bef3da';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -686,51 +687,17 @@ function rendreAnalyse() {
     if (!cartes.has(i)) cartes.set(i, carteZone(explorables[i], i + 1, canevas));
     return cartes.get(i);
   };
-  const choix = { epingle: explorables.length ? 0 : null };
-  let hauteurPanneau = 0;
-  $('panneau').style.minHeight = '';
-  const montrer = (i) => {
+  const montrerFigure = (i) => {
     svg.classList.toggle('focus', i != null);
     calques.forEach((c, k) => c.classList.toggle('choisi', k === i));
-    boutons.forEach((b, k) => {
-      const actif = k === choix.epingle;
-      b.setAttribute('aria-pressed', String(actif));
-      b.tabIndex = actif ? 0 : -1;
-      b.classList.toggle('apercu', k === i && !actif);
-    });
-    if (i == null) {
-      voile.setAttribute('d', '');
-      $('panneau').replaceChildren(element('p', { class: 'discret' }, t(explorables.length ? 'panneauAide' : 'panneauVide')));
-      return;
-    }
+    if (i == null) { voile.setAttribute('d', ''); return; }
     const trous = explorables[i].membres.map((l) => { const b = boite(l); return `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`; }).join('');
     voile.setAttribute('d', `M0 0H${W}V${H}H0Z${trous}`);
-    const apercu = i !== choix.epingle;
-    const etatPanneau = element('p', { class: `panneau-etat${apercu ? ' apercu' : ''}` },
-      apercu ? t('panneauApercu', { n: i + 1, actif: choix.epingle + 1 }) : t('panneauActif', { n: i + 1, total: explorables.length }));
-    $('panneau').classList.toggle('apercu', apercu);
-    $('panneau').replaceChildren(etatPanneau, carteDe(i));
-    // Le panneau ne rapetisse jamais pendant qu'on passe d'un numéro à l'autre : en bas de
-    // page, un panneau plus court ferait remonter la page, le numéro sortirait de sous la
-    // souris et l'affichage clignoterait.
-    hauteurPanneau = Math.max(hauteurPanneau, $('panneau').offsetHeight);
-    $('panneau').style.minHeight = `${hauteurPanneau}px`;
   };
-  const survoler = (i) => montrer(i);
-  const epingler = (i) => { choix.epingle = i; montrer(i); };
-  rangee.addEventListener('mouseleave', () => montrer(choix.epingle));
-  boutons.forEach((b, i) => {
-    b.addEventListener('mouseenter', () => survoler(i));
-    b.addEventListener('focus', () => epingler(i));
-    b.addEventListener('click', () => epingler(i));
-    b.addEventListener('keydown', (e) => {
-      const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-      if (!d) return;
-      e.preventDefault();
-      boutons[(i + d + boutons.length) % boutons.length].focus();
-    });
+  const moteur = explorateur({
+    panneau: $('panneau'), boutons, rangee, total: explorables.length, carteDe, surFigure: montrerFigure, t,
+    vide: t(explorables.length ? 'panneauAide' : 'panneauVide'), actif: explorables.length ? 0 : null,
   });
-  montrer(choix.epingle);
   cadre.replaceChildren(element('img', { src: etat.source.url, alt: '' }), svg, rendreResidu(actives, W, H));
   cadre.classList.toggle('residu', etat.masquer);
   $('residu-commandes').hidden = false;
@@ -796,7 +763,7 @@ function rendreAnalyse() {
       element('td', { title: t(`origine_${l.origine}`) }, etiquetteStatut(l.statut), element('span', { class: 'etiquette' }, retirer)));
     const activer = (oui) => {
       tr.classList.toggle('actif', oui);
-      if (groupeDe.has(l.id)) montrer(oui ? groupeDe.get(l.id) : choix.epingle);
+      if (groupeDe.has(l.id)) moteur.montrer(oui ? groupeDe.get(l.id) : moteur.epingle());
       surligner(l.id, oui);
     };
     tr.addEventListener('mouseenter', () => activer(true));
