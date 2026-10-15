@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=baab26fe43';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=baab26fe43';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=baab26fe43';
-import { versHex } from './apca.js?v=baab26fe43';
-import { ouvrir } from './sources.js?v=baab26fe43';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=baab26fe43';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=baab26fe43';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=baab26fe43';
-import { T, langueInitiale, nombre } from './i18n.js?v=baab26fe43';
-import { rendreObjets, exporterObjets } from './objets.js?v=baab26fe43';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=f27c6c15a3';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=f27c6c15a3';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=f27c6c15a3';
+import { versHex } from './apca.js?v=f27c6c15a3';
+import { ouvrir } from './sources.js?v=f27c6c15a3';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=f27c6c15a3';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=f27c6c15a3';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=f27c6c15a3';
+import { T, langueInitiale, nombre } from './i18n.js?v=f27c6c15a3';
+import { rendreObjets, exporterObjets } from './objets.js?v=f27c6c15a3';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -349,6 +349,27 @@ function carteEnsemble(diag) {
     element('p', {}, element('b', {}, t('queFaireDeuxPoints')), ' ', t('ensembleConseil')));
 }
 
+// Le bilan compte les endroits (les groupes), pas les textes, et dit par où commencer :
+// le premier endroit affiché, avec ce qui lui manque (taille, contraste ou les deux).
+function phraseEndroits(groupes, premier, diag) {
+  const nC = groupes.filter((g) => g.niveau === 'corriger').length;
+  const nA = groupes.filter((g) => g.niveau === 'ameliorer').length;
+  const comptes = nC ? [t('bilanEndroits_corriger', { n: nC }), nA ? t('bilanEndroitsCourt_ameliorer', { n: nA }) : null]
+    : [t('bilanEndroits_ameliorer', { n: nA })];
+  const phrase = [comptes.filter(Boolean).join(', ') + '.'];
+  const r = resumeGroupe(premier);
+  // Quand la figure entière est trop petite, l'encadré d'ensemble parle de la taille.
+  const petit = !diag && r.pour.nt && r.pour.nt !== 'ok';
+  const pale = r.pour.nc && r.pour.nc !== 'ok';
+  if (petit || pale) {
+    const n = premier.membres.length;
+    const cites = premier.membres.filter((l) => l.texte).slice(0, 2).map((l) => (etat.langue === 'de' ? `«${l.texte}»` : `« ${l.texte} »`)).join(', ');
+    const qui = cites ? cites + (n > 2 ? ` ${t('etAutres', { n: n - 2 })}` : '') : t('departCeTexte', { n });
+    phrase.push(t('bilanDepart', { n: 1, quoi: `${qui} ${t(petit && pale ? 'departLesDeux' : petit ? 'departTaille' : 'departContraste', { n })}` }));
+  }
+  return phrase.join(' ');
+}
+
 function rendreAnalyse() {
   const cadre = $('analyse-figure');
   const tbody = document.querySelector('#table-textes tbody');
@@ -568,12 +589,12 @@ function rendreAnalyse() {
       ...(provisoire ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES.provisoire), ' ', t('bilan_provisoire', { n: aVerifier.length })]
         : lignes.length ? [element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[global]), ' ', t(`bilan_${global}`), global !== 'ok' && aVerifier.length ? ` ${t('bilan_etAVerifier', { n: aVerifier.length })}` : '']
           : [t('aucunTexte')])),
-    element('p', {}, [
+    ...(groupes.length ? [element('p', { class: 'bilan-endroits' }, phraseEndroits(groupes, affiches[0], diag))] : []),
+    element('p', { class: 'discret' }, [
       lignes.length ? t('textesLus', { n: lignes.length }) : null,
       nCorriger ? t('compte_corriger', { n: nCorriger }) + '.' : null,
       nAmeliorer ? t('compte_ameliorer', { n: nAmeliorer }) + '.' : null,
       ajoutes.length ? t('compte_ajoute', { n: ajoutes.length }) + '.' : null,
-      aVerifier.length ? t('compte_aVerifier', { n: aVerifier.length }) + '.' : null,
       tailles.length ? t('plusPetitTexte', { pt: nombre(Math.min(...tailles)), min: TAILLE_MIN_PT }) : null,
     ].filter(Boolean).join(' ')),
     ...(etat.source.type === 'bitmap' ? [element('p', { class: 'discret' }, t('lectureApprochee'))] : []));
