@@ -5,7 +5,7 @@ import {
   profilEncre, mesurerProfil, mesurerZone, PALIER_DENSE,
   carteEncre, composantes, signePossible, alignerSignes, zonesEncre, masquer, partBords, BORDS_MAX,
   versOrigine, versCanevas, boiteNormalisee, recouvreUnTexte,
-  exporterLecture, VERSION_EXPORT, STATUTS, ORIGINES, trancherAVerifier,
+  exporterLecture, VERSION_EXPORT, STATUTS, ORIGINES, trancherAVerifier, retablir,
 } from '../js/residu.js';
 import { BRUIT_FOND_MAX, RATIO_X, RATIO_CAPITALE } from '../js/analyse.js';
 
@@ -414,4 +414,16 @@ test('trancher : seuls les textes à vérifier changent, les autres statuts rest
   assert.deepEqual(changes.map((l) => l.id), ['t1', 't3']);
   assert.deepEqual(lignes.map((l) => l.statut), ['retire', 'confirme', 'retire', 'retire', 'ajoute']);
   assert.deepEqual(trancherAVerifier(lignes, 'confirme'), []);
+});
+
+test('rétablir : les textes tranchés d’un coup redeviennent à vérifier, les autres restent', () => {
+  const lignes = [
+    { id: 't1', statut: 'a-verifier' }, { id: 't2', statut: 'a-verifier' },
+    { id: 't3', statut: 'confirme' }, { id: 't4', statut: 'a-verifier' },
+  ];
+  const ids = trancherAVerifier(lignes, 'retire').map((l) => l.id);
+  assert.deepEqual(ids, ['t1', 't2', 't4']);
+  assert.deepEqual(retablir(lignes, ids).map((l) => l.id), ['t1', 't2', 't4']);
+  assert.deepEqual(lignes.map((l) => l.statut), ['a-verifier', 'a-verifier', 'confirme', 'a-verifier']);
+  assert.deepEqual(retablir(lignes, ids), []);
 });

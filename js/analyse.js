@@ -1,8 +1,8 @@
 // Calculs sans DOM : taille d'un texte reconnu, contraste d'une zone de pixels, passage
 // des coordonnées de l'image tournée à l'image d'origine, degré de non-conformité, couleur conforme.
 
-import { lc, luminanceApca } from './apca.js?v=f27c6c15a3';
-import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './formats.js?v=f27c6c15a3';
+import { lc, luminanceApca } from './apca.js?v=e26f448c0d';
+import { TAILLE_MIN_PT, TAILLE_GRAVE_PT, LC_MIN, ECART_GRAVE_LC } from './formats.js?v=e26f448c0d';
 
 // Rapport hauteur du glyphe / corps, moyen sur les sans-serif courantes (Arial, Open Sans,
 // Calibri, Helvetica). Les minuscules sans hampe donnent la hauteur d'x, les capitales et

@@ -236,7 +236,7 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .boite-puces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; min-height: 2.4em; }
 /* Textes à vérifier : extrait, libellé, mesures, deux boutons. */
 .a-verifier-corps { min-width: 0; }
-.a-verifier-liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; max-height: 420px; overflow-y: auto; }
+.a-verifier-liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
 .a-verifier-item { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 10px; align-items: start; font-size: 0.88rem; padding: 6px; border: 1px solid var(--filet); border-radius: 6px; }
 .a-verifier-item.actif { border-color: var(--accent); background: var(--accent-pale); }
 .a-verifier-item img { display: block; width: 64px; height: auto; max-height: 64px; object-fit: contain; border: 1px solid var(--filet); background: #fff; grid-row: span 2; }
@@ -245,8 +245,11 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .a-verifier-actions { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 2; }
 .trancher-tout { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 0; font-size: 0.88rem; }
 .a-verifier-actions button, .trancher-tout button { padding: 3px 8px; font-size: 0.85rem; }
-.a-verifier-actions button.oui, .trancher-tout button.oui { border-color: var(--ok); color: var(--ok); }
-.a-verifier-actions button.non, .trancher-tout button.non { border-color: var(--corriger); color: var(--corriger); }
+.a-verifier-item.suggestion { grid-template-columns: minmax(0, 1fr); }
+.a-verifier-item.suggestion img { width: 100%; max-height: 120px; grid-row: auto; }
+.a-verifier-item.suggestion .a-verifier-actions { grid-column: 1; }
+.a-verifier-question { font-weight: 700; }
+.autres-verifier { margin-top: 8px; padding: 3px 8px; font-size: 0.85rem; }
 
 /* Vue résidu */
 .residu-commandes { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin-bottom: 6px; }

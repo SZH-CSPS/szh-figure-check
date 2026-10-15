@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=f27c6c15a3';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=e26f448c0d';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
@@ -133,6 +133,14 @@ export function statutInitial(ligne) {
 export function trancherAVerifier(lignes, statut) {
   const changes = lignes.filter((l) => l.statut === 'a-verifier');
   for (const l of changes) l.statut = statut;
+  return changes;
+}
+
+// Défait un « trancher » : les textes dont l'id est dans `ids` retournent à « à vérifier ».
+// Rend ceux qui ont changé.
+export function retablir(lignes, ids) {
+  const changes = lignes.filter((l) => ids.includes(l.id) && l.statut !== 'a-verifier');
+  for (const l of changes) l.statut = 'a-verifier';
   return changes;
 }
 
