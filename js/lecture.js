@@ -10,21 +10,19 @@
 import {
   corpsDepuisSymboles, hauteurGlyphe, contrasteZone, bruitFond, BRUIT_FOND_MAX,
   depuisRotation, recouvrement, unionBoites, mediane,
-} from './analyse.js?v=fa6a15def0';
-import { versPoints } from './formats.js?v=fa6a15def0';
-import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=fa6a15def0';
-import { statutInitial, visible, zonesEncre, mesurerZone } from './residu.js?v=fa6a15def0';
+} from './analyse.js?v=64c3d60d2f';
+import { versPoints } from './formats.js?v=64c3d60d2f';
+import { detecter, chargerScript, ErreurDetecteur } from './detection.js?v=64c3d60d2f';
+import { TESSERACT, TESSERACT_WORKER, TESSERACT_CORE_DOSSIER, TESSDATA_DOSSIER } from './fichiers.js?v=64c3d60d2f';
+import { statutInitial, visible, zonesEncre, mesurerZone } from './residu.js?v=64c3d60d2f';
 
 // Tesseract.js, son moteur et les données de langue sont servis depuis vendor/, à côté de
-// la page : rien n'est demandé à un autre serveur. Les chemins sont absolus, parce que le
-// travailleur les résout depuis sa propre adresse.
-const VENDOR = new URL('../vendor/', import.meta.url);
-const TESSERACT = new URL('tesseract/tesseract.min.js?v=fa6a15def0', VENDOR).href;
+// la page (adresses dans fichiers.js) : rien n'est demandé à un autre serveur.
 const OPTIONS_TESSERACT = {
-  workerPath: new URL('tesseract/worker.min.js?v=fa6a15def0', VENDOR).href,
+  workerPath: TESSERACT_WORKER,
   workerBlobURL: false,
-  corePath: new URL('tesseract-core/', VENDOR).href,
-  langPath: new URL('tessdata/', VENDOR).href,
+  corePath: TESSERACT_CORE_DOSSIER,
+  langPath: TESSDATA_DOSSIER,
 };
 const LANGUES = 'fra+deu+eng';
 // En dessous, un mot n'est même pas montré : la lecture n'a plus de sens.
@@ -47,12 +45,22 @@ let travailleur = null;
 let modeCourant = null;
 let suivre = () => {};
 
+let creation = null;
+
+// Le travailleur de l'OCR, créé une seule fois même si deux appels se croisent.
 async function ocr() {
-  if (!travailleur) {
+  if (travailleur) return travailleur;
+  creation ??= (async () => {
     if (!window.Tesseract) await chargerScript(TESSERACT);
     travailleur = await window.Tesseract.createWorker(LANGUES, 1, { ...OPTIONS_TESSERACT, logger: (m) => suivre(m) });
-  }
-  return travailleur;
+    return travailleur;
+  })().catch((e) => { creation = null; throw e; });
+  return creation;
+}
+
+// Crée le travailleur de l'OCR (moteur compilé, langues chargées) avant la première analyse.
+export async function prechauffer() {
+  await ocr();
 }
 
 // Mode de segmentation de Tesseract : « texte épars » ('11') pour une image entière, où

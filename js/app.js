@@ -2,16 +2,20 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=fa6a15def0';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=fa6a15def0';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=fa6a15def0';
-import { versHex } from './apca.js?v=fa6a15def0';
-import { ouvrir, ErreurSource } from './sources.js?v=fa6a15def0';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=fa6a15def0';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=fa6a15def0';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=fa6a15def0';
-import { T, langueInitiale, nombre } from './i18n.js?v=fa6a15def0';
-import { rendreObjets, exporterObjets } from './objets.js?v=fa6a15def0';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=64c3d60d2f';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=64c3d60d2f';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=64c3d60d2f';
+import { versHex } from './apca.js?v=64c3d60d2f';
+import { ouvrir, ErreurSource } from './sources.js?v=64c3d60d2f';
+import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=64c3d60d2f';
+import { chargerDetecteur, fournirModele } from './detection.js?v=64c3d60d2f';
+import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=64c3d60d2f';
+import { precharger } from './prechargement.js?v=64c3d60d2f';
+import { creerChargeur } from './chargeur.js?v=64c3d60d2f';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=64c3d60d2f';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=64c3d60d2f';
+import { T, langueInitiale, nombre } from './i18n.js?v=64c3d60d2f';
+import { rendreObjets, exporterObjets } from './objets.js?v=64c3d60d2f';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -38,6 +42,8 @@ const etat = {
   source: null,
   lecture: null,
   jeton: 0,
+  environnement: { wasm: true, worker: true, canvas: true }, // verifierEnvironnement(), canvas refait à chaque analyse
+  demarrage: Promise.resolve(), // préchargement du premier lancement
   attente: null,         // { phase: 'detecteur' | 'analyse', p } pendant l'analyse, sinon null
   alertesDefinition: 0,  // alertes de définition de l'image, d'après rendrePage()
   annulable: null, // { lecture, ids } : la dernière réponse groupée, qu'on peut défaire
@@ -89,6 +95,7 @@ function appliquerLangue() {
   nommerPanneau();
   $('langue').textContent = t('autreLangue');
   $('langue').lang = etat.langue === 'fr' ? 'de' : 'fr';
+  rendreBlocage();
   if (etat.source) { rendrePage(); rendreAnalyse(); rendreCouleurs(); }
 }
 
@@ -220,10 +227,43 @@ function rendreAttente() {
   rendreResumes();
 }
 
+// Lecture des pixels bloquée : le message remplace les résultats des vues Textes (objets
+// compris) et Vision ; l'aperçu à taille réelle marche sans pixels.
+function rendreBlocage() {
+  const bloque = !etat.environnement.canvas;
+  for (const id of ['rapport', 'vue-couleurs']) {
+    const section = $(id);
+    section.classList.toggle('env-bloque', bloque);
+    section.querySelector(':scope > .env-message')?.remove();
+    if (!bloque) continue;
+    const refus = element('p', { class: 'erreur', role: 'alert', hidden: '' });
+    const autoriser = element('button', { type: 'button', class: 'principal' }, t('envAutoriser'));
+    // Le test se refait dans le gestionnaire du clic : ce geste fait apparaître la demande du navigateur.
+    autoriser.addEventListener('click', () => {
+      etat.environnement.canvas = lirePixelsPossible();
+      if (etat.environnement.canvas) { rendreBlocage(); rendreCouleurs(); analyser(); } else { refus.textContent = t('envAutoriseEncore'); refus.hidden = false; }
+    });
+    const plus = element('details', {}, element('summary', {}, t('enSavoirPlus')), element('p', {}, t('envPlusTexte')));
+    section.querySelector(':scope > .titre-section, :scope > h3')?.after(element('div', { class: 'env-message' }, element('p', {}, t('envCanvas')), refus, element('p', {}, autoriser), plus));
+  }
+}
+
 async function analyser() {
   const jeton = ++etat.jeton;
   etat.lecture = null;
   etat.endroits = null;
+  delete document.body.dataset.etat;
+  await etat.demarrage;
+  if (jeton !== etat.jeton) return;
+  // La lecture des pixels se reteste à chaque analyse : elle a pu être autorisée entre-temps.
+  etat.environnement.canvas = lirePixelsPossible();
+  rendreBlocage();
+  if (!etat.environnement.canvas) {
+    attendre(null);
+    rendreAnalyse();
+    document.body.dataset.etat = 'fini';
+    return;
+  }
   attendre('analyse');
   rendreAnalyse();
   try {
@@ -1113,7 +1153,7 @@ function rendreLecture() {
 }
 
 async function rendreCouleurs() {
-  if (!etat.source) return;
+  if (!etat.source || !etat.environnement.canvas) return;
   // Fenêtre agrandie : l'original, puis la basse vision, puis les daltonismes.
   const daltonisme = VUES_DALTONISME.map(([cle, classe]) => ({ cle, classe, src: etat.source.url }));
   const [originale, ...autres] = daltonisme;
@@ -1285,6 +1325,7 @@ const RESUMES = {
   3: () => (etat.source ? t(etat.pxParMm ? 'resumeEcranOui' : 'resumeEcranNon') : ''),
   4: () => {
     if (!etat.source) return '';
+    if (!etat.environnement.canvas) return t('envResume');
     if (etat.attente) return textesAttente();
     if (etat.endroits == null) return t('resumeAnalyseEnCours');
     const alertes = etat.alertesDefinition ? t('resumeAlertePage', { n: etat.alertesDefinition }) : '';
@@ -1562,6 +1603,69 @@ function brancher() {
   window.addEventListener('resize', () => etat.source && etat.vue === 'page' && zoomer());
 }
 
+// ── Premier lancement ───────────────────────────────────────────────────────────
+
+const chargeur = creerChargeur({
+  racines: [document.querySelector('.entete'), document.querySelector('main'), document.querySelector('.pied')],
+  t: (cle, valeurs) => t(cle, valeurs),
+});
+const recharger = () => ({ libelle: t('chargeurRecharger'), action: () => location.reload(), principal: true });
+const jamais = new Promise(() => {});
+
+// Vérifie le navigateur, puis télécharge et prépare tout ce que l'analyse demandera, derrière
+// un recouvrement qui n'apparaît que si cela dure. Ne se résout pas quand l'outil ne peut pas
+// démarrer.
+async function demarrer() {
+  const env = verifierEnvironnement();
+  etat.environnement = env;
+  // WebAssembly doit exister aussi dans un travailleur : c'est là que tourne l'OCR.
+  if (env.wasm && env.worker) Object.assign(env, await sonderTravailleur());
+  if (!env.wasm || !env.worker) {
+    chargeur.message({ titre: t('envTitreBloque'), texte: t('envWasm'), boutons: [recharger()] });
+    return jamais;
+  }
+  if (!env.canvas) {
+    const suite = await new Promise((ok) => demanderLecture(env, ok, false));
+    if (suite === 'sans') { chargeur.fermer(); return undefined; }
+  }
+  chargeur.chargementDiffere();
+  try {
+    const mo = (n) => nombre(n / 1e6);
+    const { modele } = await precharger((recus, total) => {
+      chargeur.etape(t('chargeurTelechargement'), t('chargeurOctets', { a: mo(recus), b: mo(total), p: Math.min(100, Math.floor((100 * recus) / total)) }), recus / total);
+    });
+    fournirModele(modele);
+    chargeur.etape(t('chargeurPreparation'));
+    // Un échec ici n'est pas bloquant : l'analyse retentera, et dira ce qui manque.
+    await Promise.allSettled([prechauffer(), chargerDetecteur()]);
+    chargeur.fermer();
+  } catch (e) {
+    console.error(e);
+    chargeur.message({ titre: t('envTitreBloque'), texte: t('chargeurEchec'), boutons: [recharger()] });
+    return jamais;
+  }
+  return undefined;
+}
+
+// Message « lecture des pixels bloquée » du premier lancement. ok('ok' | 'sans').
+function demanderLecture(env, ok, refuse) {
+  const autoriser = {
+    libelle: t('envAutoriser'),
+    principal: true,
+    action: () => {
+      env.canvas = lirePixelsPossible();
+      if (env.canvas) ok('ok'); else demanderLecture(env, ok, true);
+    },
+  };
+  chargeur.message({
+    titre: t('envTitreCanvas'),
+    texte: t('envCanvas'),
+    refus: refuse ? t('envAutoriseEncore') : null,
+    plus: refuse ? t('envPlusTexte') : null,
+    boutons: refuse ? [autoriser, { libelle: t('envContinuer'), action: () => ok('sans') }] : [autoriser],
+  });
+}
+
 brancher();
 appliquerLangue();
 ouvrirEtape(1);
@@ -1569,5 +1673,8 @@ window.szhFigureCheck = { exporter };
 const vueDemandee = { page: 'vue-page', textes: 'rapport', couleurs: 'vue-couleurs', projection: 'vue-projection' }[params.get('vue')];
 if (vueDemandee) etat.onglet = vueDemandee;
 const figureDemandee = params.get('figure') || '';
-if (params.get('exemple')) chargerExemple(params.get('exemple'));
-else if (/^tmp\/[\w./-]+$/.test(figureDemandee) && !figureDemandee.includes('..')) chargerUrl(figureDemandee);
+etat.demarrage = demarrer();
+etat.demarrage.then(() => {
+  if (params.get('exemple')) chargerExemple(params.get('exemple'));
+  else if (/^tmp\/[\w./-]+$/.test(figureDemandee) && !figureDemandee.includes('..')) chargerUrl(figureDemandee);
+});

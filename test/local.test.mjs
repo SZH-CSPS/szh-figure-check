@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,4 +41,16 @@ test('les bibliothèques de vendor/ ont les empreintes annoncées', () => {
     const calcul = createHash('sha256').update(readFileSync(join(racine, 'vendor', chemin))).digest('hex');
     assert.equal(calcul, empreinte, chemin);
   }
+});
+
+test('la table des tailles du préchargement correspond aux fichiers de vendor/', async () => {
+  const { TABLE } = await import('../js/prechargement.js');
+  const { VENDOR } = await import('../js/fichiers.js');
+  for (const f of TABLE) {
+    const adresse = new URL(f.url);
+    assert.ok(f.url.startsWith(VENDOR.href), f.url);
+    const disque = fileURLToPath(new URL(adresse.pathname, 'file:///'));
+    assert.equal(statSync(disque).size, f.taille, adresse.pathname);
+  }
+  assert.equal(new Set(TABLE.map((f) => f.url)).size, TABLE.length);
 });

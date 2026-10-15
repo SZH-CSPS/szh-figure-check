@@ -7,8 +7,9 @@
 
 import {
   contrasteZone, bruitFond, BRUIT_FOND_MAX, RATIO_X, mediane,
-} from './analyse.js?v=fa6a15def0';
-import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=fa6a15def0';
+} from './analyse.js?v=64c3d60d2f';
+import { compteSignes, SIGNES_PEU, formeCompacte } from './residu.js?v=64c3d60d2f';
+import { ORT, ORT_MJS, ORT_WASM, MODELE } from './fichiers.js?v=64c3d60d2f';
 
 // ── Entrée du réseau ────────────────────────────────────────────────────────────
 
@@ -423,11 +424,6 @@ export function directions(boite) {
 
 // ── Chargement et inférence (navigateur) ───────────────────────────────────────
 
-const VENDOR = new URL('../vendor/', import.meta.url);
-const ORT = new URL('onnxruntime/ort.wasm.min.js?v=fa6a15def0', VENDOR).href;
-const ORT_MJS = new URL('onnxruntime/ort-wasm-simd-threaded.mjs?v=fa6a15def0', VENDOR).href;
-const ORT_WASM = new URL('onnxruntime/ort-wasm-simd-threaded.wasm', VENDOR).href;
-const MODELE = new URL('modele/ch_PP-OCRv3_det_infer.onnx', VENDOR).href;
 
 // L'exécuteur ou le modèle n'a pas pu se charger, ou l'inférence a échoué : l'appelant
 // retombe sur la lecture complète par Tesseract.
@@ -450,6 +446,17 @@ export function chargerScript(url) {
 }
 
 let session = null;
+let modeleFourni = null;
+
+// Octets du modèle déjà téléchargés (prechargement.js) : chargerDetecteur ne les redemande pas.
+export function fournirModele(octets) {
+  modeleFourni = octets;
+}
+
+// Vrai quand la session existe déjà (ou se crée) : rien à attendre de plus.
+export function detecteurDemande() {
+  return session !== null;
+}
 
 // Corps de la réponse, en signalant la progression si l'en-tête donne la taille et que le
 // contenu n'est pas compressé (sinon la taille annoncée n'est pas celle des octets lus).
@@ -485,9 +492,13 @@ export async function chargerDetecteur(progres = () => {}) {
       ort.env.wasm.numThreads = 1;
       ort.env.wasm.proxy = false;
       ort.env.wasm.wasmPaths = { mjs: ORT_MJS, wasm: ORT_WASM };
-      const reponse = await fetch(MODELE);
-      if (!reponse.ok) throw new Error(`modèle introuvable (${reponse.status})`);
-      const modele = await lireModele(reponse, progres);
+      let modele = modeleFourni;
+      if (!modele) {
+        const reponse = await fetch(MODELE);
+        if (!reponse.ok) throw new Error(`modèle introuvable (${reponse.status})`);
+        modele = await lireModele(reponse, progres);
+      }
+      modeleFourni = null;
       return ort.InferenceSession.create(modele, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
     })();
     session.catch(() => { session = null; });
@@ -570,7 +581,7 @@ const lectureUtile = (r) => r && /[\p{L}\p{N}]/u.test(r.texte);
 export async function detecter(canevas, progres = () => {}, lecteur = null) {
   let carte;
   try {
-    progres('detecteur-chargement', null);
+    if (!detecteurDemande()) progres('detecteur-chargement', null);
     const s = await chargerDetecteur((p) => progres('detecteur-chargement', p));
     progres('detection', 0);
     carte = await inferer(s, canevas);

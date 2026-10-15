@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=fa6a15def0">
-  <link rel="stylesheet" href="objets.css?v=fa6a15def0">
+  <link rel="stylesheet" href="style.css?v=64c3d60d2f">
+  <link rel="stylesheet" href="objets.css?v=64c3d60d2f">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=fa6a15def0"></script>
+  <script type="module" src="js/app.js?v=64c3d60d2f"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -302,5 +302,29 @@
     </div>
     <div class="vue-cadre"><img id="vue-grande" alt=""></div>
   </dialog>
+
+  <!-- Recouvrement du premier lancement : chargement du moteur, ou message quand le
+       navigateur bloque ce dont l'outil a besoin. Le reste de la page est inerte tant qu'il
+       est ouvert. -->
+  <div id="chargeur" class="chargeur" role="dialog" aria-modal="true" aria-labelledby="chargeur-titre" aria-describedby="chargeur-etape" hidden>
+    <div class="chargeur-boite" id="chargeur-boite" tabindex="-1">
+      <h2 id="chargeur-titre"></h2>
+      <div id="chargeur-chargement">
+        <progress id="chargeur-barre" class="attente" max="1"></progress>
+        <p id="chargeur-etape" class="chargeur-etape" aria-live="polite"></p>
+        <p id="chargeur-detail" class="discret"></p>
+        <p id="chargeur-phrase" class="chargeur-phrase"></p>
+      </div>
+      <div id="chargeur-message" hidden>
+        <p id="chargeur-texte"></p>
+        <p id="chargeur-refus" class="erreur" role="alert" hidden></p>
+        <details id="chargeur-plus" hidden>
+          <summary data-t="enSavoirPlus"></summary>
+          <p id="chargeur-plus-texte"></p>
+        </details>
+        <div id="chargeur-boutons" class="chargeur-boutons"></div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

@@ -459,3 +459,26 @@ dialog h2 { margin-top: 0; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 abbr[title] { text-decoration: underline dotted; cursor: help; }
+
+/* Recouvrement du premier lancement et messages de l'environnement */
+.chargeur { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgb(0 0 0 / 0.6); overflow-y: auto; }
+.chargeur[hidden] { display: none; }
+.chargeur-boite { width: 100%; max-width: 560px; margin: auto; padding: 24px; border: 1px solid var(--filet); border-radius: 12px; background: var(--surface); color: var(--encre); box-shadow: var(--ombre); }
+.chargeur-boite:focus { outline: none; }
+.chargeur-boite h2 { margin: 0 0 16px; font-size: 1.25rem; }
+.chargeur-boite .attente { max-width: none; height: 12px; }
+.chargeur-etape { margin: 0 0 4px; font-weight: 700; }
+.chargeur-phrase { min-height: 3em; margin: 16px 0 0; padding: 8px 12px; border-left: 4px solid var(--accent); background: var(--fond); border-radius: 0 6px 6px 0; }
+.chargeur-boutons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.chargeur details { margin-top: 12px; }
+.chargeur summary { cursor: pointer; color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .chargeur-phrase.change { animation: chargeur-fondu 0.4s ease-out; }
+}
+@keyframes chargeur-fondu { from { opacity: 0; } to { opacity: 1; } }
+body.chargeur-ouvert { overflow: hidden; }
+/* Lecture des pixels bloquée : le message remplace les résultats de la vue. */
+.env-bloque > *:not(.env-message):not(.titre-section) { display: none !important; }
+.env-message { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--filet); border-left: 4px solid var(--corriger); border-radius: 0 8px 8px 0; background: var(--fond); max-width: 70ch; }
+.env-message p { margin: 0 0 12px; }
+@media print { .chargeur { display: none !important; } }
