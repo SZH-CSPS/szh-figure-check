@@ -227,6 +227,7 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .boite-legende { font-size: 0.85rem; }
 .boite-puces { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; min-height: 2.4em; }
 /* Textes à vérifier : extrait, libellé, mesures, deux boutons. */
+.a-verifier-corps { min-width: 0; }
 .a-verifier-liste { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; max-height: 420px; overflow-y: auto; }
 .a-verifier-item { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 4px 10px; align-items: start; font-size: 0.88rem; padding: 6px; border: 1px solid var(--filet); border-radius: 6px; }
 .a-verifier-item.actif { border-color: var(--accent); background: var(--accent-pale); }
@@ -234,9 +235,10 @@ select { background: var(--surface); border: 1px solid var(--filet); border-radi
 .a-verifier-item .texte-lu { overflow-wrap: anywhere; }
 .a-verifier-item .texte-lu i { color: var(--encre-2); }
 .a-verifier-actions { display: flex; flex-wrap: wrap; gap: 6px; grid-column: 2; }
-.a-verifier-actions button { padding: 3px 8px; font-size: 0.85rem; }
-.a-verifier-actions button.oui { border-color: var(--ok); color: var(--ok); }
-.a-verifier-actions button.non { border-color: var(--corriger); color: var(--corriger); }
+.trancher-tout { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 0; font-size: 0.88rem; }
+.a-verifier-actions button, .trancher-tout button { padding: 3px 8px; font-size: 0.85rem; }
+.a-verifier-actions button.oui, .trancher-tout button.oui { border-color: var(--ok); color: var(--ok); }
+.a-verifier-actions button.non, .trancher-tout button.non { border-color: var(--corriger); color: var(--corriger); }
 
 /* Vue résidu */
 .residu-commandes { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; margin-bottom: 6px; }
@@ -422,7 +424,7 @@ dialog h2 { margin-top: 0; }
   .puces, .explorateur-panneau, .voile, .residu-commandes, #residu-aide, svg.residu, .fenetre-masque, #exporter-lecture { display: none !important; }
   .explorateur { display: block; }
   .groupe .cadre { display: none !important; }
-  .a-verifier-actions, #table-textes button { display: none !important; }
+  .a-verifier-actions, .trancher-tout, #table-textes button { display: none !important; }
 
   .zone, .analyse-figure { box-shadow: none; border: 1px solid #d6d6cf; }
   .zones { grid-template-columns: 1fr 1fr; }

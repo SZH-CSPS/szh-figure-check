@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=e70fae9215';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=ec2d598e33';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
@@ -126,6 +126,14 @@ export function statutInitial(ligne) {
   if (ligne.bruit != null && ligne.bruit > BRUIT_FOND_MAX) return 'a-verifier';
   if (ligne.vertical && (court || ligne.confiance == null || ligne.confiance < CONFIANCE_SURE_TOURNEE)) return 'a-verifier';
   return 'confirme';
+}
+
+// Tranche d'un coup les textes à vérifier : chacun prend `statut`. Rend ceux qui ont changé,
+// pour que l'appelant ne fasse qu'un rendu.
+export function trancherAVerifier(lignes, statut) {
+  const changes = lignes.filter((l) => l.statut === 'a-verifier');
+  for (const l of changes) l.statut = statut;
+  return changes;
 }
 
 // Seuls les textes confirmés et ajoutés décident du verdict.

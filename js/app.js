@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=e70fae9215';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=e70fae9215';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire } from './residu.js?v=e70fae9215';
-import { versHex } from './apca.js?v=e70fae9215';
-import { ouvrir } from './sources.js?v=e70fae9215';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=e70fae9215';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=e70fae9215';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=e70fae9215';
-import { T, langueInitiale, nombre } from './i18n.js?v=e70fae9215';
-import { rendreObjets, exporterObjets } from './objets.js?v=e70fae9215';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=ec2d598e33';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=ec2d598e33';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=ec2d598e33';
+import { versHex } from './apca.js?v=ec2d598e33';
+import { ouvrir } from './sources.js?v=ec2d598e33';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=ec2d598e33';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=ec2d598e33';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=ec2d598e33';
+import { T, langueInitiale, nombre } from './i18n.js?v=ec2d598e33';
+import { rendreObjets, exporterObjets } from './objets.js?v=ec2d598e33';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -470,15 +470,32 @@ function rendreAnalyse() {
     item.addEventListener('focusout', () => activer(false));
     return item;
   };
+  // Trancher tous les textes à vérifier d'un coup, à partir de deux : un seul rendu à la fin.
+  const trancher = (statut) => {
+    for (const l of trancherAVerifier(etat.lecture.lignes, statut)) {
+      if (statut === 'confirme' && !l.texte) libeller(l);
+    }
+    rendreAnalyse();
+  };
+  const trancherTout = aVerifier.length >= 2 ? element('div', { class: 'trancher-tout' },
+    element('span', { class: 'discret' }, t('trancherTout')),
+    element('button', { type: 'button', class: 'oui' }, t('tousSontTextes')),
+    element('button', { type: 'button', class: 'non' }, t('aucunEstTexte'))) : null;
+  if (trancherTout) {
+    trancherTout.querySelector('.oui').addEventListener('click', () => trancher('confirme'));
+    trancherTout.querySelector('.non').addEventListener('click', () => trancher('retire'));
+  }
   const boiteVerifier = element('section', { class: 'boite-niveau a-verifier', 'aria-label': t('statut_a-verifier') },
     element('p', { class: 'boite-titre' },
       element('span', { class: 'symbole', 'aria-hidden': 'true' }, '?'), ' ',
       element('b', {}, t('statut_a-verifier')), ' ',
       element('span', { class: 'discret' }, t('nTextes', { n: aVerifier.length }))),
     element('p', { class: 'boite-legende discret' }, t('legende_verifier')),
-    aVerifier.length
-      ? element('ul', { class: 'a-verifier-liste' }, ...aVerifier.map(itemVerifier))
-      : element('div', { class: 'boite-puces' }, element('span', { class: 'discret' }, t('aVerifierVide'))));
+    element('div', { class: 'a-verifier-corps' },
+      trancherTout,
+      aVerifier.length
+        ? element('ul', { class: 'a-verifier-liste' }, ...aVerifier.map(itemVerifier))
+        : element('div', { class: 'boite-puces' }, element('span', { class: 'discret' }, t('aVerifierVide')))));
   const rangee = element('div', { class: 'boites-niveaux' }, ...boitesNiveaux, boiteVerifier);
   puces.replaceChildren(rangee);
 

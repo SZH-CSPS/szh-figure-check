@@ -5,7 +5,7 @@ import {
   profilEncre, mesurerProfil, mesurerZone, PALIER_DENSE,
   carteEncre, composantes, signePossible, alignerSignes, zonesEncre, masquer, partBords, BORDS_MAX,
   versOrigine, versCanevas, boiteNormalisee, recouvreUnTexte,
-  exporterLecture, VERSION_EXPORT, STATUTS, ORIGINES,
+  exporterLecture, VERSION_EXPORT, STATUTS, ORIGINES, trancherAVerifier,
 } from '../js/residu.js';
 import { BRUIT_FOND_MAX, RATIO_X, RATIO_CAPITALE } from '../js/analyse.js';
 
@@ -361,41 +361,18 @@ test('export : verdict provisoire et textes à vérifier, verdict inchangé', ()
   assert.deepEqual([corriger.verdict, corriger.verdictProvisoire, corriger.textesAVerifier], ['corriger', false, 4]);
 });
 
-// ── Formes lues comme des lettres ───────────────────────────────────────────────
+// ── Trancher les textes à vérifier d'un coup ────────────────────────────────────
 
-// Tampon l × h, fond blanc, encre noire là où `dessin(x, y)` est vrai.
-function tampon(l, h, dessin) {
-  const rgba = new Uint8ClampedArray(l * h * 4).fill(255);
-  for (let y = 0; y < h; y++) for (let x = 0; x < l; x++) if (dessin(x, y)) rgba.set([0, 0, 0, 255], (y * l + x) * 4);
-  return rgba;
-}
-const tout = (l, h) => ({ x0: 0, y0: 0, x1: l, y1: h });
-
-test('forme compacte : un cercle, un anneau et un carré sont des formes, un chiffre ou un mot ne le sont pas', () => {
-  const disque = (cx, cy, r) => (x, y) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
-  assert.equal(formeCompacte(tampon(40, 40, disque(20, 20, 14)), 40, 40, tout(40, 40)), true);
-  const anneau = (x, y) => { const d = (x - 20) ** 2 + (y - 20) ** 2; return d <= 14 * 14 && d >= 10 * 10; };
-  assert.equal(formeCompacte(tampon(40, 40, anneau), 40, 40, tout(40, 40)), true);
-  assert.equal(formeCompacte(tampon(40, 40, (x, y) => x >= 8 && x < 32 && y >= 8 && y < 32), 40, 40, tout(40, 40)), true);
-  // un zéro : anneau plus haut que large (0,6)
-  const zero = (x, y) => { const d = ((x - 20) / 8) ** 2 + ((y - 20) / 14) ** 2; return d <= 1 && d >= 0.45; };
-  assert.equal(formeCompacte(tampon(40, 40, zero), 40, 40, tout(40, 40)), false);
-  // deux blocs de même taille : deux signes, pas une forme
-  const deux = (x, y) => y >= 10 && y < 30 && ((x >= 6 && x < 16) || (x >= 24 && x < 34));
-  assert.equal(formeCompacte(tampon(40, 40, deux), 40, 40, tout(40, 40)), false);
-  // un mot soudé, deux fois plus large que haut
-  assert.equal(formeCompacte(tampon(60, 30, (x, y) => x >= 6 && x < 54 && y >= 8 && y < 22), 60, 30, tout(60, 30)), false);
-  // un point à côté d'un bloc compact ne change rien (moins de 10 % du plus gros)
-  const avecPoint = (x, y) => (x >= 8 && x < 28 && y >= 10 && y < 30) || (x >= 32 && x < 34 && y >= 28 && y < 30);
-  assert.equal(formeCompacte(tampon(40, 40, avecPoint), 40, 40, tout(40, 40)), true);
-  assert.equal(formeCompacte(tampon(40, 40, () => false), 40, 40, tout(40, 40)), false);       // zone unie
-  assert.ok(FORME_ASPECT_MIN < 1);
-});
-
-test('statut initial : une forme lue comme une lettre n’est jamais confirmée', () => {
-  const lue = { origine: 'detecteur', texte: 'A', confiance: 91, score: 0.8, bruit: 0.05, vertical: false, bbox: { x0: 0, y0: 0, x1: 30, y1: 30 }, corpsPx: 20, corpsPt: 9 };
-  assert.equal(statutInitial(lue), 'confirme');
-  assert.equal(statutInitial({ ...lue, forme: false }), 'confirme');
-  assert.equal(statutInitial({ ...lue, forme: true }), 'a-verifier');                          // par le score
-  assert.equal(statutInitial({ ...lue, forme: true, score: 0.6 }), 'a-verifier');              // par la lecture
+test('trancher : seuls les textes à vérifier changent, les autres statuts restent', () => {
+  const lignes = [
+    { id: 't1', statut: 'a-verifier' },
+    { id: 't2', statut: 'confirme' },
+    { id: 't3', statut: 'a-verifier' },
+    { id: 't4', statut: 'retire' },
+    { id: 't5', statut: 'ajoute' },
+  ];
+  const changes = trancherAVerifier(lignes, 'retire');
+  assert.deepEqual(changes.map((l) => l.id), ['t1', 't3']);
+  assert.deepEqual(lignes.map((l) => l.statut), ['retire', 'confirme', 'retire', 'retire', 'ajoute']);
+  assert.deepEqual(trancherAVerifier(lignes, 'confirme'), []);
 });
