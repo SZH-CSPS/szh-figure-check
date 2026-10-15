@@ -285,3 +285,23 @@ test('basse vision : un motif peu contrasté disparaît, un motif contrasté res
   const uni = flouGaussien(new Float32Array(l * h).fill(0.3), l, h, 5);
   assert.ok(Math.abs(uni[16 * l + 64] - 0.3) < 1e-6);
 });
+
+test('i18n : {n|singulier|pluriel} suit la règle de la langue', () => {
+  assert.equal(T('fr', 'textesLus', { n: 1 }), '1 texte lu.');
+  assert.equal(T('fr', 'textesLus', { n: 3 }), '3 textes lus.');
+  assert.equal(T('fr', 'bilan_etAVerifier', { n: 1 }), '1 texte reste à vérifier.');
+  assert.equal(T('fr', 'bilan_etAVerifier', { n: 3 }), '3 textes restent à vérifier.');
+  assert.equal(T('fr', 'resumeAnalyse', { n: 1 }), '1 endroit à revoir');
+  assert.equal(T('fr', 'resumeAnalyse', { n: 2 }), '2 endroits à revoir');
+  assert.equal(T('de', 'nTextes', { n: 1 }), '1 Text');
+  assert.equal(T('de', 'nTextes', { n: 2 }), '2 Texte');
+  assert.equal(T('de', 'nEndroits', { n: 1 }), '1 Stelle');
+  assert.equal(T('de', 'nEndroits', { n: 2 }), '2 Stellen');
+  // Sans la valeur, le motif reste tel quel ; plus aucune chaîne ne garde un « (s) ».
+  assert.equal(T('fr', 'nTextes'), '{n} {n|texte|textes}');
+  for (const langue of ['fr', 'de']) {
+    for (const [cle, valeur] of Object.entries(TEXTES[langue])) {
+      if (typeof valeur === 'string') assert.doesNotMatch(valeur, /[a-zé]\((s|n|e|en|er|x)\)/, `${langue}.${cle}`);
+    }
+  }
+});
