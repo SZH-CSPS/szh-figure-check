@@ -2,16 +2,16 @@
 // montre une vue à la fois (aperçu à taille réelle, textes, couleurs). Dans la vue des
 // textes, la vue résidu masque les textes connus pour laisser voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=a709c71204';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=a709c71204';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=a709c71204';
-import { versHex } from './apca.js?v=a709c71204';
-import { ouvrir } from './sources.js?v=a709c71204';
-import { lire, mesurerAjout, lireZone } from './lecture.js?v=a709c71204';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=a709c71204';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=a709c71204';
-import { T, langueInitiale, nombre } from './i18n.js?v=a709c71204';
-import { rendreObjets, exporterObjets } from './objets.js?v=a709c71204';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=0c76982974';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=0c76982974';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier } from './residu.js?v=0c76982974';
+import { versHex } from './apca.js?v=0c76982974';
+import { ouvrir } from './sources.js?v=0c76982974';
+import { lire, mesurerAjout, lireZone } from './lecture.js?v=0c76982974';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE } from './vision.js?v=0c76982974';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=0c76982974';
+import { T, langueInitiale, nombre } from './i18n.js?v=0c76982974';
+import { rendreObjets, exporterObjets } from './objets.js?v=0c76982974';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
@@ -575,7 +575,7 @@ function rendreAnalyse() {
       aVerifier.length ? t('compte_aVerifier', { n: aVerifier.length }) + '.' : null,
       tailles.length ? t('plusPetitTexte', { pt: nombre(Math.min(...tailles)), min: TAILLE_MIN_PT }) : null,
     ].filter(Boolean).join(' ')),
-    etat.source.type === 'bitmap' ? element('p', { class: 'discret' }, t('lectureApprochee')) : null);
+    ...(etat.source.type === 'bitmap' ? [element('p', { class: 'discret' }, t('lectureApprochee'))] : []));
   bilan.hidden = false;
   $('niveaux').hidden = !lignes.length;
 
