@@ -293,3 +293,29 @@ test('surface minimale : un objet de moins de 0,25 mm² n’est pas retenu', () 
   assert.equal(analyse.objets.length, 0);
   assert.equal(analyse.formes, false);
 });
+
+test('quadrillage coupé par des barres : les tronçons restent la même ligne, aucun contact jugé', () => {
+  const L = 600, H = 400;
+  const GRIS = [0xdb, 0xdb, 0xdb];
+  const lignes = [100, 160, 220, 280];                       // 4 px d'épaisseur, espacées de 60 px
+  const barres = [
+    { x0: 90, y0: 90, x1: 150, y1: 340, c: ROUGE }, { x0: 150, y0: 130, x1: 210, y1: 340, c: VERT },
+    { x0: 217, y0: 90, x1: 277, y1: 340, c: ROUGE }, { x0: 284, y0: 190, x1: 344, y1: 340, c: JAUNE },
+  ];
+  const { analyse } = detecter(L, H, (x, y) => {
+    for (const b of barres) if (dans(x, y, b)) return b.c;
+    if (x >= 50 && x < 550 && lignes.some((l) => y >= l && y < l + 4)) return GRIS;
+    return BLANC;
+  });
+  const grille = analyse.series.find((s) => s.couleur[0] === GRIS[0] && s.couleur[1] === GRIS[1]);
+  assert.ok(grille, JSON.stringify(analyse.series.map((s) => [s.couleur, s.types])));
+  assert.equal(grille.quadrillage, true, JSON.stringify(grille.types));
+  assert.equal(grille.niveau, 'ok');
+  assert.equal(grille.voisins.length, 0);
+  // Les barres ne touchent que le fond, hors la paire rouge et verte qui se jouxtent.
+  for (const s of analyse.series.filter((s) => !s.quadrillage)) {
+    assert.ok(s.voisins.every((v) => !analyse.series[v.serie - 1].quadrillage), `série ${s.id}`);
+  }
+  const rouge = analyse.series.find((s) => s.couleur[0] > 180 && s.couleur[1] < 100);
+  assert.ok(rouge.voisins.length <= 1);
+});

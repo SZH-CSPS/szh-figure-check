@@ -6,13 +6,13 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=4a5e2ee91c';
-import { MM_PAR_PT } from './formats.js?v=4a5e2ee91c';
+import { versHex } from './apca.js?v=fafafdf966';
+import { MM_PAR_PT } from './formats.js?v=fafafdf966';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=4a5e2ee91c';
-import { T, nombre } from './i18n.js?v=4a5e2ee91c';
+} from './couleur.js?v=fafafdf966';
+import { T, nombre } from './i18n.js?v=fafafdf966';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -90,12 +90,16 @@ const LEGENDE_PART = 0.25;
 const LEGENDE_ALLONGEMENT = 3;
 const LEGENDE_DISTANCE = 2;
 const LEGENDE_HAUTEUR = 3;
-// Quadrillage : au moins trois traits parallèles de même longueur (à 15 % près), longs d'au
-// moins 40 % de la figure. Il est décoratif : son contraste n'est pas jugé.
+// Quadrillage : au moins trois lignes fines parallèles de même longueur (à 15 % près), longues
+// d'au moins 40 % de la figure, tronçons coupés par les barres compris. Il est en arrière-plan :
+// ni son contraste, ni son épaisseur, ni son contact avec une surface ne sont jugés.
 const QUADRILLAGE_MIN = 3;
 const QUADRILLAGE_LONGUEUR = 0.4;
 const QUADRILLAGE_TOLERANCE = 0.15;
 const QUADRILLAGE_PART = 0.9;
+// Un tronçon rectangulaire appartient à une ligne quand son milieu, en travers, en est à moins
+// de la moitié de son épaisseur : le lissage des bords déplace d'un demi-pixel.
+const QUADRILLAGE_ALIGNEMENT = 0.5;
 // Un trait est au moins quatre fois plus long que large pour avoir une orientation.
 const ALLONGEMENT_TRAIT = 4;
 // Un tronçon de trait plus court que le cinquième du plus long trait de sa série (un bout
@@ -887,34 +891,45 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
     s.typeDominant = Object.keys(parType).sort((a, b) => parType[b] - parType[a])[0];
     s.groupe = groupeType(s.typeDominant);
 
-    // Quadrillage : traits parallèles réguliers et longs. Les tronçons d'une même ligne,
-    // coupée par les barres qui la recouvrent, sont réunis par leur position.
+    // Quadrillage : lignes fines, parallèles, régulières, qui traversent la figure. Une ligne
+    // coupée par des barres n'est plus qu'une suite de tronçons : ils sont réunis par leur
+    // position, et un tronçon trop court pour être un trait (une brique de 4 sur 3 px entre
+    // deux barres voisines) en fait partie dès qu'il est fin et posé sur une ligne.
     s.quadrillage = false;
-    // Le cadre du graphique, rectangle vide de la même couleur, et les bouts de ligne coupés
-    // par les barres font partie du quadrillage ; un dixième d'autres objets est toléré.
-    const filets = comptes.filter((o) => o.type === 'trait' || (o.type === 'rectangle'
-      && (o.epaisseurPx != null || Math.min(o.boite.x1 - o.boite.x0, o.boite.y1 - o.boite.y0) * mmParPx <= EPAISSEUR_TRAIT_MAX_MM)));
-    if (s.typeDominant === 'trait' && filets.length >= QUADRILLAGE_PART * comptes.length && comptes.length >= QUADRILLAGE_MIN) {
-      const traits = comptes.filter((o) => o.type === 'trait');
-      const horizontaux = traits.filter((o) => o.boite.x1 - o.boite.x0 >= ALLONGEMENT_TRAIT * (o.boite.y1 - o.boite.y0));
-      const verticaux = traits.filter((o) => o.boite.y1 - o.boite.y0 >= ALLONGEMENT_TRAIT * (o.boite.x1 - o.boite.x0));
+    const epaisseurMm = (o) => Math.min(o.boite.x1 - o.boite.x0, o.boite.y1 - o.boite.y0) * mmParPx;
+    // Le cadre du graphique, rectangle vide de la même couleur, fait aussi partie du quadrillage.
+    const cadres = comptes.filter((o) => o.type === 'rectangle' && o.epaisseurPx != null && epaisseurMm(o) <= EPAISSEUR_TRAIT_MAX_MM);
+    const filetsTraits = comptes.filter((o) => o.type === 'trait');
+    if (filetsTraits.length && comptes.length >= QUADRILLAGE_MIN) {
+      const horizontaux = filetsTraits.filter((o) => o.boite.x1 - o.boite.x0 >= ALLONGEMENT_TRAIT * (o.boite.y1 - o.boite.y0));
+      const verticaux = filetsTraits.filter((o) => o.boite.y1 - o.boite.y0 >= ALLONGEMENT_TRAIT * (o.boite.x1 - o.boite.x0));
       // Lignes : tronçons dont les positions se recouvrent en travers ; étendue de chacune.
       const lignes = (groupe, travers, long) => {
         const liste = [];
         for (const o of [...groupe].sort((a, b) => a.boite[travers[0]] - b.boite[travers[0]])) {
           const l = liste.at(-1);
           if (l && o.boite[travers[0]] <= l.fin) { l.fin = Math.max(l.fin, o.boite[travers[1]]); l.debut = Math.min(l.debut, o.boite[long[0]]); l.bout = Math.max(l.bout, o.boite[long[1]]); }
-          else liste.push({ fin: o.boite[travers[1]], debut: o.boite[long[0]], bout: o.boite[long[1]] });
+          else liste.push({ travers0: o.boite[travers[0]], fin: o.boite[travers[1]], debut: o.boite[long[0]], bout: o.boite[long[1]] });
         }
-        return liste.map((l) => l.bout - l.debut);
-      };
-      const regulier = (longueurs, etendue) => {
-        if (!longueurs.length) return true;
-        const m = mediane(longueurs);
-        return m >= QUADRILLAGE_LONGUEUR * etendue && longueurs.every((l) => Math.abs(l - m) <= QUADRILLAGE_TOLERANCE * m);
+        return liste;
       };
       const lh = lignes(horizontaux, ['y0', 'y1'], ['x0', 'x1']), lv = lignes(verticaux, ['x0', 'x1'], ['y0', 'y1']);
-      s.quadrillage = horizontaux.length + verticaux.length >= QUADRILLAGE_PART * traits.length
+      // Tronçons rectangulaires fins : leur épaisseur reste sous le maximum d'un trait, et leur
+      // milieu, en travers, tombe sur une ligne déjà reconnue (à la moitié de leur épaisseur près).
+      const surLigne = (o) => {
+        if (o.type !== 'rectangle' || o.epaisseurPx != null || epaisseurMm(o) > EPAISSEUR_TRAIT_MAX_MM) return false;
+        const { x0, x1, y0, y1 } = o.boite, marge = QUADRILLAGE_ALIGNEMENT * Math.min(x1 - x0, y1 - y0);
+        const sur = (liste, t0, t1, d0, d1) => liste.some((l) => (t0 + t1) / 2 >= l.travers0 - marge && (t0 + t1) / 2 <= l.fin + marge && d0 >= l.debut - marge && d1 <= l.bout + marge);
+        return sur(lh, y0, y1, x0, x1) || sur(lv, x0, x1, y0, y1);
+      };
+      const troncons = comptes.filter((o) => o.type === 'rectangle' && surLigne(o));
+      const regulier = (lignesListe, etendue) => {
+        if (!lignesListe.length) return true;
+        const longueurs = lignesListe.map((l) => l.bout - l.debut), m = mediane(longueurs);
+        return m >= QUADRILLAGE_LONGUEUR * etendue && longueurs.every((l) => Math.abs(l - m) <= QUADRILLAGE_TOLERANCE * m);
+      };
+      s.quadrillage = filetsTraits.length + troncons.length + cadres.length >= QUADRILLAGE_PART * comptes.length
+        && horizontaux.length + verticaux.length >= QUADRILLAGE_PART * filetsTraits.length
         && Math.max(lh.length, lv.length) >= QUADRILLAGE_MIN && regulier(lh, largeur) && regulier(lv, hauteur);
     }
 
@@ -956,6 +971,8 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
     const sa = objets[c.a].serie, sb = objets[c.b].serie;
     if (sa == null || sb == null || sa === sb) continue;
     const A = series[sa - 1], B = series[sb - 1];
+    // Une surface posée sur un quadrillage ne touche pas une couleur voisine : il est derrière.
+    if (A.quadrillage || B.quadrillage) continue;
     const k = contrasteGraphique(A.couleur, B.couleur);
     for (const [de, vers] of [[A, B], [B, A]]) {
       if (!de.voisins.some((v) => v.serie === vers.id)) de.voisins.push({ serie: vers.id, ...k, force: c.force });

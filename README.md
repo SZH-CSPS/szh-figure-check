@@ -254,9 +254,10 @@ contraste avec les séries de surfaces qui la touchent (barres empilées, secteu
 à corriger), et, pour chaque paire de séries de même nature, l’écart CIEDE2000 en vision
 normale, après simulation de la deutéranopie, de la protanopie et de la tritanopie (Machado,
 Oliveira et Fernandes, 2009, sévérité 1) et en niveaux de gris : sous 12, deux séries se
-distinguent mal ; sous 5, elles se confondent. Un quadrillage (au moins trois traits
-parallèles réguliers, longs d’au moins 40 % de la figure, avec le cadre du graphique) est
-décoratif et n’est pas jugé. Une photo, un dégradé ou un schéma sans aplats nets donne
+distinguent mal ; sous 5, elles se confondent. Un quadrillage (au moins trois lignes
+parallèles régulières, longues d’au moins 40 % de la figure, avec les tronçons que les barres
+coupent et le cadre du graphique) est en arrière-plan : ni son contraste, ni son épaisseur,
+ni son contact avec une surface ne sont jugés. Une photo, un dégradé ou un schéma sans aplats nets donne
 « Aucune forme nette trouvée » : les séries doivent couvrir au moins 0,1 % de la figure et
 la moitié de ce qui n’est pas le fond, dégradés et textures compris.
 Sur la figure d’exemple : trois séries de barres, le rouge et le vert difficiles à
