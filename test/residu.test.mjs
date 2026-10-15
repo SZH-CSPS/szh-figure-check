@@ -322,7 +322,7 @@ test('verdict provisoire : « ok » seulement, et seulement s’il reste des tex
   assert.equal(verdictProvisoire('ok', 0), false);
   assert.equal(verdictProvisoire('ok', 1), true);
   assert.equal(verdictProvisoire('ok', 40), true);
-  assert.equal(verdictProvisoire('ameliorer', 3), false);   // le verdict tient, on ajoute « et N texte(s) encore à vérifier »
+  assert.equal(verdictProvisoire('ameliorer', 3), false);   // le verdict tient, on ajoute « N texte(s) restent à vérifier. »
   assert.equal(verdictProvisoire('corriger', 3), false);
   assert.equal(verdictProvisoire('corriger', 0), false);
 });

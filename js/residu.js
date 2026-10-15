@@ -3,7 +3,7 @@
 // masqués, passage aux coordonnées de l'image d'origine et export de la lecture.
 // Rien ici ne touche au DOM.
 
-import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=f48910fefb';
+import { seuilOtsu, mediane, RATIO_X, RATIO_CAPITALE, BRUIT_FOND_MAX, recouvrement } from './analyse.js?v=b0cb014750';
 
 // ── Statut d'un texte ───────────────────────────────────────────────────────────
 
