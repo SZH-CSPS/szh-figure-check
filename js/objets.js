@@ -6,13 +6,13 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=418fa05147';
-import { MM_PAR_PT } from './formats.js?v=418fa05147';
+import { versHex } from './apca.js?v=2047d7c12f';
+import { MM_PAR_PT } from './formats.js?v=2047d7c12f';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=418fa05147';
-import { T, nombre } from './i18n.js?v=418fa05147';
+} from './couleur.js?v=2047d7c12f';
+import { T, nombre } from './i18n.js?v=2047d7c12f';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -1017,6 +1017,7 @@ const cache = new WeakMap();   // lecture → { largeurMm, brut, promesse, erreu
 let appel = null;              // dernier appel à rendreObjets, rejoué quand la détection finit
 let dernier = null;            // { analyse, echelle } du dernier bloc rendu
 let resumeCourant = null;      // résumé d'une ligne du dernier bloc rendu
+let choix = { lecture: null, id: null };   // série rendue active, gardée d'un rendu à l'autre
 
 function element(nom, attributs = {}, ...enfants) {
   const el = document.createElement(nom);
@@ -1058,6 +1059,13 @@ async function detecter(lecture, source, mmParPx) {
     }
   }
   return brut;
+}
+
+// Série mise en évidence au chargement : la première à corriger, sinon la première à
+// améliorer, sinon la première série. null sans série.
+export function serieParDefaut(series) {
+  const pire = series.find((s) => s.niveau === 'corriger') || series.find((s) => s.niveau === 'ameliorer') || series[0];
+  return pire ? pire.id : null;
 }
 
 // Calque des contours : un canevas dont `montrer(ids)` ne dessine que les séries demandées,
@@ -1208,14 +1216,14 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
     element('p', {}, [t('objetsIntro', { n: analyse.objets.filter((o) => o.serie != null).length, surfaces: nSurfaces, traits: nTraits }),
       analyse.degrades ? t('objetsDegrades', { n: analyse.degrades }) : null].filter(Boolean).join(' ')));
 
-  // Figure et calque des contours, avec son interrupteur.
+  // Figure et calque des contours : seule la série mise en évidence y est dessinée.
   const calque = calqueContours(analyse, entree.brut);
-  calque.montrer(analyse.series.map((s) => s.id));
-  const interrupteur = element('input', { type: 'checkbox', checked: '' });
-  interrupteur.addEventListener('change', () => { calque.hidden = !interrupteur.checked; });
   const figure = element('div', { class: 'ob-figure' },
-    element('div', { class: 'ob-image' }, element('img', { src: source.url, alt: '' }), calque),
-    element('label', { class: 'ob-interrupteur' }, interrupteur, ' ', t('objetsContours')));
+    element('div', { class: 'ob-image' }, element('img', { src: source.url, alt: '' }), calque));
+  // Une puce numérotée par carte, une carte par série puis par paire. `cibles` garde, pour
+  // chacune, les séries qu'elle montre sur la figure.
+  const cibles = [];
+  const puce = (niveau, libelle, n = cibles.length + 1) => element('button', { type: 'button', 'aria-pressed': 'false', class: `puce ${niveau}`, 'aria-label': libelle }, String(n));
 
   const fond = element('p', { class: 'ob-fond' }, pastille(analyse.fond, 'petite'), ' ', t('objetsFond', { hex: versHex(analyse.fond) }));
 
@@ -1246,19 +1254,23 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
     if (s.voisins.some((v) => v.niveau !== 'ok')) conseils.push(element('li', {}, t('objetsConseilVoisin')));
     if (s.niveauEpaisseur && s.niveauEpaisseur !== 'ok') conseils.push(element('li', {}, t('objetsConseilEpaisseur', { pt: nombre(EPAISSEUR_AMELIORER_PT) })));
     const types = Object.entries(s.types).sort((a, b) => b[1] - a[1]).map(([type, n]) => nomType(type, n)).join(', ');
-    return element('li', { class: `ob-serie ${s.niveau}` },
-      element('div', { class: 'ob-tete' }, pastille(s.couleur), contour(s.id),
+    const bouton = puce(s.niveau, t('objetsPuceAria', { n: s.id }), s.id);
+    const carte = element('li', { class: `ob-serie ${s.niveau}` },
+      element('div', { class: 'ob-tete' }, bouton, pastille(s.couleur), contour(s.id),
         element('span', { class: 'ob-nom' }, element('b', {}, t('objetsSerie', { n: s.id })), ' ', element('span', { class: 'discret' }, versHex(s.couleur)), element('br'),
           `${types}${s.legende ? `, ${t('objetsLegende')}` : ''}`),
         badge(s.niveau)),
       element('dl', {}, ...mesures),
       ...(conseils.length ? [element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))), element('ul', {}, ...conseils)] : []));
+    cibles.push({ ids: [s.id], bouton, carte, annonce: t('objetsAnnonce', { n: s.id }) });
+    return carte;
   }));
 
-  const blocs = [methode, bilan, figure, fond, series];
+  const cartes = element('div', { class: 'ob-cartes' }, series);
+  const blocs = [methode, bilan, figure, fond, cartes];
   if (analyse.paires.length) {
-    blocs.push(element('h5', {}, t('objetsPairesTitre', { n: analyse.paires.length })));
-    blocs.push(element('ul', { class: 'ob-paires' }, ...analyse.paires.slice(0, PAIRES_MAX).map((p) => {
+    cartes.append(element('h5', {}, t('objetsPairesTitre', { n: analyse.paires.length })));
+    cartes.append(element('ul', { class: 'ob-paires' }, ...analyse.paires.slice(0, PAIRES_MAX).map((p) => {
       const visions = p.visions.map((v) => element('li', {},
         element('span', { class: 'ob-duo' }, pastille(simuler(p.a.couleur, v)), pastille(simuler(p.b.couleur, v))),
         element('span', {}, element('b', {}, t(`objetsVision_${v}`)), ' ',
@@ -1268,16 +1280,19 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
       if (p.visions.includes('normale')) conseils.push(t('objetsConseilNormale'));
       if (p.visions.includes('gris')) conseils.push(t('objetsConseilClarte'));
       conseils.push(t(p.a.groupe === 'trait' ? 'objetsConseilMotifTrait' : 'objetsConseilMotif'));
-      return element('li', { class: `ob-paire ${p.niveau}` },
-        element('div', { class: 'ob-tete' }, element('span', { class: 'ob-duo' }, pastille(p.a.couleur), pastille(p.b.couleur)),
+      const bouton = puce(p.niveau, t('objetsPuceAriaPaire', { a: p.a.id, b: p.b.id }));
+      const carte = element('li', { class: `ob-paire ${p.niveau}` },
+        element('div', { class: 'ob-tete' }, bouton, element('span', { class: 'ob-duo' }, pastille(p.a.couleur), pastille(p.b.couleur)),
           element('b', {}, `${t('objetsSerie', { n: p.a.id })} / ${t('objetsSerie', { n: p.b.id })}`), badge(p.niveau)),
         element('ul', { class: 'ob-visions' }, ...visions),
         element('p', { class: 'que-faire' }, element('b', {}, t('queFaire'))),
         element('ul', {}, ...conseils.map((c) => element('li', {}, c))));
+      cibles.push({ ids: [p.a.id, p.b.id], bouton, carte, annonce: t('objetsAnnoncePaire', { a: p.a.id, b: p.b.id }) });
+      return carte;
     })));
-    if (analyse.paires.length > PAIRES_MAX) blocs.push(element('p', { class: 'discret' }, t('objetsPairesReste', { n: analyse.paires.length - PAIRES_MAX })));
+    if (analyse.paires.length > PAIRES_MAX) cartes.append(element('p', { class: 'discret' }, t('objetsPairesReste', { n: analyse.paires.length - PAIRES_MAX })));
   } else if (analyse.series.length > 1) {
-    blocs.push(element('p', {}, t('objetsPairesOk')));
+    cartes.append(element('p', {}, t('objetsPairesOk')));
   }
   const decimal = (v) => String(v).replace('.', ',');
   blocs.push(element('p', { class: 'discret' }, t('objetsNote', {
@@ -1286,9 +1301,51 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
   })));
   resumeCourant = resumeObjets(analyse, t);
   conteneur.replaceChildren(element('section', { class: 'ob' }, ...blocs));
+  brancherCartes(cibles, calque, serieActive(analyse, lecture));
   rappel();
 }
 
+// Série active gardée d'un rendu à l'autre tant que la lecture est la même.
+function serieActive(analyse, lecture) {
+  const defaut = serieParDefaut(analyse.series);
+  const id = choix.lecture === lecture && analyse.series.some((s) => s.id === choix.id) ? choix.id : defaut;
+  choix = { lecture, id };
+  return id;
+}
+
+// Survol ou focus d'une carte : aperçu sur la figure ; clic ou Entrée sur sa puce : elle
+// devient active. Tant que le pointeur reste dans la zone des cartes, l'aperçu reste ; en
+// sortir revient à la carte active. Un changement d'active est annoncé une fois.
+function brancherCartes(cibles, calque, idActif) {
+  if (!cibles.length) return;
+  let actif = Math.max(0, cibles.findIndex((c) => c.ids.length === 1 && c.ids[0] === idActif));
+  const montrer = (i) => {
+    calque.montrer(cibles[i].ids);
+    cibles.forEach((c, k) => {
+      c.bouton.setAttribute('aria-pressed', String(k === actif));
+      c.carte.classList.toggle('actif', k === actif);
+      c.carte.classList.toggle('apercu', k === i && k !== actif);
+      c.bouton.classList.toggle('apercu', k === i && k !== actif);
+    });
+  };
+  const epingler = (i) => {
+    const change = i !== actif;
+    actif = i;
+    if (cibles[i].ids.length === 1) choix.id = cibles[i].ids[0];
+    montrer(i);
+    const annonce = document.getElementById('objets-annonce');
+    if (change && annonce) annonce.textContent = cibles[i].annonce;
+  };
+  cibles.forEach((c, i) => {
+    c.carte.addEventListener('mouseenter', () => montrer(i));
+    c.bouton.addEventListener('focus', () => montrer(i));
+    c.bouton.addEventListener('click', () => epingler(i));
+  });
+  const zone = cibles[0].carte.closest('.ob-cartes');
+  zone.addEventListener('mouseleave', () => montrer(actif));
+  zone.addEventListener('focusout', (e) => { if (!zone.contains(e.relatedTarget)) montrer(actif); });
+  montrer(actif);
+}
 
 // Dernier résultat rendu, prêt pour l'export : boîtes en pixels de l'image d'origine (px
 // CSS de la page pour un SVG ou un PDF), surfaces en pour cent de la figure, épaisseurs en

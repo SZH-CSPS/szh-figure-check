@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=418fa05147">
-  <link rel="stylesheet" href="objets.css?v=418fa05147">
+  <link rel="stylesheet" href="style.css?v=2047d7c12f">
+  <link rel="stylesheet" href="objets.css?v=2047d7c12f">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=418fa05147"></script>
+  <script type="module" src="js/app.js?v=2047d7c12f"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -243,6 +243,7 @@
           <!-- Placée juste après les textes : le rapport imprimé enchaîne les deux. -->
           <section id="vue-objets" class="vue" role="tabpanel" aria-labelledby="onglet-objets" hidden>
             <h3 data-t="objetsTitre"></h3>
+            <p id="objets-annonce" class="visuel-cache" aria-live="polite"></p>
             <div id="objets-graphique"></div>
           </section>
 

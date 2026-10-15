@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  objetsBitmap, analyserObjets, niveauEpaisseur,
+  objetsBitmap, analyserObjets, niveauEpaisseur, serieParDefaut,
   TAUX_RECTANGLE, TAUX_ELLIPSE, EPAISSEUR_AMELIORER_PT, EPAISSEUR_CORRIGER_PT, SURFACE_MIN_MM2,
 } from '../js/objets.js';
 import { MM_PAR_PT } from '../js/formats.js';
@@ -318,4 +318,12 @@ test('quadrillage coupé par des barres : les tronçons restent la même ligne, 
   }
   const rouge = analyse.series.find((s) => s.couleur[0] > 180 && s.couleur[1] < 100);
   assert.ok(rouge.voisins.length <= 1);
+});
+
+test('série active par défaut : la première à corriger, sinon la première à améliorer, sinon la 1', () => {
+  const serie = (id, niveau) => ({ id, niveau });
+  assert.equal(serieParDefaut([serie(1, 'ok'), serie(2, 'ameliorer'), serie(3, 'corriger'), serie(4, 'corriger')]), 3);
+  assert.equal(serieParDefaut([serie(1, 'ok'), serie(2, 'ameliorer'), serie(3, 'ameliorer')]), 2);
+  assert.equal(serieParDefaut([serie(1, 'ok'), serie(2, 'ok')]), 1);
+  assert.equal(serieParDefaut([]), null);
 });
