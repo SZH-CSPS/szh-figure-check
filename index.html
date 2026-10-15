@@ -10,10 +10,10 @@
   <link rel="icon" href="data:,">
   <title>Contrôle des figures</title>
   <meta name="description" content="Voir une figure à sa taille imprimée dans la Revue ou un livre SZH/CSPS, et vérifier la taille et le contraste de ses textes.">
-  <link rel="stylesheet" href="style.css?v=91bcfa0342">
-  <link rel="stylesheet" href="couleurs-graphique.css?v=91bcfa0342">
+  <link rel="stylesheet" href="style.css?v=25c40bd6e2">
+  <link rel="stylesheet" href="couleurs-graphique.css?v=25c40bd6e2">
   <style id="style-impression"></style>
-  <script type="module" src="js/app.js?v=91bcfa0342"></script>
+  <script type="module" src="js/app.js?v=25c40bd6e2"></script>
 </head>
 <body>
   <!-- Simulation des daltonismes : matrices de Machado, Oliveira et Fernandes (2009),
@@ -61,6 +61,7 @@
               <button type="button" id="coller" data-t="coller"></button>
               <button type="button" id="exemple" class="lien" data-t="exemple"></button>
             </div>
+            <p class="voie-exacte" data-t="voieExacte"></p>
           </div>
           <div id="figure-choisie" class="figure-choisie" hidden>
             <img id="figure-miniature" alt="">
@@ -86,10 +87,10 @@
             </fieldset>
             <label class="groupe-choix"><span class="legende" data-t="largeur"></span>
               <select id="proportion">
-                <option value="" data-t="largeurAuto"></option>
                 <option value="1" data-t="largeur100"></option>
                 <option value="0.75" data-t="largeur75"></option>
                 <option value="0.5" data-t="largeur50"></option>
+                <option value="fichier" data-t="largeurFichier"></option>
               </select>
             </label>
             <fieldset class="groupe-choix">
@@ -176,7 +177,10 @@
           <section id="rapport" class="vue rapport" role="tabpanel" aria-labelledby="onglet-textes" hidden>
             <div class="titre-section">
               <h3 data-t="sectionTextes"></h3>
-              <button type="button" id="imprimer-rapport" data-t="imprimerRapport" hidden></button>
+              <span class="titre-actions">
+                <button type="button" id="exporter-lecture" data-t="exporterLecture" hidden></button>
+                <button type="button" id="imprimer-rapport" data-t="imprimerRapport" hidden></button>
+              </span>
             </div>
             <p id="rapport-fichier" class="discret"></p>
             <p id="statut" class="statut" aria-live="polite"></p>
@@ -188,6 +192,13 @@
               <li class="ok"><span class="symbole" aria-hidden="true">✓</span> <b data-t="niveau_ok"></b> <span data-t="legende_ok"></span></li>
             </ul>
             <div class="puces" id="puces"></div>
+            <!-- Vue résidu : les textes connus sous un masque, le reste à l'œil. Un clic sur
+                 un masque retire une fausse lecture, un rectangle glissé ajoute un oubli. -->
+            <div class="residu-commandes" id="residu-commandes" hidden>
+              <label class="interrupteur"><input type="checkbox" id="masquer"> <span data-t="masquerTextes"></span></label>
+              <button type="button" id="zone-clavier" data-t="ajouterZoneClavier" hidden></button>
+            </div>
+            <p id="residu-aide" class="discret" aria-live="polite"></p>
             <div class="explorateur">
               <div class="explorateur-figure">
                 <div class="analyse-figure" id="analyse-figure"></div>
@@ -197,6 +208,8 @@
             <div class="cartes-impression">
               <h4 id="zones-titre" hidden></h4>
               <ol id="zones" class="zones"></ol>
+              <h4 id="statuts-titre" hidden></h4>
+              <ol id="statuts-impression" class="statuts-impression"></ol>
             </div>
             <p id="zones-reste" class="discret"></p>
             <div id="couleurs-graphique"></div>
@@ -209,6 +222,7 @@
                     <th scope="col" data-t="colTaille"></th>
                     <th scope="col" data-t="colContraste"></th>
                     <th scope="col" data-t="colCouleurs"></th>
+                    <th scope="col" data-t="colStatut"></th>
                   </tr></thead>
                   <tbody></tbody>
                 </table>
