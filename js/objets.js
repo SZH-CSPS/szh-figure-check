@@ -6,14 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=7eadce8db3';
-import { MM_PAR_PT } from './formats.js?v=7eadce8db3';
+import { versHex } from './apca.js?v=4ca0c853e6';
+import { MM_PAR_PT } from './formats.js?v=4ca0c853e6';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=7eadce8db3';
-import { T, nombre } from './i18n.js?v=7eadce8db3';
-import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=7eadce8db3';
+} from './couleur.js?v=4ca0c853e6';
+import { T, nombre } from './i18n.js?v=4ca0c853e6';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=4ca0c853e6';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -1209,19 +1209,17 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
   if (!analyse.formes) {
     resumeCourant = t('objetsResumeAucune');
     conteneur.replaceChildren(element('section', { class: 'ob' },
-      element('div', { class: 'ob-bilan inconnu' }, element('p', { class: 'ob-bilan-titre' }, t('objetsAucune')),
+      element('div', { class: 'bilan inconnu' }, element('p', { class: 'bilan-titre' }, t('objetsAucune')),
         element('p', {}, t(analyse.degrades ? 'objetsAucuneDegrade' : 'objetsAucuneExplication'))),
       methode));
     rappel();
     return;
   }
 
-  const nSurfaces = analyse.series.filter((s) => s.groupe === 'surface').length;
-  const nTraits = analyse.series.length - nSurfaces;
-  const bilan = element('div', { class: `ob-bilan ${analyse.niveau}` },
-    element('p', { class: 'ob-bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[analyse.niveau]), ' ', t(`objetsBilan_${analyse.niveau}`)),
-    element('p', {}, [t('objetsIntro', { n: analyse.objets.filter((o) => o.serie != null).length, surfaces: nSurfaces, traits: nTraits }),
-      analyse.degrades ? t('objetsDegrades', { n: analyse.degrades }) : null].filter(Boolean).join(' ')));
+  // Même encadré de bilan que la vue des textes.
+  const bilan = element('div', { class: `bilan ${analyse.niveau}` },
+    element('p', { class: 'bilan-titre' }, element('span', { class: 'symbole', 'aria-hidden': 'true' }, SYMBOLES[analyse.niveau]), ' ', t(`objetsBilan_${analyse.niveau}`)),
+    element('p', {}, [t('objetsIntro'), analyse.degrades ? t('objetsDegrades', { n: analyse.degrades }) : null].filter(Boolean).join(' ')));
 
   // Figure et calque des contours : seuls les contours de l'endroit actif ou en aperçu y sont
   // dessinés.

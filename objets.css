@@ -1,8 +1,5 @@
 /* Vue « Objets du graphique » (js/objets.js) : bilan, puces et cartes comme la vue des textes. */
 .ob { break-inside: auto; }
-.ob-bilan { margin: 12px 0; }
-.ob-bilan p { margin: 0; }
-.ob-bilan-titre { font-weight: 700; margin-bottom: 4px !important; }
 .ob-fond { display: flex; gap: 8px; align-items: center; font-size: 0.92rem; margin: 0 0 6px; }
 .ob-pastille { display: inline-block; flex: none; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--filet); vertical-align: middle; }
 .ob-pastille.petite { width: 18px; height: 18px; border-radius: 4px; }
