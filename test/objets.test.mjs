@@ -374,6 +374,24 @@ test('le grain d’une image compressée ne découpe pas un aplat', () => {
   assert.ok(analyse.objets.every((o) => o.type === 'rectangle'));
 });
 
+test('une courbe fine et lissée sur une figure petite reste un seul trait, même croisée', () => {
+  // 0,3 mm par pixel : une courbe de 1,6 px en pente douce n'est plus qu'un escalier de paliers.
+  const L = 400, H = 200, ORANGE = [0xe8, 0x59, 0x0c], GRIS = [0xe9, 0xec, 0xef];
+  const rgba = image(L, H, (x, y) => {
+    const d = Math.abs(y - (40 + 0.3 * x)) - 0.8;                  // distance au bord du trait
+    const couverture = Math.max(0, Math.min(1, 0.5 - d));
+    if (couverture > 0) return melange(BLANC, ORANGE, couverture);
+    if (y === 60) return GRIS;                                       // ligne de quadrillage qui la croise
+    return BLANC;
+  });
+  const brut = objetsBitmap(rgba, L, H, { mmParPx: 0.3 });
+  const analyse = analyserObjets(brut, { mmParPx: 0.3 });
+  const oranges = analyse.objets.filter((o) => o.couleur[0] > 200 && o.couleur[2] < 120);
+  assert.equal(oranges.length, 1, oranges.map((o) => `${o.type} ${o.boite.x0}-${o.boite.x1}`).join(', '));
+  assert.equal(oranges[0].type, 'trait');
+  assert.ok(oranges[0].boite.x0 <= 2 && oranges[0].boite.x1 >= L - 2, JSON.stringify(oranges[0].boite));
+});
+
 test('surface minimale : un objet de moins de 0,25 mm² n’est pas retenu', () => {
   const cote = Math.floor(Math.sqrt(SURFACE_MIN_MM2) / MM_PAR_PX) - 1;   // 4 px à 0,1 mm/px
   const { analyse } = detecter(200, 200, (x, y) => (x >= 50 && x < 50 + cote && y >= 50 && y < 50 + cote ? ROUGE : BLANC));

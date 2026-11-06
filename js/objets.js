@@ -6,14 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=21eef34640';
-import { MM_PAR_PT } from './formats.js?v=21eef34640';
+import { versHex } from './apca.js?v=09a3073e2f';
+import { MM_PAR_PT } from './formats.js?v=09a3073e2f';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=21eef34640';
-import { T, nombre } from './i18n.js?v=21eef34640';
-import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=21eef34640';
+} from './couleur.js?v=09a3073e2f';
+import { T, nombre } from './i18n.js?v=09a3073e2f';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=09a3073e2f';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +80,9 @@ const NUANCE_PART = 0.05;
 // imprimé : une courbe, une ligne de quadrillage, un croisillon) sont une seule zone, s'il
 // les sépare sur au moins la moitié du plus petit côté de la plus petite.
 export const PONT_EPAISSEUR_MM = 1;
+// Paliers d'un trait lissé : au plus deux pixels de frange entre eux (trois prend, sous un
+// grain fort, des taches voisines pour des paliers).
+const FRANGE_ESCALIER = 2;
 const PONT_PART = 0.5;
 // Taux de remplissage de la boîte : un rectangle la remplit (0,9 au moins, la place laissée
 // aux coins arrondis) ; une ellipse en couvre π/4 ≈ 0,785, de 0,72 à 0,85 une fois lissée.
@@ -479,7 +482,8 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
     }
   }
   // Médiane de la crête d'un groupe de composantes (une seule, ou les morceaux d'une zone).
-  const medianeCrete = (comps) => {
+  const medianeCrete = (toutes) => {
+    const comps = toutes.filter((c) => indice[c] >= 0);
     let total = 0;
     for (const c of comps) for (let k = 0; k < 256; k++) total += histos[indice[c] * 256 + k];
     let cumul = 0;
@@ -528,6 +532,11 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   const pontLong = Math.ceil(pontMaxPx) + 2 * FRANGE_MAX;
   const semblables = (a, b) => grp[a] === grp[b] || distanceLab(labDe(a), labDe(b)) < RAYON_COULEUR;
   const bord = (c) => c > 0 && role[c] === 1 && !fondu[c];
+  const finesse = new Int8Array(nComp + 1).fill(-1);
+  // Fine : une région dont le cœur reste sous le pont, ou trop petite pour compter seule.
+  const fin = (c) => indice[c] < 0 || (finesse[c] < 0 ? (finesse[c] = epaisseurDepuisCrete(medianeCrete([c])) <= pontMaxPx ? 1 : 0) : finesse[c]) === 1;
+  // Palier d'escalier : une région, même trop petite pour compter seule, qui n'est pas du fond.
+  const palier = (c) => c > 0 && role[c] !== 2 && aire[c] > 0 && !fondu[c];
   const balayer = (debut, saut, n) => {
     for (let k = 0; k < n - 1; k++) {
       const a = comp[debut + k * saut];
@@ -551,7 +560,30 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   };
   for (let y = 0; y < H; y++) balayer(y * W, 1, W);
   for (let x = 0; x < W; x++) balayer(x, W, H);
-  const cote = (c) => Math.min(bx1[c] - bx0[c], by1[c] - by0[c]);
+  // Escaliers : un trait fin lissé, sur une figure petite, n'est plus qu'une suite de paliers
+  // qui ne se touchent qu'en diagonale, à travers leur frange. Deux régions fines de même
+  // couleur à au plus deux pixels l'une de l'autre, dans n'importe quelle direction, sont le
+  // même trait.
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const a = comp[y * W + x];
+      if (!palier(a) || !fin(a)) continue;
+      for (let dy = 0; dy <= FRANGE_ESCALIER; dy++) {
+        const yy = y + dy;
+        if (yy >= H) break;
+        for (let dx = -FRANGE_ESCALIER; dx <= FRANGE_ESCALIER; dx++) {
+          const xx = x + dx;
+          if ((dy === 0 && dx <= 0) || xx < 0 || xx >= W) continue;
+          const c = comp[yy * W + xx];
+          if (c !== a && palier(c) && racine(c) !== racine(a) && fin(c) && semblables(a, c)) unir(a, c);
+        }
+      }
+    }
+  }
+  // Côté d'une région, pour le pont : son épaisseur si c'est un trait fin (une courbe que
+  // croise une ligne n'est touchée par elle que sur son épaisseur), sinon le petit côté de
+  // sa boîte.
+  const cote = (c) => (fin(c) ? epaisseurDepuisCrete(medianeCrete([c])) : Math.min(bx1[c] - bx0[c], by1[c] - by0[c]));
   const pontsRetenus = [];
   for (const e of ponts.values()) {
     if (e.n >= PONT_PART * Math.min(cote(e.a), cote(e.b))) { unir(e.a, e.b); pontsRetenus.push(e); }
@@ -564,6 +596,8 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
     if (!parRacine.has(r)) parRacine.set(r, []);
     parRacine.get(r).push(c);
   }
+  // Les petits paliers rejoignent le trait auquel l'escalier les a liés.
+  for (let c = 1; c <= nComp; c++) if (role[c] === 0 && aire[c] > 0 && parRacine.has(racine(c))) parRacine.get(racine(c)).push(c);
   const zones = [...parRacine.values()];
   const objetDeComp = new Int32Array(nComp + 1).fill(-1);
   zones.forEach((comps, k) => { for (const c of comps) objetDeComp[c] = k; });
@@ -653,11 +687,13 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
       // La frange lissée de part et d'autre d'un trait en fait partie, pour moitié.
       const ep = c0 + (COUVERTURE_FRANGE * frangeK) / (a / c0);
       const epMm = ep * pas * mmParPx;
-      // Fine, et déjà dans sa plus grande composante : les quatre carreaux d'une fenêtre
-      // réunis par leur croisillon ne font pas un trait.
+      // Fine ; une zone réunie qui remplit sa boîte doit l'être déjà dans sa plus grande
+      // composante : les quatre carreaux d'une fenêtre réunis par leur croisillon ne font pas
+      // un trait, les paliers d'une courbe lissée si.
       const cMax = comps.reduce((m, c) => (aire[c] > aire[m] ? c : m), comps[0]);
       const cMaxCoeur = epaisseurDepuisCrete(medianeCrete([cMax]));
-      const fin = epMm <= EPAISSEUR_TRAIT_MAX_MM && a / (c0 * c0) >= FINESSE_TRAIT && aire[cMax] / (cMaxCoeur * cMaxCoeur) >= FINESSE_TRAIT;
+      const fin = epMm <= EPAISSEUR_TRAIT_MAX_MM && a / (c0 * c0) >= FINESSE_TRAIT
+        && (comps.length === 1 || taux < TAUX_RECTANGLE || aire[cMax] / (cMaxCoeur * cMaxCoeur) >= FINESSE_TRAIT);
       // Une case percée par le texte qu'elle porte reste une case : sa boîte est pleine,
       // texte compris, et ce n'est pas un trait.
       const casePercee = taux >= TAUX_RECTANGLE && texteDans(boite) > 0;
