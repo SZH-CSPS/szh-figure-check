@@ -1,5 +1,6 @@
 // Évalue la détection des zones (objets du graphique) sur les figures de référence :
-//   node outils/zones.mjs [--bruit n] [--svg] [--details] [--seulement nom]
+//   node outils/zones.mjs [--bruit n] [--echelle 2] [--svg] [--details] [--seulement nom]
+//   node outils/zones.mjs --banc      totaux dans cinq conditions (nette, grain, réduite)
 //
 // Lit test/verite-zones.json (produit par outils/zones-reference.mjs), passe chaque PNG par
 // la voie approchée (objetsBitmap puis analyserObjets, sans navigateur, les boîtes des textes
@@ -85,15 +86,57 @@ export function bruiter(rgba, n, graine = 1) {
   return sortie;
 }
 
-// Voie approchée sur le PNG d'une figure de la vérité.
-export async function analyserPng(verite, figure, { bruit = 0 } = {}) {
-  const { largeur, hauteur, rgba } = lirePng(await readFile(join(racine, 'exemples/reference', figure.png)));
+// Réduit une image d'un facteur entier (moyenne des pixels) : une figure envoyée petite.
+export function reduire(rgba, largeur, hauteur, f) {
+  const L = Math.floor(largeur / f), H = Math.floor(hauteur / f), sortie = new Uint8ClampedArray(L * H * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < L; x++) for (let c = 0; c < 4; c++) {
+    let s = 0;
+    for (let dy = 0; dy < f; dy++) for (let dx = 0; dx < f; dx++) s += rgba[((y * f + dy) * largeur + x * f + dx) * 4 + c];
+    sortie[(y * L + x) * 4 + c] = Math.round(s / (f * f));
+  }
+  return { rgba: sortie, largeur: L, hauteur: H };
+}
+
+// Voie approchée sur le PNG d'une figure de la vérité ; `echelle` 2 la lit réduite de moitié,
+// les boîtes et surfaces rendues ramenées aux pixels de la vérité.
+export async function analyserPng(verite, figure, { bruit = 0, echelle = 1 } = {}) {
+  let { largeur, hauteur, rgba } = lirePng(await readFile(join(racine, 'exemples/reference', figure.png)));
+  if (echelle > 1) ({ rgba, largeur, hauteur } = reduire(rgba, largeur, hauteur, echelle));
   const mmParPx = verite.largeurMm / largeur;
   const pixels = bruit ? bruiter(rgba, bruit) : rgba;
+  const textes = figure.textes.map((b) => ({ x0: b.x0 / echelle, y0: b.y0 / echelle, x1: b.x1 / echelle, y1: b.y1 / echelle }));
   const debut = performance.now();
-  const brut = objetsBitmap(pixels, largeur, hauteur, { boites: figure.textes, mmParPx });
-  const analyse = analyserObjets(brut, { mmParPx, boites: figure.textes });
-  return { analyse, mmParPx, ms: performance.now() - debut };
+  const brut = objetsBitmap(pixels, largeur, hauteur, { boites: textes, mmParPx });
+  const analyse = analyserObjets(brut, { mmParPx, boites: textes });
+  const ms = performance.now() - debut;
+  if (echelle > 1) {
+    for (const o of analyse.objets) {
+      o.boite = { x0: o.boite.x0 * echelle, y0: o.boite.y0 * echelle, x1: o.boite.x1 * echelle, y1: o.boite.y1 * echelle };
+      o.aire *= echelle * echelle;
+    }
+  }
+  return { analyse, mmParPx: mmParPx / echelle, ms };
+}
+
+// Les conditions du banc : nette, grain ±4, grain ±8, réduite de moitié, réduite et grain ±4.
+export const CONDITIONS = [
+  { nom: 'nette', bruit: 0, echelle: 1 }, { nom: 'grain ±4', bruit: 4, echelle: 1 }, { nom: 'grain ±8', bruit: 8, echelle: 1 },
+  { nom: 'réduite ½', bruit: 0, echelle: 2 }, { nom: 'réduite ½ + grain ±4', bruit: 4, echelle: 2 },
+];
+
+// Totaux de toutes les figures dans toutes les conditions.
+export async function banc(verite) {
+  const lignes = [];
+  for (const c of CONDITIONS) {
+    const t = { condition: c.nom, trouvees: 0, attendues: 0, decoupees: 0, intrus: 0, ms: 0 };
+    for (const f of verite.figures) {
+      const { analyse, mmParPx, ms } = await analyserPng(verite, f, c);
+      const e = evaluerZones(f, analyse, mmParPx);
+      t.trouvees += e.trouvees; t.attendues += e.attendues; t.decoupees += e.decoupees; t.intrus += e.intrus; t.ms += ms;
+    }
+    lignes.push(t);
+  }
+  return lignes;
 }
 
 const hex = (c) => (c ? '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase() : 'dégradé');
@@ -115,12 +158,18 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const args = process.argv.slice(2);
   const valeur = (nom) => { const i = args.indexOf(nom); return i >= 0 ? args[i + 1] : null; };
   const bruit = Number(valeur('--bruit')) || 0;
+  const echelle = Number(valeur('--echelle')) || 1;
+  if (args.includes('--banc')) {
+    const verite = JSON.parse(await readFile(join(racine, 'test/verite-zones.json'), 'utf8'));
+    for (const t of await banc(verite)) console.log(`${t.condition.padEnd(22)} zones ${t.trouvees}/${t.attendues}  découpées ${t.decoupees}  intrus ${t.intrus}  ${Math.round(t.ms)} ms`);
+    process.exit(0);
+  }
   const seulement = valeur('--seulement');
   const verite = JSON.parse(await readFile(join(racine, 'test/verite-zones.json'), 'utf8'));
   const figures = verite.figures.filter((f) => !seulement || f.fichier.includes(seulement));
-  console.log(`Voie approchée (PNG${bruit ? `, bruit ±${bruit}` : ''})`);
+  console.log(`Voie approchée (PNG${bruit ? `, bruit ±${bruit}` : ''}${echelle > 1 ? `, réduite 1/${echelle}` : ''})`);
   for (const f of figures) {
-    const { analyse, mmParPx, ms } = await analyserPng(verite, f, { bruit });
+    const { analyse, mmParPx, ms } = await analyserPng(verite, f, { bruit, echelle });
     console.log(rapport(f.png, evaluerZones(f, analyse, mmParPx), ms, args.includes('--details')));
   }
   if (args.includes('--svg')) {

@@ -89,7 +89,9 @@ permise (légende, quadrillage, axes, bords, vapeur, tige) ; tout le reste ne do
 écrit `test/verite-zones.json` : la partie visible de chaque zone est mesurée en masquant
 l’élément et en comparant les deux rendus, sa couleur est la moyenne de ses pixels hors frange.
 
-`node outils/zones.mjs [--bruit n] [--svg] [--details]` compare l’analyse à la vérité :
+`node outils/zones.mjs [--bruit n] [--echelle 2] [--svg] [--details]` compare l’analyse à la
+vérité ; `--banc` donne les totaux dans cinq conditions : nette, grain ±4, grain ±8, réduite
+de moitié (une figure envoyée petite), réduite et grain ±4. Les critères :
 
 - **trouvée** : un objet analysé (dans une série) recouvre la zone à IoU 0,5 au moins, avec
   une couleur à ΔE00 10 au plus de la couleur réelle ;
