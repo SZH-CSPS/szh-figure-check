@@ -6,14 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=09a3073e2f';
-import { MM_PAR_PT } from './formats.js?v=09a3073e2f';
+import { versHex } from './apca.js?v=e6b2e50046';
+import { MM_PAR_PT } from './formats.js?v=e6b2e50046';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=09a3073e2f';
-import { T, nombre } from './i18n.js?v=09a3073e2f';
-import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=09a3073e2f';
+} from './couleur.js?v=e6b2e50046';
+import { T, nombre } from './i18n.js?v=e6b2e50046';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=e6b2e50046';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +80,10 @@ const NUANCE_PART = 0.05;
 // imprimé : une courbe, une ligne de quadrillage, un croisillon) sont une seule zone, s'il
 // les sépare sur au moins la moitié du plus petit côté de la plus petite.
 export const PONT_EPAISSEUR_MM = 1;
+// Occlusion : un objet posé sur une surface la coupe sur au plus 25 % de la figure, et la
+// couleur reprend de l'autre côté sur au moins 40 % du petit côté du plus petit morceau.
+const OCCLUSION_PART = 0.25;
+const OCCLUSION_LIGNES = 0.4;
 // Paliers d'un trait lissé : au plus deux pixels de frange entre eux (trois prend, sous un
 // grain fort, des taches voisines pour des paliers).
 const FRANGE_ESCALIER = 2;
@@ -583,6 +587,44 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   // Côté d'une région, pour le pont : son épaisseur si c'est un trait fin (une courbe que
   // croise une ligne n'est touchée par elle que sur son épaisseur), sinon le petit côté de
   // sa boîte.
+  // Occlusion : une surface qu'un objet épais posé dessus coupe en morceaux (une colline
+  // derrière une maison et un arbre) reprend, de l'autre côté, la même couleur. Sur chaque
+  // ligne et chaque colonne, deux régions épaisses de même couleur que sépare seulement
+  // d'autres régions (pas le fond, pas leur couleur), sur au plus 25 % de la figure, sont la
+  // même zone s'il en est ainsi sur 40 % du petit côté de la plus petite. Deux rectangles
+  // (deux barres d'une même série, séparées par la barre d'une autre) restent deux objets.
+  const occlusions = new Map();
+  const epaisse = (c) => bord(c) && !fin(c);
+  const rectangulaire = (c) => aire[c] >= TAUX_RECTANGLE * (bx1[c] - bx0[c]) * (by1[c] - by0[c]);
+  const traverser = (debut, saut, n) => {
+    const max = Math.ceil(OCCLUSION_PART * n);
+    for (let k = 0; k < n - 1; k++) {
+      const a = comp[debut + k * saut];
+      if (!epaisse(a) || comp[debut + (k + 1) * saut] === a) continue;
+      let trou = 0, objet = false;
+      for (let j = k + 1; j < n && trou <= max; j++) {
+        const c = comp[debut + j * saut];
+        if (c === a || role[c] === 2) break;
+        if (c && epaisse(c) && semblables(a, c)) {
+          if (objet && racine(c) !== racine(a)) {
+            const k2 = cle(a, c);
+            occlusions.set(k2, (occlusions.get(k2) || 0) + 1);
+          }
+          break;
+        }
+        if (c && role[c] === 1) objet = true;
+        trou++;
+      }
+    }
+  };
+  for (let y = 0; y < H; y++) traverser(y * W, 1, W);
+  for (let x = 0; x < W; x++) traverser(x, W, H);
+  for (const [k2, nOcc] of occlusions) {
+    const a = Math.floor(k2 / (nComp + 1)), b = k2 % (nComp + 1);
+    if (rectangulaire(a) && rectangulaire(b)) continue;
+    const petit = Math.min(Math.min(bx1[a] - bx0[a], by1[a] - by0[a]), Math.min(bx1[b] - bx0[b], by1[b] - by0[b]));
+    if (nOcc >= OCCLUSION_LIGNES * petit) unir(a, b);
+  }
   const cote = (c) => (fin(c) ? epaisseurDepuisCrete(medianeCrete([c])) : Math.min(bx1[c] - bx0[c], by1[c] - by0[c]));
   const pontsRetenus = [];
   for (const e of ponts.values()) {

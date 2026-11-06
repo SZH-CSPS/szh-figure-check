@@ -392,6 +392,22 @@ test('une courbe fine et lissée sur une figure petite reste un seul trait, mêm
   assert.ok(oranges[0].boite.x0 <= 2 && oranges[0].boite.x1 >= L - 2, JSON.stringify(oranges[0].boite));
 });
 
+test('occlusion : une colline coupée par une maison reste une zone, des barres groupées non', () => {
+  const COLLINE = [0xb8, 0xe5, 0xbe], MUR = [0xf6, 0xeb, 0xd7], BLEU = [0x4f, 0x81, 0xbd], ORANGE = [0xf0, 0x8c, 0x00];
+  const { analyse } = detecter(600, 400, (x, y) => {
+    // Une colline (bord haut ondulé) et une maison posée dessus, qui la coupe en deux.
+    if (x >= 250 && x < 350 && y >= 60 && y < 200) return MUR;
+    if (y >= 80 + 20 * Math.sin(x / 40) && y < 180) return COLLINE;
+    // Trois barres collées, bleu, orange, bleu.
+    if (y >= 250 && y < 380) return x >= 100 && x < 160 ? BLEU : x >= 160 && x < 220 ? ORANGE : x >= 220 && x < 280 ? BLEU : BLANC;
+    return BLANC;
+  });
+  const collines = analyse.objets.filter((o) => o.couleur[1] > 220 && o.couleur[0] < 200);
+  assert.equal(collines.length, 1, collines.map((o) => JSON.stringify(o.boite)).join(' '));
+  assert.ok(collines[0].boite.x0 === 0 && collines[0].boite.x1 === 600);
+  assert.equal(analyse.objets.filter((o) => o.couleur[2] === BLEU[2]).length, 2);
+});
+
 test('surface minimale : un objet de moins de 0,25 mm² n’est pas retenu', () => {
   const cote = Math.floor(Math.sqrt(SURFACE_MIN_MM2) / MM_PAR_PX) - 1;   // 4 px à 0,1 mm/px
   const { analyse } = detecter(200, 200, (x, y) => (x >= 50 && x < 50 + cote && y >= 50 && y < 50 + cote ? ROUGE : BLANC));

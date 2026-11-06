@@ -9,9 +9,9 @@ import { readFile } from 'node:fs/promises';
 import { analyserPng, evaluerZones } from '../outils/zones.mjs';
 
 const verite = JSON.parse(await readFile(new URL('./verite-zones.json', import.meta.url), 'utf8'));
-// La colline lointaine du paysage est coupée en trois par le tronc et la maison posés
-// dessus : trois morceaux de la même série, pas une zone d'un seul tenant (voir docs/ZONES.md).
-const CACHEES = new Set(['colline-loin']);
+// Zones dont on tolère qu'elles sortent en morceaux : aucune (la colline lointaine, coupée
+// par le tronc et la maison, est réunie par l'occlusion).
+const CACHEES = new Set();
 
 for (const bruit of [0, 4]) {
   for (const f of verite.figures) {
