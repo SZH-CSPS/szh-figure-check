@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   objetsBitmap, analyserObjets, niveauEpaisseur, ordonnerEndroits,
-  TAUX_RECTANGLE, TAUX_ELLIPSE, EPAISSEUR_AMELIORER_PT, EPAISSEUR_CORRIGER_PT, SURFACE_MIN_MM2,
+  TAUX_RECTANGLE, TAUX_ELLIPSE, EPAISSEUR_AMELIORER_PT, EPAISSEUR_CORRIGER_PT, SURFACE_MIN_MM2, ZONE_MIN_MM2, TRAIT_MIN_MM,
 } from '../js/objets.js';
+import { contrasteGraphique } from '../js/couleur.js';
 import { MM_PAR_PT } from '../js/formats.js';
 
 const ROUGE = [0xd7, 0x30, 0x1f], VERT = [0x1a, 0x98, 0x50], JAUNE = [0xf2, 0xc5, 0x3d], NOIR = [0, 0, 0], BLANC = [255, 255, 255];
@@ -252,7 +253,7 @@ test('source exacte : un objet de la couleur du fond n’est pas un objet, une l
       objet(ROUGE, { x0: 100, y0: 100, x1: 200, y1: 500 }),
       objet(ROUGE, { x0: 300, y0: 200, x1: 400, y1: 500 }),
       objet(ROUGE, { x0: 600, y0: 40, x1: 620, y1: 60 }),                      // case de légende
-      objet(ROUGE, { x0: 700, y0: 40, x1: 704, y1: 44 }),                      // puce, plus petite que le tiers du texte
+      objet(ROUGE, { x0: 700, y0: 40, x1: 709.5, y1: 45.5 }),                  // puce, plus basse que le tiers du texte
     ],
   };
   const boites = [{ x0: 628, y0: 42, x1: 700, y1: 58 }, { x0: 712, y0: 40, x1: 790, y1: 58 }];
@@ -285,6 +286,92 @@ test('texture : des petites formes disparates de même couleur ne font pas une s
   });
   assert.equal(analyse.series.length, 0, JSON.stringify(analyse.series.map((s) => s.types)));
   assert.equal(analyse.formes, false);
+});
+
+test('léger dégradé pastel : une seule zone, dans une série, jugée sur sa nuance la plus claire', () => {
+  const HAUT = [0xa9, 0xc9, 0xea], BAS = [0x97, 0xb9, 0xde];
+  const { brut, analyse } = detecter(400, 300, (x, y) => (x >= 100 && x < 300 && y >= 60 && y < 220 ? melange(HAUT, BAS, (y - 60) / 159) : BLANC));
+  assert.equal(brut.objets.length, 1, brut.objets.map((o) => `${o.type} ${o.etendue}`).join(', '));
+  const o = analyse.objets[0];
+  assert.equal(o.type, 'rectangle');
+  assert.equal(analyse.series.length, 1);
+  assert.equal(analyse.degrades, 0);
+  // Ses nuances : la claire en haut, la foncée en bas ; le contraste retenu est celui de la claire.
+  assert.ok(o.nuances[0][2] > o.nuances[1][2], JSON.stringify(o.nuances));
+  assert.ok(Math.abs(o.contrasteFond.lc - contrasteGraphique(o.nuances[0], BLANC).lc) < 1e-9);
+  assert.ok(o.contrasteFond.lc < contrasteGraphique(o.couleur, BLANC).lc);
+});
+
+test('léger dégradé vif, horizontal ou en disque : une seule zone chacun', () => {
+  const ORANGE_CLAIR = [0xef, 0x6c, 0x1a], ORANGE_FONCE = [0xd4, 0x52, 0x0c], JAUNE_VIF = [0xff, 0xd4, 0x3b], JAUNE_FONCE = [0xfc, 0xb5, 0x16];
+  const { analyse } = detecter(600, 300, (x, y) => {
+    if (x >= 40 && x < 280 && y >= 60 && y < 240) return melange(ORANGE_CLAIR, ORANGE_FONCE, (x - 40) / 239);
+    const r = Math.hypot(x - 450, y - 150);
+    if (r <= 90) return melange(JAUNE_VIF, JAUNE_FONCE, r / 90);
+    return BLANC;
+  });
+  assert.equal(analyse.objets.length, 2, analyse.objets.map((o) => o.type).join(', '));
+  assert.deepEqual(analyse.objets.map((o) => o.type).sort(), ['ellipse', 'rectangle']);
+  assert.equal(analyse.series.length, 2);
+});
+
+test('une bande coupée par une courbe et une ligne fines reste une seule zone', () => {
+  const BANDE = [0xff, 0xe9, 0xa1], COURBE = [0xe8, 0x59, 0x0c], GRIS = [0xd0, 0xd4, 0xd8];
+  const { analyse } = detecter(500, 300, (x, y) => {
+    if (Math.abs(y - (60 + 0.4 * x)) <= 1.5 && x >= 20 && x < 480) return COURBE;      // courbe de 3 px
+    if (y === 150 && x >= 20 && x < 480) return GRIS;                                 // ligne de quadrillage
+    if (x >= 150 && x < 350 && y >= 40 && y < 260) return BANDE;
+    return BLANC;
+  });
+  const bandes = analyse.objets.filter((o) => o.couleur[2] < 200 && o.couleur[0] > 240 && o.couleur[1] > 200);
+  assert.equal(bandes.length, 1, analyse.objets.map((o) => `${o.type} ${o.couleur}`).join(', '));
+  assert.ok(bandes[0].comps.length >= 3);
+  assert.deepEqual(bandes[0].boite, { x0: 150, y0: 40, x1: 350, y1: 260 });
+});
+
+test('deux barres de même couleur séparées par un blanc restent deux barres, quadrillage ou non', () => {
+  const GRIS = [0xdb, 0xdb, 0xdb];
+  const { analyse } = detecter(400, 300, (x, y) => {
+    if ((x >= 100 && x < 190) || (x >= 198 && x < 288)) if (y >= 60 && y < 260) return ROUGE;
+    if (y === 120 || y === 200) return GRIS;                                          // passe dans l'espace
+    return BLANC;
+  });
+  assert.equal(analyse.objets.filter((o) => o.couleur[0] === ROUGE[0]).length, 2);
+});
+
+test('micro-zones : points, graduations et brins ne sortent pas, une case de 3 mm oui', () => {
+  const { analyse } = detecter(400, 300, (x, y) => {
+    for (const [cx, cy] of [[40, 40], [80, 60], [120, 40]]) if (Math.hypot(x - cx, y - cy) <= 5) return ROUGE;   // 0,8 mm²
+    if (x >= 200 && x < 202 && y >= 50 && y < 80) return NOIR;                       // graduation de 3 mm
+    if (x >= 250 && x < 280 && y >= 150 && y < 180) return VERT;                     // case de 3 × 3 mm
+    return BLANC;
+  });
+  assert.equal(analyse.objets.length, 1, analyse.objets.map((o) => `${o.type} ${o.aire}`).join(', '));
+  assert.equal(analyse.objets[0].couleur[1], VERT[1]);
+  assert.ok(Math.PI * 25 * MM_PAR_PX ** 2 < ZONE_MIN_MM2 && 30 * MM_PAR_PX < TRAIT_MIN_MM);
+});
+
+test('une ombre douce fondue dans le fond n’est pas une zone', () => {
+  const BOITE = [0x1c, 0x7e, 0xd6];
+  const { analyse } = detecter(400, 300, (x, y) => {
+    if (x >= 100 && x < 300 && y >= 80 && y < 200) return BOITE;
+    // Ombre décalée, un gris qui s'efface en 60 px jusqu'au blanc (un flou gaussien de 20 px).
+    const d = Math.hypot(Math.max(110 - x, x - 309, 0), Math.max(95 - y, y - 214, 0));
+    return melange([0xb0, 0xb0, 0xb0], BLANC, Math.min(1, 0.3 + d / 85));
+  });
+  assert.equal(analyse.objets.length, 1, analyse.objets.map((o) => `${o.type} ${o.couleur} ${o.aire}`).join(', '));
+  assert.equal(analyse.objets[0].couleur[2], BOITE[2]);
+});
+
+test('le grain d’une image compressée ne découpe pas un aplat', () => {
+  let graine = 7;
+  const bruit = () => { graine = (graine * 1103515245 + 12345) & 0x7fffffff; return Math.round((graine / 0x7fffffff) * 12 - 6); };
+  const { analyse } = detecter(500, 300, (x, y) => {
+    const c = x >= 60 && x < 200 && y >= 60 && y < 260 ? ROUGE : x >= 260 && x < 400 && y >= 100 && y < 260 ? JAUNE : BLANC;
+    return c.map((v) => Math.max(0, Math.min(255, v + bruit())));
+  });
+  assert.equal(analyse.objets.length, 2, analyse.objets.map((o) => `${o.type} ${o.couleur} ${o.aire}`).join(', '));
+  assert.ok(analyse.objets.every((o) => o.type === 'rectangle'));
 });
 
 test('surface minimale : un objet de moins de 0,25 mm² n’est pas retenu', () => {

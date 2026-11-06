@@ -6,14 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=4ca0c853e6';
-import { MM_PAR_PT } from './formats.js?v=4ca0c853e6';
+import { versHex } from './apca.js?v=21eef34640';
+import { MM_PAR_PT } from './formats.js?v=21eef34640';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=4ca0c853e6';
-import { T, nombre } from './i18n.js?v=4ca0c853e6';
-import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=4ca0c853e6';
+} from './couleur.js?v=21eef34640';
+import { T, nombre } from './i18n.js?v=21eef34640';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=21eef34640';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -27,11 +27,20 @@ export const PIXELS_MAX = 10e6;
 // 6 : une surface pâle sur fond blanc reste un objet, dont le contraste sera jugé.
 export const RAYON_COULEUR = 12;
 export const RAYON_FOND = 6;
+// Lissage du grain : un voisin compte dans la moyenne d'un pixel s'il en diffère d'au plus
+// 10 sur 255 par canal.
+const LISSAGE = 10;
 // Couleurs retenues au plus ; les nuances plus rares rejoignent la plus proche.
 const COULEURS_MAX = 64;
-// Un objet couvre au moins 0,25 mm² à l'impression, un carré d'un demi-millimètre : le
-// point d'une courbe passe, le grain d'une image compressée non.
+// Une région de pixels compte dans l'analyse dès 0,25 mm² à l'impression, un carré d'un
+// demi-millimètre : le grain d'une image compressée non. Mais une zone n'est montrée et jugée
+// que si elle est utile à la lecture : une surface d'au moins 1,5 mm² (un rond de 1,4 mm, le
+// plus petit marqueur d'un nuage de points), un trait d'au moins 4 mm de long. Une poignée de
+// porte, une fleur, un reflet, une graduation, une pastille ou un oiseau dessinés en quelques
+// pixels n'en sont pas.
 export const SURFACE_MIN_MM2 = 0.25;
+export const ZONE_MIN_MM2 = 1.5;
+export const TRAIT_MIN_MM = 4;
 // Halo autour des textes lus, écarté de l'analyse : 2 px plus un quart de la hauteur du
 // texte, le même que pour les couleurs des textes. Un texte dont le pourtour appartient
 // à 90 % à une seule composante est posé sur elle.
@@ -47,17 +56,31 @@ const MARGE_FRANGE = 8;
 // entre le trait et le fond.
 const COUVERTURE_FRANGE = 0.5;
 // Deux régions voisines se continuent l'une l'autre quand, sur 40 % au moins de leur
-// frontière directe, les pixels de part et d'autre diffèrent de moins de 8 sur 255 par
-// canal : c'est un dégradé que la réduction des couleurs a découpé, pas deux objets. Entre
+// frontière directe, les pixels de part et d'autre (à un pixel de la frontière) diffèrent
+// de moins de 8 sur 255 par canal : c'est un dégradé que la réduction des couleurs a
+// découpé, pas deux objets. Entre
 // deux aplats distincts, le saut vaut au moins l'écart qui sépare deux couleurs retenues.
 const SAUT_DEGRADE = 8;
 const PART_DEGRADE = 0.4;
-// Et cette frontière couvre au moins 20 % du pourtour de la plus grande des deux régions :
-// une bande de dégradé touche sa voisine sur toute sa longueur.
+// Et cette frontière couvre au moins 20 % du pourtour de la plus petite des deux régions :
+// une bande de dégradé touche sa voisine sur toute sa longueur, une ombre douce la surface
+// qui la porte ; la pointe d'une flèche qui effleure un cadre de sa couleur ne l'emporte pas.
 const CONTINUITE_MIN = 0.2;
-// Écart type des pixels d'un objet uni : sous 8 par canal, un aplat, même en JPEG de basse
-// qualité ; au-dessus, une texture ou un dégradé.
-const ECART_UNI = 8;
+// Une zone qui se fond dans le fond (plus de la moitié de sa surface) et dont la couleur
+// moyenne en reste à moins de 20 unités Lab (ombre douce, halo, reflet sur le fond) est du
+// fond, pas une zone ; plus loin du fond, c'est un dégradé.
+const FONDU_FOND = 20;
+// Étendue d'une zone : écart Lab (CIE76) de ses pixels à sa couleur moyenne, au 95e centile.
+// Jusqu'à 20, un aplat ou un léger dégradé (pastel ou vif) : une seule zone, jugée sur sa
+// couleur moyenne et sur ses nuances claire et foncée (les 5 % de pixels les plus clairs et
+// les plus foncés). Au-delà, un dégradé fort, sans couleur à juger.
+export const ETENDUE_LEGERE = 20;
+const NUANCE_PART = 0.05;
+// Pont : deux régions de même couleur que seul un trait fin coupe (cœur d'au plus 1 mm
+// imprimé : une courbe, une ligne de quadrillage, un croisillon) sont une seule zone, s'il
+// les sépare sur au moins la moitié du plus petit côté de la plus petite.
+export const PONT_EPAISSEUR_MM = 1;
+const PONT_PART = 0.5;
 // Taux de remplissage de la boîte : un rectangle la remplit (0,9 au moins, la place laissée
 // aux coins arrondis) ; une ellipse en couvre π/4 ≈ 0,785, de 0,72 à 0,85 une fois lissée.
 export const TAUX_RECTANGLE = 0.9;
@@ -106,6 +129,9 @@ const ALLONGEMENT_TRAIT = 4;
 // Un tronçon de trait plus court que le cinquième du plus long trait de sa série (un bout
 // d'axe sous une barre, une graduation) ne décide pas de l'épaisseur minimale.
 const TRONCON_MIN = 0.2;
+// Un élément d'un SVG moins opaque que 0,15 (groupes parents compris) n'est pas une zone :
+// une ombre, un voile. Plus opaque, sa couleur est mêlée au fond selon son opacité.
+const OPACITE_MIN = 0.15;
 // Fond d'un SVG ou d'un PDF : le plus grand rectangle, s'il couvre la moitié de la figure.
 const FOND_COUVERTURE = 0.5;
 // Un objet dont la boîte est aux quatre cinquièmes dans celle d'un texte est le texte.
@@ -181,18 +207,38 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   const W = Math.floor(largeur / pas), H = Math.floor(hauteur / pas), N = W * H;
   const surfaceMin = SURFACE_MIN_MM2 / (mmParPx * mmParPx) / (pas * pas);
 
-  // Image réduite, et case de couleur de chaque pixel (5 bits par canal).
-  const rgb = new Uint8Array(N * 3);
-  const cas = new Uint16Array(N);
-  const n = new Uint32Array(32768), sr = new Float64Array(32768), sg = new Float64Array(32768), sb = new Float64Array(32768);
+  // Image réduite, lissée sans flouter les bords : chaque pixel prend la moyenne de ses voisins
+  // (3 × 3) qui en diffèrent d'au plus 10 par canal. Le grain d'une image compressée
+  // s'efface ; un bord, un trait d'un pixel ou la frange lissée d'un aplat restent.
+  const brutes = new Uint8Array(N * 3);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const p = (y * pas * largeur + x * pas) * 4, i = y * W + x;
-      const r = rgba[p], g = rgba[p + 1], b = rgba[p + 2];
-      rgb[i * 3] = r; rgb[i * 3 + 1] = g; rgb[i * 3 + 2] = b;
-      const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
-      cas[i] = k; n[k]++; sr[k] += r; sg[k] += g; sb[k] += b;
+      brutes[i * 3] = rgba[p]; brutes[i * 3 + 1] = rgba[p + 1]; brutes[i * 3 + 2] = rgba[p + 2];
     }
+  }
+  const rgb = new Uint8Array(N * 3);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x, r0 = brutes[i * 3], g0 = brutes[i * 3 + 1], b0 = brutes[i * 3 + 2];
+      let r = 0, g = 0, b = 0, k = 0;
+      for (let dy = y > 0 ? -1 : 0; dy <= (y < H - 1 ? 1 : 0); dy++) {
+        for (let dx = x > 0 ? -1 : 0; dx <= (x < W - 1 ? 1 : 0); dx++) {
+          const j = (i + dy * W + dx) * 3, vr = brutes[j], vg = brutes[j + 1], vb = brutes[j + 2];
+          if (Math.abs(vr - r0) > LISSAGE || Math.abs(vg - g0) > LISSAGE || Math.abs(vb - b0) > LISSAGE) continue;
+          r += vr; g += vg; b += vb; k++;
+        }
+      }
+      rgb[i * 3] = Math.round(r / k); rgb[i * 3 + 1] = Math.round(g / k); rgb[i * 3 + 2] = Math.round(b / k);
+    }
+  }
+  // Case de couleur de chaque pixel (5 bits par canal).
+  const cas = new Uint16Array(N);
+  const n = new Uint32Array(32768), sr = new Float64Array(32768), sg = new Float64Array(32768), sb = new Float64Array(32768);
+  for (let i = 0; i < N; i++) {
+    const r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2];
+    const k = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+    cas[i] = k; n[k]++; sr[k] += r; sg[k] += g; sb[k] += b;
   }
 
   // Textes : masque avec halo, et sommes cumulées pour compter le texte dans une boîte.
@@ -316,6 +362,35 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   const role = new Uint8Array(nComp + 1);
   for (let c = 1; c <= nComp; c++) role[c] = grp[c] === grpFond ? 2 : aire[c] >= surfaceMin ? 1 : 0;
 
+  // Micro-régions enclavées (sous 1,5 mm², une fleur dans l'herbe, une poignée de porte, un
+  // reflet) : leurs pixels et leur frange reviennent à la zone qui les entoure à 90 %, sans
+  // compter dans sa couleur. La zone garde sa forme, et ses contours n'ont pas de trous. Sur
+  // le fond, elles restent à part : écartées plus loin, elles comptent pour une texture.
+  const zoneMinPx = ZONE_MIN_MM2 / (mmParPx * mmParPx) / (pas * pas);
+  const absorbe = new Uint8Array(N);
+  const bouche = new Float64Array(nComp + 1);
+  for (let c = 1; c <= nComp; c++) {
+    if (aire[c] >= zoneMinPx) continue;
+    const x0 = bx0[c] - 2, y0 = by0[c] - 2, x1 = bx1[c] + 1, y1 = by1[c] + 1;
+    if (x0 < 0 || y0 < 0 || x1 >= W || y1 >= H) continue;
+    const compte = new Map();
+    let total = 0;
+    const voir = (x, y) => { const k = comp[y * W + x]; total++; if (k && k !== c) compte.set(k, (compte.get(k) || 0) + 1); };
+    for (let x = x0; x <= x1; x++) { voir(x, y0); voir(x, y1); }
+    for (let y = y0 + 1; y < y1; y++) { voir(x0, y); voir(x1, y); }
+    let maitre = 0, nMaitre = 0;
+    for (const [k, v] of compte) if (v > nMaitre) { maitre = k; nMaitre = v; }
+    if (!maitre || role[maitre] !== 1 || nMaitre < ENTOURE_PART * total || aire[maitre] < aire[c]) continue;
+    for (let y = y0 + 1; y < y1; y++) {
+      for (let x = x0 + 1; x < x1; x++) {
+        const p = y * W + x;
+        if (comp[p] === c || !comp[p]) { comp[p] = maitre; absorbe[p] = 1; bouche[maitre]++; }
+      }
+    }
+    role[c] = 0;
+  }
+
+
   // Contacts entre candidats, et entre un candidat et le fond : frontières directes, avec le
   // saut de couleur qui les traverse, et frontières à travers une frange sans groupe. Les
   // pixels de frange qui bordent chaque candidat sont comptés : ils épaississent ses traits.
@@ -329,6 +404,10 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
     c.n++; c.direct += direct; c.petits += direct && saut <= SAUT_DEGRADE ? 1 : 0;
   };
   const saut = (p, q) => Math.max(Math.abs(rgb[p * 3] - rgb[q * 3]), Math.abs(rgb[p * 3 + 1] - rgb[q * 3 + 1]), Math.abs(rgb[p * 3 + 2] - rgb[q * 3 + 2]));
+  // Saut à travers une frontière, pris un pixel plus loin de chaque côté quand ces pixels
+  // sont encore des deux régions : dans un dégradé, quatre pixels de suite restent proches ;
+  // au bord lissé d'un aplat, ils enjambent tout l'écart, même si deux voisins se ressemblent.
+  const sautLarge = (p, q, d, avant, apres) => saut(avant && comp[p - d] === comp[p] ? p - d : p, apres && comp[q + d] === comp[q] ? q + d : q);
   const premier = (p, delta, limite, portee) => {
     for (let k = 1; k <= portee && k <= limite; k++) {
       const c = comp[p + k * delta];
@@ -347,31 +426,12 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
       const p = y * W + x, cp = comp[p];
       if (cp) {
         if (!role[cp]) continue;
-        if (x < W - 1) { const cq = comp[p + 1]; if (cq && cq !== cp && role[cq] && (role[cp] === 1 || role[cq] === 1)) noter(cp, cq, 1, saut(p, p + 1)); }
-        if (y < H - 1) { const cq = comp[p + W]; if (cq && cq !== cp && role[cq] && (role[cp] === 1 || role[cq] === 1)) noter(cp, cq, 1, saut(p, p + W)); }
+        if (x < W - 1) { const cq = comp[p + 1]; if (cq && cq !== cp && role[cq] && (role[cp] === 1 || role[cq] === 1)) noter(cp, cq, 1, sautLarge(p, p + 1, 1, x > 0, x < W - 2)); }
+        if (y < H - 1) { const cq = comp[p + W]; if (cq && cq !== cp && role[cq] && (role[cp] === 1 || role[cq] === 1)) noter(cp, cq, 1, sautLarge(p, p + W, W, y > 0, y < H - 2)); }
       } else {
         bordure(premier(p, -1, x, FRANGE_MAX), premier(p, 1, W - 1 - x, FRANGE_MAX));
         bordure(premier(p, -W, y, FRANGE_MAX), premier(p, W, H - 1 - y, FRANGE_MAX));
       }
-    }
-  }
-
-  // Dégradés : les régions qui se continuent fusionnent (union-find) ; une région qui se
-  // fond dans le fond est un dégradé à elle seule. La frontière continue doit être une vraie
-  // part du pourtour de la plus grande des deux régions : la pointe d'une flèche en dégradé
-  // qui touche un cadre de sa couleur n'emporte pas le cadre.
-  const parent = new Int32Array(nComp + 1);
-  for (let c = 0; c <= nComp; c++) parent[c] = c;
-  const racine = (c) => { while (parent[c] !== c) { parent[c] = parent[parent[c]]; c = parent[c]; } return c; };
-  const fondu = new Uint8Array(nComp + 1);
-  const pourtour = (c) => 2 * (bx1[c] - bx0[c] + by1[c] - by0[c]);
-  for (const c of contactsComp.values()) {
-    if (!c.direct || c.petits < PART_DEGRADE * c.direct) continue;
-    if (role[c.a] === 1 && role[c.b] === 1) {
-      if (c.n >= CONTINUITE_MIN * Math.max(pourtour(c.a), pourtour(c.b))) parent[racine(c.a)] = racine(c.b);
-    } else {
-      const candidat = role[c.a] === 1 ? c.a : c.b;
-      if (c.n >= CONTINUITE_MIN * pourtour(candidat)) fondu[candidat] = 1;
     }
   }
 
@@ -418,48 +478,186 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
       histos[i * 256 + Math.min(255, Math.round(d / 3))]++;
     }
   }
-  const medianeCrete = (i) => {
+  // Médiane de la crête d'un groupe de composantes (une seule, ou les morceaux d'une zone).
+  const medianeCrete = (comps) => {
     let total = 0;
-    for (let k = 0; k < 256; k++) total += histos[i * 256 + k];
+    for (const c of comps) for (let k = 0; k < 256; k++) total += histos[indice[c] * 256 + k];
     let cumul = 0;
-    for (let k = 0; k < 256; k++) { cumul += histos[i * 256 + k]; if (cumul * 2 >= total) return k; }
+    for (let k = 0; k < 256; k++) {
+      for (const c of comps) cumul += histos[indice[c] * 256 + k];
+      if (cumul * 2 >= total) return k;
+    }
     return 1;
   };
 
-  // Objets : une composante, ou un groupe de composantes qui se continuent (dégradé).
+  const pontMaxPx = PONT_EPAISSEUR_MM / (pas * mmParPx);
+  const labs = [];
+  const labDe = (c) => (labs[c] ??= versLab([cr[c] / aire[c], cg[c] / aire[c], cb[c] / aire[c]]));
+
+  // Zones : les composantes se réunissent (union-find) quand elles se continuent (dégradé),
+  // ou quand seul un séparateur fin les coupe (une bande que traverse une courbe).
+  const parent = new Int32Array(nComp + 1);
+  for (let c = 0; c <= nComp; c++) parent[c] = c;
+  const racine = (c) => { while (parent[c] !== c) { parent[c] = parent[parent[c]]; c = parent[c]; } return c; };
+  const unir = (a, b) => { parent[racine(a)] = racine(b); };
+
+  // Dégradés : la frontière continue est une vraie part du pourtour de la plus petite des
+  // deux régions (une bande de dégradé touche sa voisine sur toute sa longueur, une ombre
+  // douce la surface qui la porte) ; une région qui se fond dans le fond est notée.
+  const fondu = new Uint8Array(nComp + 1);
+  const pourtour = (c) => 2 * (bx1[c] - bx0[c] + by1[c] - by0[c]);
+  for (const c of contactsComp.values()) {
+    if (!c.direct || c.petits < PART_DEGRADE * c.direct) continue;
+    if (role[c.a] === 1 && role[c.b] === 1) {
+      if (c.n >= CONTINUITE_MIN * Math.min(pourtour(c.a), pourtour(c.b))) unir(c.a, c.b);
+    } else {
+      const candidat = role[c.a] === 1 ? c.a : c.b;
+      if (c.n >= CONTINUITE_MIN * pourtour(candidat)) fondu[candidat] = 1;
+    }
+  }
+
+  // Ponts : sur chaque ligne et chaque colonne, deux candidats de même couleur que sépare
+  // seulement un trait fin (au plus 1 mm, plus deux franges) : une courbe, une ligne de
+  // quadrillage, le croisillon d'une fenêtre, même s'il fait partie d'une autre région. Il en
+  // faut sur la moitié du plus petit côté de la plus petite des deux. Un trou où passe la
+  // couleur du fond n'est pas un trait (deux barres de même couleur séparées par un espace
+  // blanc restent deux barres, même là où le quadrillage enclôt cet espace), un simple liseré
+  // de frange non plus ; une ombre douce, fondue dans le fond, n'est pas réunie à la boîte
+  // qu'elle borde.
+  const ponts = new Map();
+  const pontLong = Math.ceil(pontMaxPx) + 2 * FRANGE_MAX;
+  const semblables = (a, b) => grp[a] === grp[b] || distanceLab(labDe(a), labDe(b)) < RAYON_COULEUR;
+  const bord = (c) => c > 0 && role[c] === 1 && !fondu[c];
+  const balayer = (debut, saut, n) => {
+    for (let k = 0; k < n - 1; k++) {
+      const a = comp[debut + k * saut];
+      if (!bord(a) || comp[debut + (k + 1) * saut] === a) continue;
+      // Fin d'un passage dans `a` : le trou qui suit, jusqu'à la région suivante de sa couleur.
+      let trou = 0, trait = false;
+      for (let j = k + 1; j < n && trou <= pontLong; j++) {
+        const c = comp[debut + j * saut];
+        if (c === a || role[c] === 2) break;
+        if (bord(c) && semblables(a, c) && trou && trait) {
+          const k2 = cle(a, c);
+          let e = ponts.get(k2);
+          if (!e) { e = { a: Math.min(a, c), b: Math.max(a, c), n: 0, px: 0 }; ponts.set(k2, e); }
+          e.n++; e.px += trou;
+          break;
+        }
+        trou++;
+        if (c) trait = true;
+      }
+    }
+  };
+  for (let y = 0; y < H; y++) balayer(y * W, 1, W);
+  for (let x = 0; x < W; x++) balayer(x, W, H);
+  const cote = (c) => Math.min(bx1[c] - bx0[c], by1[c] - by0[c]);
+  const pontsRetenus = [];
+  for (const e of ponts.values()) {
+    if (e.n >= PONT_PART * Math.min(cote(e.a), cote(e.b))) { unir(e.a, e.b); pontsRetenus.push(e); }
+  }
+
+  // Zones : une composante, ou les composantes réunies.
   const parRacine = new Map();
   for (const c of candidats) {
     const r = racine(c);
     if (!parRacine.has(r)) parRacine.set(r, []);
     parRacine.get(r).push(c);
   }
-  const objets = [];
+  const zones = [...parRacine.values()];
   const objetDeComp = new Int32Array(nComp + 1).fill(-1);
-  for (const comps of parRacine.values()) {
-    let a = 0, boite = null, r = 0, g = 0, b = 0, r2 = 0, g2 = 0, b2 = 0;
+  zones.forEach((comps, k) => { for (const c of comps) objetDeComp[c] = k; });
+  const pontsDe = new Float64Array(zones.length);
+  for (const e of pontsRetenus) pontsDe[objetDeComp[e.a]] += e.px;
+  zones.forEach((comps, k) => { for (const c of comps) pontsDe[k] += bouche[c]; });
+
+  // Couleur de chaque zone, pixel à pixel : moyenne, écart Lab de ses pixels à la moyenne
+  // (histogramme, pour le 95e centile : son étendue), et nuances claire et foncée (moyenne
+  // des 5 % de pixels les plus clairs, et des 5 % les plus foncés).
+  const nG = zones.length;
+  const somme = new Float64Array(nG * 4);
+  for (let k = 0; k < nG; k++) {
+    for (const c of zones[k]) { somme[k * 4] += cr[c]; somme[k * 4 + 1] += cg[c]; somme[k * 4 + 2] += cb[c]; somme[k * 4 + 3] += aire[c]; }
+  }
+  const labMoyen = zones.map((_, k) => versLab([somme[k * 4] / somme[k * 4 + 3], somme[k * 4 + 1] / somme[k * 4 + 3], somme[k * 4 + 2] / somme[k * 4 + 3]]));
+  const labCase = new Float32Array(32768 * 3).fill(NaN);
+  const BINS_E = 64, BINS_L = 51;
+  const histoE = new Uint32Array(nG * BINS_E);
+  const parL = new Float64Array(nG * BINS_L * 4);
+  for (let p = 0; p < N; p++) {
+    const cp = comp[p];
+    if (!cp || masque[p] || absorbe[p]) continue;      // un texte ou un détail posé sur la zone ne compte pas dans sa couleur
+    const k = objetDeComp[cp];
+    if (k < 0) continue;
+    const q = cas[p];
+    if (Number.isNaN(labCase[q * 3])) { const l = versLab([sr[q] / n[q], sg[q] / n[q], sb[q] / n[q]]); labCase[q * 3] = l[0]; labCase[q * 3 + 1] = l[1]; labCase[q * 3 + 2] = l[2]; }
+    const m = labMoyen[k];
+    const e = Math.sqrt((labCase[q * 3] - m[0]) ** 2 + (labCase[q * 3 + 1] - m[1]) ** 2 + (labCase[q * 3 + 2] - m[2]) ** 2);
+    histoE[k * BINS_E + Math.min(BINS_E - 1, Math.floor(e))]++;
+    const b = (k * BINS_L + Math.max(0, Math.min(BINS_L - 1, Math.floor(labCase[q * 3] / 2)))) * 4;
+    parL[b] += rgb[p * 3]; parL[b + 1] += rgb[p * 3 + 1]; parL[b + 2] += rgb[p * 3 + 2]; parL[b + 3]++;
+  }
+  const etendueDe = (k) => {
+    let total = 0;
+    for (let i = 0; i < BINS_E; i++) total += histoE[k * BINS_E + i];
+    let cumul = 0;
+    for (let i = 0; i < BINS_E; i++) { cumul += histoE[k * BINS_E + i]; if (cumul >= 0.95 * total) return i + 1; }
+    return BINS_E;
+  };
+  const nuanceDe = (k, depuisClair) => {
+    let total = 0;
+    for (let i = 0; i < BINS_L; i++) total += parL[(k * BINS_L + i) * 4 + 3];
+    const s = [0, 0, 0, 0];
+    for (let j = 0; j < BINS_L && s[3] < NUANCE_PART * total; j++) {
+      const b = (k * BINS_L + (depuisClair ? BINS_L - 1 - j : j)) * 4;
+      for (let c = 0; c < 4; c++) s[c] += parL[b + c];
+    }
+    return [s[0] / s[3], s[1] / s[3], s[2] / s[3]].map(Math.round);
+  };
+
+  // Objets : chaque zone, sauf celles qui se fondent dans le fond sans s'en distinguer (ombre
+  // douce, halo) ; un dégradé fort reste un dégradé, sans couleur à juger.
+  const objets = [];
+  const objetDeGroupe = new Int32Array(nG).fill(-1);
+  for (let k = 0; k < nG; k++) {
+    const comps = zones[k];
+    const a = somme[k * 4 + 3];
+    const couleur = [somme[k * 4] / a, somme[k * 4 + 1] / a, somme[k * 4 + 2] / a];
+    // Une zone faite surtout de régions fondues dans le fond, et proche de sa couleur, en fait
+    // partie ; une ombre douce réunie à la table qui la porte ne change rien à la table.
+    let fondue = 0;
+    for (const c of comps) if (fondu[c]) fondue += aire[c];
+    if (fondue > a / 2 && distanceLab(labMoyen[k], versLab(fond)) < FONDU_FOND) continue;
+    let r2 = 0, g2 = 0, b2 = 0, boite = null, frangeK = 0;
     for (const c of comps) {
-      a += aire[c]; r += cr[c]; g += cg[c]; b += cb[c]; r2 += cr2[c]; g2 += cg2[c]; b2 += cb2[c];
+      r2 += cr2[c]; g2 += cg2[c]; b2 += cb2[c]; frangeK += frange[c];
       const bc = { x0: bx0[c], y0: by0[c], x1: bx1[c], y1: by1[c] };
       boite = boite ? union(boite, bc) : bc;
     }
-    const couleur = [r / a, g / a, b / a];
     const ecart = Math.sqrt(Math.max(r2 / a - couleur[0] ** 2, g2 / a - couleur[1] ** 2, b2 / a - couleur[2] ** 2, 0));
+    const etendue = etendueDe(k);
+    const nuances = [nuanceDe(k, true), nuanceDe(k, false)];
     const w = boite.x1 - boite.x0, h = boite.y1 - boite.y0;
-    let type, epaisseurPx = null, taux = (a + texteDans(boite)) / (w * h);
-    if (comps.length > 1 || ecart > ECART_UNI || comps.some((c) => fondu[c])) {
+    const membre = (p) => { const c = comp[p]; return c > 0 && objetDeComp[c] === k; };
+    let type, epaisseurPx = null;
+    const taux = (a + texteDans(boite) + pontsDe[k]) / (w * h);
+    if (fondue > a / 2 || etendue > ETENDUE_LEGERE) {
       type = 'degrade';
     } else {
-      const c = comps[0];
-      // Pourtour de la boîte occupé par la composante : un cadre.
+      // Pourtour de la boîte occupé par la zone : un cadre.
       let bord = 0;
-      for (let x = boite.x0; x < boite.x1; x++) bord += (comp[boite.y0 * W + x] === c) + (comp[(boite.y1 - 1) * W + x] === c);
-      for (let y = boite.y0 + 1; y < boite.y1 - 1; y++) bord += (comp[y * W + boite.x0] === c) + (comp[y * W + boite.x1 - 1] === c);
+      for (let x = boite.x0; x < boite.x1; x++) bord += membre(boite.y0 * W + x) + membre((boite.y1 - 1) * W + x);
+      for (let y = boite.y0 + 1; y < boite.y1 - 1; y++) bord += membre(y * W + boite.x0) + membre(y * W + boite.x1 - 1);
       const cadre = bord / Math.max(1, 2 * (w + h) - 4) >= TAUX_CADRE && taux < TAUX_RECTANGLE;
-      const coeur = epaisseurDepuisCrete(medianeCrete(indice[c]));
+      const c0 = epaisseurDepuisCrete(medianeCrete(comps));
       // La frange lissée de part et d'autre d'un trait en fait partie, pour moitié.
-      const ep = coeur + (COUVERTURE_FRANGE * frange[c]) / (a / coeur);
+      const ep = c0 + (COUVERTURE_FRANGE * frangeK) / (a / c0);
       const epMm = ep * pas * mmParPx;
-      const fin = epMm <= EPAISSEUR_TRAIT_MAX_MM && a / (coeur * coeur) >= FINESSE_TRAIT;
+      // Fine, et déjà dans sa plus grande composante : les quatre carreaux d'une fenêtre
+      // réunis par leur croisillon ne font pas un trait.
+      const cMax = comps.reduce((m, c) => (aire[c] > aire[m] ? c : m), comps[0]);
+      const cMaxCoeur = epaisseurDepuisCrete(medianeCrete([cMax]));
+      const fin = epMm <= EPAISSEUR_TRAIT_MAX_MM && a / (c0 * c0) >= FINESSE_TRAIT && aire[cMax] / (cMaxCoeur * cMaxCoeur) >= FINESSE_TRAIT;
       // Une case percée par le texte qu'elle porte reste une case : sa boîte est pleine,
       // texte compris, et ce n'est pas un trait.
       const casePercee = taux >= TAUX_RECTANGLE && texteDans(boite) > 0;
@@ -469,15 +667,14 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
         type = 'trait'; epaisseurPx = ep;
       } else {
         const dx = Math.max(0, Math.round(w * RETRAIT_COINS)), dy = Math.max(0, Math.round(h * RETRAIT_COINS));
-        const coin = (x, y) => comp[y * W + x] === c;
-        const coinPlein = coin(boite.x0 + dx, boite.y0 + dy) || coin(boite.x1 - 1 - dx, boite.y0 + dy)
-          || coin(boite.x0 + dx, boite.y1 - 1 - dy) || coin(boite.x1 - 1 - dx, boite.y1 - 1 - dy);
+        const coinPlein = membre((boite.y0 + dy) * W + boite.x0 + dx) || membre((boite.y0 + dy) * W + boite.x1 - 1 - dx)
+          || membre((boite.y1 - 1 - dy) * W + boite.x0 + dx) || membre((boite.y1 - 1 - dy) * W + boite.x1 - 1 - dx);
         type = typeParTaux(taux, coinPlein);
       }
     }
-    for (const c of comps) objetDeComp[c] = objets.length;
+    objetDeGroupe[k] = objets.length;
     objets.push({
-      type, couleur: couleur.map(Math.round), ecart, taux: Math.min(1, taux),
+      type, couleur: couleur.map(Math.round), ecart, etendue, nuances, taux: Math.min(1, taux),
       boite: { x0: boite.x0 * pas, y0: boite.y0 * pas, x1: boite.x1 * pas, y1: boite.y1 * pas },
       aire: a * pas * pas, epaisseurPx: epaisseurPx == null ? null : epaisseurPx * pas, comps,
     });
@@ -486,7 +683,8 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   // Contacts entre objets, en force : frontière commune rapportée au pourtour du plus petit.
   const contactsObjets = new Map();
   for (const c of contactsComp.values()) {
-    const a = objetDeComp[c.a], b = objetDeComp[c.b];
+    const ka = objetDeComp[c.a], kb = objetDeComp[c.b];
+    const a = ka < 0 ? -1 : objetDeGroupe[ka], b = kb < 0 ? -1 : objetDeGroupe[kb];
     if (a < 0 || b < 0 || a === b) continue;
     const k = a < b ? `${a}:${b}` : `${b}:${a}`;
     contactsObjets.set(k, (contactsObjets.get(k) || 0) + c.n);
@@ -552,15 +750,67 @@ function rognerBoite(b, largeur, hauteur) {
 
 // ── Voie exacte : SVG ───────────────────────────────────────────────────────────
 
-// Couleur d'une peinture calculée : [r, g, b], { degrade: true } pour un dégradé ou un
-// motif, null si rien n'est peint.
-function peinture(valeur, opacite) {
+// Couleur calculée : [r, g, b, alpha], null si ce n'en est pas une.
+function couleurCss(valeur) {
+  const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/.exec(valeur || '');
+  return m ? [m[1], m[2], m[3]].map((v) => Math.round(parseFloat(v))).concat(m[4] === undefined ? 1 : parseFloat(m[4])) : null;
+}
+
+// Arrêts d'un dégradé du SVG `racine` désigné par url(#id), en suivant href (un dégradé qui
+// reprend les arrêts d'un autre) : [{ rgb, opacite }], null si ce n'est pas un dégradé.
+function arretsDegrade(racine, valeur) {
+  let id = /url\(\s*["']?#([^"')\s]+)/.exec(valeur)?.[1];
+  for (let saut = 0; id && saut < 5; saut++) {
+    const el = racine.querySelector(`[id="${CSS.escape(id)}"]`);
+    if (!el || !/gradient$/i.test(el.nodeName)) return null;
+    const arrets = [...el.querySelectorAll(':scope > stop')];
+    if (arrets.length) {
+      return arrets.map((a) => {
+        const cs = getComputedStyle(a), c = couleurCss(cs.stopColor) || [0, 0, 0, 1];
+        return { rgb: c.slice(0, 3), opacite: c[3] * (parseFloat(cs.stopOpacity) || 0) };
+      });
+    }
+    id = /^#(.+)/.exec(el.getAttribute('href') || el.getAttribute('xlink:href') || '')?.[1];
+  }
+  return null;
+}
+
+// Couleur d'une peinture calculée : { rgb } pour une couleur ; pour un dégradé léger (ses
+// arrêts à moins de deux fois l'étendue d'un léger dégradé l'un de l'autre), { rgb, nuances }
+// avec la moyenne des arrêts et leurs extrêmes, clair et foncé ; { degrade: true } pour un
+// dégradé fort ou un motif ; null si rien n'est peint, ou presque rien (un reflet dont les
+// arrêts sont en moyenne plus qu'à moitié transparents).
+function peinture(valeur, opacite, racine) {
   if (!valeur || valeur === 'none' || parseFloat(opacite) < 0.1) return null;
-  if (valeur.startsWith('url')) return { degrade: true };
-  const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/.exec(valeur);
-  if (!m) return null;
-  if (m[4] !== undefined && parseFloat(m[4]) < 0.1) return null;
-  return { rgb: [m[1], m[2], m[3]].map((v) => Math.round(parseFloat(v))) };
+  if (valeur.startsWith('url')) {
+    const arrets = racine ? arretsDegrade(racine, valeur) : null;
+    if (!arrets) return { degrade: true };
+    if (arrets.reduce((a, s) => a + s.opacite, 0) / arrets.length < 0.5) return null;
+    const labs = arrets.map((s) => versLab(s.rgb));
+    const etendue = Math.max(...labs.flatMap((a) => labs.map((b) => distanceLab(a, b))));
+    if (etendue > 2 * ETENDUE_LEGERE) return { degrade: true };
+    const rgb = [0, 1, 2].map((c) => Math.round(arrets.reduce((a, s) => a + s.rgb[c], 0) / arrets.length));
+    const parL = arrets.map((s, i) => ({ rgb: s.rgb, l: labs[i][0] })).sort((a, b) => a.l - b.l);
+    return { rgb, nuances: [parL.at(-1).rgb, parL[0].rgb] };
+  }
+  const c = couleurCss(valeur);
+  if (!c || c[3] < 0.1) return null;
+  return { rgb: c.slice(0, 3) };
+}
+
+// Opacité d'un élément, groupes parents compris (l'opacité d'un groupe ne s'hérite pas dans
+// le style calculé de ses enfants), et s'il est flouté : un filtre fait seulement d'un flou
+// gaussien (ombre douce, halo), sans l'élément net par-dessus.
+function opaciteEtFlou(el, racine) {
+  let opacite = 1, flou = false;
+  for (let e = el; e && e !== racine.parentNode; e = e.parentElement) {
+    const cs = getComputedStyle(e);
+    opacite *= parseFloat(cs.opacity);
+    const id = /url\(\s*["']?#([^"')\s]+)/.exec(cs.filter || '')?.[1];
+    const filtre = id ? racine.querySelector(`[id="${CSS.escape(id)}"]`) : null;
+    if (filtre && filtre.querySelector('feGaussianBlur') && !filtre.querySelector('feMerge, feDropShadow, feComposite, feBlend')) flou = true;
+  }
+  return { opacite, flou };
 }
 
 function cheminSvg(el) {
@@ -593,10 +843,13 @@ export function objetsSvg(texteSvg, largeur, hauteur) {
     const nom = el.nodeName.toLowerCase();
     if (nom === 'image') { images++; continue; }
     const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.1) continue;
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    // Presque transparent, ou flouté : une ombre douce, un voile, pas une zone.
+    const { opacite, flou } = opaciteEtFlou(el, s);
+    if (opacite < OPACITE_MIN || flou) continue;
     // Une ligne n'a pas de surface : son remplissage, noir par défaut, ne peint rien.
-    const plein = nom === 'line' ? null : peinture(cs.fill, cs.fillOpacity);
-    const trait = peinture(cs.stroke, cs.strokeOpacity);
+    const plein = nom === 'line' ? null : peinture(cs.fill, cs.fillOpacity, s);
+    const trait = peinture(cs.stroke, cs.strokeOpacity, s);
     if (!plein && !trait) continue;
     const m = el.getScreenCTM();
     const echelle = m ? Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) : 1;
@@ -633,10 +886,19 @@ export function objetsSvg(texteSvg, largeur, hauteur) {
       }
       if (plein.degrade) type = 'degrade';
     }
-    objets.push({ type, couleur, boite, aire, epaisseurPx, taux: Math.min(1, taux), ecart: 0, comps: [] });
+    const nuances = (plein || trait).nuances || null;
+    // Opacité de la peinture elle-même (fill-opacity ou stroke-opacity) et de l'élément.
+    const alpha = opacite * (parseFloat(plein ? cs.fillOpacity : cs.strokeOpacity) || 0);
+    objets.push({ type, couleur, nuances, opacite: alpha, boite, aire, epaisseurPx, taux: Math.min(1, taux), ecart: 0, comps: [] });
   }
   hote.remove();
   const fond = fondExact(objets, largeur, hauteur);
+  // Une surface translucide (bande de confiance, voile) se voit mêlée au fond.
+  const meler = (c, a) => c.map((v, i) => Math.round(v * a + fond[i] * (1 - a)));
+  for (const o of objets) {
+    if (o.opacite < 1 && o.couleur) { o.couleur = meler(o.couleur, o.opacite); if (o.nuances) o.nuances = o.nuances.map((c) => meler(c, o.opacite)); }
+    delete o.opacite;
+  }
   return { fond, largeur, hauteur, pas: 1, objets, contacts: null, carte: null, exact: true, images };
 }
 
@@ -796,6 +1058,17 @@ export async function objetsPdf(page, OPS, largeur, hauteur) {
 
 const groupeType = (type) => (type === 'trait' ? 'trait' : 'surface');
 
+// Contraste le plus faible de plusieurs nuances d'une zone avec le fond : le pire degré,
+// puis, à degré égal, le plus petit Lc.
+function contrasteDe(couleurs, fond) {
+  let pire_ = null;
+  for (const c of couleurs) {
+    const k = contrasteGraphique(c, fond);
+    if (!pire_ || pire(k.niveau, pire_.niveau) !== pire_.niveau || (k.niveau === pire_.niveau && k.lc < pire_.lc)) pire_ = k;
+  }
+  return pire_;
+}
+
 // Degré d'une épaisseur de trait, en points.
 export function niveauEpaisseur(pt) {
   if (pt == null) return null;
@@ -811,7 +1084,7 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
   const { fond, largeur, hauteur, exact } = brut;
   const aireFigure = largeur * hauteur;
   const surfaceMinPx = SURFACE_MIN_MM2 / (mmParPx * mmParPx);
-  const objets = [];
+  let objets = [];
   const indiceDe = new Map();      // indice dans brut.objets → objet retenu
   const labFond = versLab(fond);
   brut.objets.forEach((o, i) => {
@@ -821,17 +1094,25 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
     if (o.couleur && ciede2000(versLab(o.couleur), labFond) < DELTA_E_SERIE) return;
     // Un objet logé dans un texte lu est le texte (glyphes vectorisés, soulignements).
     if (boites.some((b) => intersection(o.boite, b) >= DANS_TEXTE * aireBoite(o.boite))) return;
-    const objet = { ...o, id: objets.length, serie: null, legende: false, surfacePct: (100 * o.aire) / aireFigure };
-    indiceDe.set(i, objet);
+    const objet = { ...o, serie: null, legende: false, surfacePct: (100 * o.aire) / aireFigure };
     // Un rectangle fin et long est un trait : filet tracé comme un rectangle.
     const w = o.boite.x1 - o.boite.x0, h = o.boite.y1 - o.boite.y0;
     if (objet.type === 'rectangle' && objet.epaisseurPx == null && Math.min(w, h) * mmParPx <= EPAISSEUR_TRAIT_MAX_MM && Math.max(w, h) >= ALLONGEMENT_FILET * Math.min(w, h)) {
       objet.type = 'trait';
       objet.epaisseurPx = Math.min(w, h);
     }
+    // Micro-zones : une surface sous 1,5 mm², un trait (ou un cadre) de moins de 4 mm de long.
+    // Elles comptent encore pour reconnaître une texture, puis sont écartées.
+    // Longueur d'un trait : sa surface rapportée à son épaisseur, au plus la diagonale de sa
+    // boîte (une épaisseur sous-estimée d'un demi-pixel n'allonge pas une graduation).
+    const longueur = Math.min(o.aire / Math.max(1, objet.epaisseurPx ?? 1), Math.hypot(w, h));
+    objet.micro = objet.epaisseurPx != null ? longueur * mmParPx < TRAIT_MIN_MM : o.aire * mmParPx * mmParPx < ZONE_MIN_MM2;
+    indiceDe.set(i, objet);
     objet.epaisseurMm = objet.epaisseurPx == null ? null : objet.epaisseurPx * mmParPx;
     objet.epaisseurPt = objet.epaisseurMm == null ? null : objet.epaisseurMm / MM_PAR_PT;
-    objet.contrasteFond = objet.couleur ? contrasteGraphique(objet.couleur, fond) : null;
+    // Un léger dégradé est jugé sur sa couleur moyenne et sur ses nuances extrêmes : la plus
+    // faible des trois décide.
+    objet.contrasteFond = objet.couleur ? contrasteDe([objet.couleur, ...(objet.nuances || [])], fond) : null;
     objets.push(objet);
   });
 
@@ -860,7 +1141,13 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
       s.objets = s.objets.filter((o) => o.type !== 'degrade');
     }
   }
+  // Les micro-zones quittent l'analyse ; elles servent encore à reconnaître un quadrillage
+  // (les briques d'une ligne entre deux barres voisines).
+  for (const s of series) { s.tous = s.objets; s.objets = s.objets.filter((o) => !o.micro); }
   series = series.filter((s) => s.objets.length);
+  for (const [i, o] of indiceDe) if (o.micro) indiceDe.delete(i);
+  objets = objets.filter((o) => !o.micro);
+  objets.forEach((o, i) => { o.id = i; delete o.micro; });
 
   for (const s of series) {
     // Légende d'une série de surfaces : une petite case, haute comme le texte à côté d'elle.
@@ -899,9 +1186,10 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
     s.quadrillage = false;
     const epaisseurMm = (o) => Math.min(o.boite.x1 - o.boite.x0, o.boite.y1 - o.boite.y0) * mmParPx;
     // Le cadre du graphique, rectangle vide de la même couleur, fait aussi partie du quadrillage.
-    const cadres = comptes.filter((o) => o.type === 'rectangle' && o.epaisseurPx != null && epaisseurMm(o) <= EPAISSEUR_TRAIT_MAX_MM);
-    const filetsTraits = comptes.filter((o) => o.type === 'trait');
-    if (filetsTraits.length && comptes.length >= QUADRILLAGE_MIN) {
+    const tous = s.tous.filter((o) => !o.legende);
+    const cadres = tous.filter((o) => o.type === 'rectangle' && o.epaisseurPx != null && epaisseurMm(o) <= EPAISSEUR_TRAIT_MAX_MM);
+    const filetsTraits = tous.filter((o) => o.type === 'trait');
+    if (filetsTraits.length && tous.length >= QUADRILLAGE_MIN) {
       const horizontaux = filetsTraits.filter((o) => o.boite.x1 - o.boite.x0 >= ALLONGEMENT_TRAIT * (o.boite.y1 - o.boite.y0));
       const verticaux = filetsTraits.filter((o) => o.boite.y1 - o.boite.y0 >= ALLONGEMENT_TRAIT * (o.boite.x1 - o.boite.x0));
       // Lignes : tronçons dont les positions se recouvrent en travers ; étendue de chacune.
@@ -923,18 +1211,18 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
         const sur = (liste, t0, t1, d0, d1) => liste.some((l) => (t0 + t1) / 2 >= l.travers0 - marge && (t0 + t1) / 2 <= l.fin + marge && d0 >= l.debut - marge && d1 <= l.bout + marge);
         return sur(lh, y0, y1, x0, x1) || sur(lv, x0, x1, y0, y1);
       };
-      const troncons = comptes.filter((o) => o.type === 'rectangle' && surLigne(o));
+      const troncons = tous.filter((o) => o.type === 'rectangle' && surLigne(o));
       const regulier = (lignesListe, etendue) => {
         if (!lignesListe.length) return true;
         const longueurs = lignesListe.map((l) => l.bout - l.debut), m = mediane(longueurs);
         return m >= QUADRILLAGE_LONGUEUR * etendue && longueurs.every((l) => Math.abs(l - m) <= QUADRILLAGE_TOLERANCE * m);
       };
-      s.quadrillage = filetsTraits.length + troncons.length + cadres.length >= QUADRILLAGE_PART * comptes.length
+      s.quadrillage = filetsTraits.length + troncons.length + cadres.length >= QUADRILLAGE_PART * tous.length
         && horizontaux.length + verticaux.length >= QUADRILLAGE_PART * filetsTraits.length
         && Math.max(lh.length, lv.length) >= QUADRILLAGE_MIN && regulier(lh, largeur) && regulier(lv, hauteur);
     }
 
-    s.contrasteFond = contrasteGraphique(s.couleur, fond);
+    s.contrasteFond = contrasteDe([s.couleur, ...s.objets.flatMap((o) => o.nuances || [])], fond);
     // Trait le plus fin : parmi les traits d'au moins un cinquième de la longueur du plus
     // long, pour ne pas juger un tronçon rogné par une barre ou une graduation.
     const traits = s.objets.filter((o) => o.epaisseurMm != null && o.epaisseurPx > 0);
@@ -944,6 +1232,7 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
     s.epaisseurMinPt = s.epaisseurMinMm == null ? null : s.epaisseurMinMm / MM_PAR_PT;
     s.niveauEpaisseur = niveauEpaisseur(s.epaisseurMinPt);
     s.voisins = [];
+    delete s.tous;
   }
 
   // Les surfaces d'abord, les plus grandes en tête, puis les traits.
@@ -1311,7 +1600,7 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
     ...(reste ? [element('p', {}, reste)] : []),
     element('p', { class: 'discret' }, t('objetsNote', {
       min: WCAG_GRAPHIQUE, lc: LC_GRAPHIQUE, distinct: DELTA_E_DISTINCT, confondu: DELTA_E_CONFONDU,
-      ameliorer: decimal(EPAISSEUR_AMELIORER_PT), corriger: decimal(EPAISSEUR_CORRIGER_PT), surface: decimal(SURFACE_MIN_MM2),
+      ameliorer: decimal(EPAISSEUR_AMELIORER_PT), corriger: decimal(EPAISSEUR_CORRIGER_PT), surface: decimal(ZONE_MIN_MM2), trait: decimal(TRAIT_MIN_MM),
     }))));
 
   // L'endroit actif est gardé d'un rendu à l'autre tant que la lecture est la même ; sinon
@@ -1350,7 +1639,7 @@ export function exporterObjets() {
     fond: versHex(analyse.fond),
     dureeMs: Math.round(duree),
     objets: analyse.objets.map((o) => ({
-      id: o.id, type: o.type, couleur: o.couleur ? versHex(o.couleur) : null, boite: boite(o.boite),
+      id: o.id, type: o.type, couleur: o.couleur ? versHex(o.couleur) : null, nuances: o.nuances && o.type !== 'degrade' ? o.nuances.map(versHex) : null, boite: boite(o.boite),
       surfacePct: arrondi(o.surfacePct, 2), epaisseurMm: arrondi(o.epaisseurMm, 3), serie: o.serie,
       lcFond: o.contrasteFond ? arrondi(o.contrasteFond.lc, 0) : null, wcagFond: o.contrasteFond ? arrondi(o.contrasteFond.wcag, 2) : null,
       niveau: o.niveau || null,

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" font-family="Arial, Helvetica, sans-serif">
+  <!-- Figure de référence 2 (graphique) : une aire pastel en léger dégradé sous une courbe
+       bleue, une courbe orange vif avec ses marqueurs, une bande de période jaune pâle en
+       léger dégradé que la courbe orange et le quadrillage traversent. Attendu : l'aire, la
+       bande (une seule zone malgré les lignes qui la coupent), les deux courbes. Les petits
+       points gris d'annotation ne sont pas des zones. -->
+  <defs>
+    <linearGradient id="aire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c5dcf5"/><stop offset="1" stop-color="#dceafa"/></linearGradient>
+    <linearGradient id="bande" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff0b3"/><stop offset="1" stop-color="#ffe58f"/></linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="#ffffff"/>
+  <text x="80" y="60" font-size="32" font-weight="bold" fill="#212529">Températures moyennes</text>
+
+  <rect data-zone="bande" x="600" y="110" width="200" height="235" fill="url(#bande)"/>
+  <text x="700" y="140" font-size="18" fill="#5c4a00" text-anchor="middle">Canicule</text>
+
+  <g stroke="#e9ecef" stroke-width="1.5">
+    <line data-tolere="quadrillage-1" x1="140" y1="200" x2="1140" y2="200"/>
+    <line data-tolere="quadrillage-2" x1="140" y1="320" x2="1140" y2="320"/>
+    <line data-tolere="quadrillage-3" x1="140" y1="440" x2="1140" y2="440"/>
+    <line data-tolere="quadrillage-4" x1="140" y1="560" x2="1140" y2="560"/>
+  </g>
+
+  <path data-zone="aire" d="M140 520 L240 500 L340 470 L440 480 L540 430 L640 380 L740 360 L840 400 L940 430 L1040 450 L1140 470 L1140 680 L140 680 Z" fill="url(#aire)"/>
+  <path data-zone="courbe-bleue" d="M140 520 L240 500 L340 470 L440 480 L540 430 L640 380 L740 360 L840 400 L940 430 L1040 450 L1140 470" fill="none" stroke="#1c5fa8" stroke-width="3.5" stroke-linejoin="round"/>
+
+  <g data-zone="courbe-orange">
+    <path d="M140 430 L240 410 L340 380 L440 330 L540 300 L640 250 L740 210 L840 270 L940 310 L1040 330 L1140 360" fill="none" stroke="#e8590c" stroke-width="3.5" stroke-linejoin="round"/>
+    <g fill="#e8590c">
+      <circle cx="140" cy="430" r="6"/><circle cx="240" cy="410" r="6"/><circle cx="340" cy="380" r="6"/><circle cx="440" cy="330" r="6"/>
+      <circle cx="540" cy="300" r="6"/><circle cx="640" cy="250" r="6"/><circle cx="740" cy="210" r="6"/><circle cx="840" cy="270" r="6"/>
+      <circle cx="940" cy="310" r="6"/><circle cx="1040" cy="330" r="6"/><circle cx="1140" cy="360" r="6"/>
+    </g>
+  </g>
+
+  <g data-tolere="axes" stroke="#343a40" stroke-width="2.5">
+    <line x1="140" y1="680" x2="1140" y2="680"/><line x1="140" y1="120" x2="140" y2="680"/>
+  </g>
+  <g font-size="18" fill="#495057" text-anchor="end">
+    <text x="125" y="686">0 °C</text><text x="125" y="566">5 °C</text><text x="125" y="446">10 °C</text>
+    <text x="125" y="326">15 °C</text><text x="125" y="206">20 °C</text>
+  </g>
+  <g font-size="18" fill="#212529" text-anchor="middle">
+    <text x="240" y="712">Fév.</text><text x="440" y="712">Avr.</text><text x="640" y="712">Juin</text>
+    <text x="840" y="712">Août</text><text x="1040" y="712">Oct.</text>
+  </g>
+  <!-- Petites étoiles d'annotation : micro-éléments. -->
+  <g fill="#868e96">
+    <circle cx="745" cy="190" r="2.5"/><circle cx="752" cy="186" r="2"/><circle cx="738" cy="186" r="2"/>
+  </g>
+  <g font-size="18" fill="#212529">
+    <line data-tolere="legende-orange" x1="880" y1="96" x2="912" y2="96" stroke="#e8590c" stroke-width="3.5"/><text x="920" y="102">Ville</text>
+    <line data-tolere="legende-bleu" x1="990" y1="96" x2="1022" y2="96" stroke="#1c5fa8" stroke-width="3.5"/><text x="1030" y="102">Campagne</text>
+  </g>
+</svg>

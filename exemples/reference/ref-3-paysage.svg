@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <!-- Figure de référence 3 (illustration) : paysage. Ciel pastel en léger dégradé (le fond),
+       soleil jaune vif en léger dégradé radial, nuage, deux collines en léger dégradé, chemin,
+       maison (mur, toit, porte, fenêtre à croisillons), arbre. Attendu : une zone par élément,
+       la fenêtre entière malgré ses croisillons. Poignée de porte, oiseaux, fleurs, reflets et
+       brins d'herbe sont des micro-éléments : aucun ne doit sortir. -->
+  <defs>
+    <linearGradient id="ciel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3e4fb"/><stop offset="1" stop-color="#e8f5fd"/></linearGradient>
+    <radialGradient id="soleil" cx="0.45" cy="0.45" r="0.6"><stop offset="0" stop-color="#ffd43b"/><stop offset="1" stop-color="#fcb516"/></radialGradient>
+    <linearGradient id="colline-loin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe8c4"/><stop offset="1" stop-color="#a5dcae"/></linearGradient>
+    <linearGradient id="colline-pres" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc46c"/><stop offset="1" stop-color="#43a852"/></linearGradient>
+    <linearGradient id="chemin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e3c8"/><stop offset="1" stop-color="#e6d2ad"/></linearGradient>
+    <linearGradient id="toit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d43a3a"/><stop offset="1" stop-color="#b52525"/></linearGradient>
+    <linearGradient id="mur" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fbf3e4"/><stop offset="1" stop-color="#f1e4cb"/></linearGradient>
+  </defs>
+  <rect data-fond="ciel" width="1200" height="800" fill="url(#ciel)"/>
+
+  <circle data-zone="soleil" cx="980" cy="150" r="72" fill="url(#soleil)"/>
+  <!-- Reflet du soleil : micro. -->
+  <circle cx="955" cy="122" r="4" fill="#fff3bf"/>
+
+  <g data-zone="nuage" fill="#ffffff">
+    <circle cx="300" cy="150" r="42"/><circle cx="350" cy="130" r="55"/><circle cx="410" cy="155" r="40"/>
+    <rect x="290" y="150" width="130" height="45" rx="22"/>
+  </g>
+
+  <!-- Oiseaux : traits fins de moins de 3 mm imprimés, micro. -->
+  <g fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round">
+    <path d="M560 120 q5 -5 10 0 q5 -5 10 0"/><path d="M620 95 q4 -4 8 0 q4 -4 8 0"/>
+  </g>
+
+  <path data-zone="colline-loin" d="M0 470 C200 360 420 360 640 440 C820 500 1000 380 1200 420 L1200 800 L0 800 Z" fill="url(#colline-loin)"/>
+  <path data-zone="colline-pres" d="M0 560 C260 470 520 500 760 560 C960 610 1080 540 1200 560 L1200 800 L0 800 Z" fill="url(#colline-pres)"/>
+  <path data-zone="chemin" d="M560 800 C600 700 660 640 700 590 L730 590 C720 650 740 720 820 800 Z" fill="url(#chemin)"/>
+
+  <!-- Arbre. -->
+  <rect data-zone="tronc" x="172" y="430" width="26" height="110" fill="#7a4a2a"/>
+  <g data-zone="feuillage" fill="#2f8f3f">
+    <circle cx="185" cy="400" r="58"/><circle cx="145" cy="430" r="40"/><circle cx="225" cy="430" r="40"/>
+  </g>
+
+  <!-- Maison. -->
+  <rect data-zone="mur" x="380" y="420" width="220" height="150" fill="url(#mur)"/>
+  <polygon data-zone="toit" points="360,425 490,320 620,425" fill="url(#toit)"/>
+  <rect data-zone="porte" x="460" y="480" width="56" height="90" fill="#7c4a2d"/>
+  <circle cx="505" cy="527" r="3.5" fill="#ffd43b"/>
+  <rect data-zone="fenetre" x="400" y="450" width="44" height="44" fill="#9fd3fb"/>
+  <g stroke="#ffffff" stroke-width="3">
+    <line x1="422" y1="450" x2="422" y2="494"/><line x1="400" y1="472" x2="444" y2="472"/>
+  </g>
+  <rect data-zone="fenetre-2" x="535" y="450" width="44" height="44" fill="#9fd3fb"/>
+
+  <!-- Fleurs et brins d'herbe : micro. -->
+  <g>
+    <circle cx="90" cy="640" r="4" fill="#f783ac"/><circle cx="130" cy="680" r="3.5" fill="#ffffff"/>
+    <circle cx="300" cy="700" r="4" fill="#ffd43b"/><circle cx="340" cy="655" r="3" fill="#f783ac"/>
+    <circle cx="980" cy="660" r="4" fill="#ffffff"/><circle cx="1040" cy="700" r="3.5" fill="#f783ac"/>
+    <circle cx="1100" cy="640" r="3" fill="#ffd43b"/>
+  </g>
+  <g stroke="#2b8a3e" stroke-width="2" stroke-linecap="round">
+    <line x1="250" y1="760" x2="254" y2="748"/><line x1="258" y1="760" x2="256" y2="750"/>
+    <line x1="900" y1="740" x2="904" y2="728"/><line x1="908" y1="740" x2="906" y2="730"/>
+  </g>
+</svg>

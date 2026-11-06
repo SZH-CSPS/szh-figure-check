@@ -102,6 +102,8 @@ node outils/capture.mjs "http://localhost:8123/?exemple=png" capture.png
 node outils/capture.mjs "http://localhost:8123/?exemple=png" rapport.pdf   # rapport imprimé
 CAPTURE_HORS_LIGNE=1 node outils/capture.mjs …   # tout autre serveur que celui de la page introuvable
 node outils/banc.mjs test/verite-exemples.json exemples --json resultats.json   # banc d'essai (docs/BANC.md)
+node outils/zones.mjs [--bruit 4] [--svg] [--details]   # zones des figures de référence (docs/ZONES.md)
+node outils/zones-reference.mjs  # rend exemples/reference/*.svg en PNG et réécrit test/verite-zones.json
 ```
 
 **Avant chaque publication**, lancer `node outils/version.mjs` et commiter ce qu’il a
@@ -304,18 +306,32 @@ cases, ronds, courbes, axes, flèches, secteurs. Dans un SVG, il lit `rect`, `ci
 `ellipse`, `polygon`, `polyline`, `line` et `path` (boîte, couleur de remplissage ou de
 trait, épaisseur de trait, transformations) ; dans un PDF, les tracés remplis ou tracés de la
 première page, par la liste des opérateurs de pdf.js, hors texte et hors images. Le résultat
-est alors exact et dit comme tel. Dans une image, le résultat est approché : l’image est lue
-à sa résolution d’origine, les couleurs regroupées (nuances à moins de 12 unités Lab, 6 pour
+est alors exact et dit comme tel ; un dégradé SVG léger (arrêts à moins de 40 unités Lab les uns
+des autres) a la couleur moyenne de ses arrêts, une ombre floutée, un reflet transparent ou
+un élément moins opaque que 0,15 ne sont pas des objets. Dans une image, le résultat est
+approché : l’image est lue à sa résolution d’origine, lissée sans flouter les bords (le grain
+d’une compression s’efface), les couleurs regroupées (nuances à moins de 12 unités Lab, 6 pour
 la couleur la plus fréquente, afin qu’une surface pâle sur fond blanc reste un objet), les
 textes lus écartés avec un halo (une case garde sa forme malgré le texte qu’elle porte), les
-franges lissées écartées (un pixel qui mélange ses deux voisins opposés) ; les composantes
-connexes d’au moins 0,25 mm² à l’impression sont classées par des mesures simples : taux de
-remplissage de leur boîte (0,9 et plus : rectangle ; autour de π/4, coins vides : ellipse),
-finesse par transformée de distance (longueur d’au moins seize fois l’épaisseur, épaisseur
-sous 1,5 mm : trait, épaisseur = deux fois la distance médiane au bord sur la crête, frange
-lissée comprise pour moitié), sinon forme. Deux régions voisines dont la couleur se
-continue sans saut forment un dégradé, qui n’est pas découpé en objets ; des petites formes
-disparates d’une même couleur sont une texture. Le fond est la plus grande surface unie.
+franges lissées écartées (un pixel qui mélange ses deux voisins opposés). Les régions se
+réunissent en zones : deux régions voisines dont la couleur se continue sans saut (un
+dégradé, une ombre douce sur la surface qui la porte), deux régions de même couleur que
+coupe seulement un trait d’au plus 1 mm (une courbe ou une ligne de quadrillage sur une
+bande, le croisillon d’une fenêtre) ; un détail de moins de 1,5 mm² enclavé dans une zone
+lui revient, et une région qui se fond dans le fond en fait partie. Une zone dont les
+pixels restent à 20 unités Lab de sa couleur moyenne (95e centile) est un aplat ou un léger
+dégradé, pastel ou vif : une seule zone, jugée sur sa couleur moyenne et ses nuances claire
+et foncée, la plus faible des trois ; au-delà, un dégradé fort, qui n’est pas découpé en
+objets. Les zones sont classées par des mesures simples : taux de remplissage de leur boîte
+(0,9 et plus : rectangle ; autour de π/4, coins vides : ellipse), finesse par transformée de
+distance (longueur d’au moins dix fois l’épaisseur, épaisseur sous 1,5 mm : trait, épaisseur
+= deux fois la distance médiane au bord sur la crête, frange lissée comprise pour moitié),
+sinon forme ; des petites formes disparates d’une même couleur sont une texture. Le fond est
+la plus grande surface unie. Seules les zones utiles sont montrées et jugées : une surface
+d’au moins 1,5 mm² à l’impression, un trait d’au moins 4 mm de long ; une poignée de porte,
+une fleur, une graduation ou une pastille dessinées en quelques pixels n’en sont pas. Les
+critères, les cinq figures de référence (`exemples/reference/`) et les résultats sont dans
+`docs/ZONES.md`.
 
 Les objets de même couleur (ΔE00 sous 5) forment une série ; une petite case de la couleur
 d’une série de surfaces, haute comme le texte à côté d’elle, est sa légende. Pour chaque série : contraste avec le fond
@@ -336,10 +352,12 @@ distinguer en noir et blanc (écart 7) et en deutéranopie (écart 11), le jaune
 le fond blanc (1,6:1), plus le quadrillage et l’axe.
 
 `exporterObjets()` (`js/objets.js`) rend le dernier résultat, ou `null` : `{ exact, formes,
-fond, dureeMs, objets: [{ id, type, couleur, boite, surfacePct, epaisseurMm, serie, lcFond,
+fond, dureeMs, objets: [{ id, type, couleur, nuances, boite, surfacePct, epaisseurMm, serie, lcFond,
 wcagFond, niveau }], series: [{ id, couleur, nObjets, typeDominant, lcFond, wcagFond,
 epaisseurMinMm, niveau, legende }] }`. `type` vaut `rectangle`, `ellipse`, `trait`, `forme`
-ou `degrade` ; `couleur` est en `#RRGGBB` (`null` pour un dégradé) ; `boite` est en pixels de
+ou `degrade` ; `couleur` est en `#RRGGBB` (`null` pour un dégradé) ; `nuances`, la nuance
+claire et la foncée d’une zone en léger dégradé (`null` sans elles) ; `lcFond` et `wcagFond`
+sont ceux de la plus faible de la couleur et de ses nuances ; `boite` est en pixels de
 l’image d’origine (px CSS de la page pour un SVG ou un PDF) ; `surfacePct` en pour cent de
 la figure ; `epaisseurMm` en millimètres imprimés, `null` pour une surface ; `serie`
 renvoie à `series[].id` ; `nObjets` ne compte pas la case de légende.
@@ -353,11 +371,13 @@ photo peut en recevoir plusieurs dizaines (plafond : 30). Le cadre au clavier se
 pas d’un centième de la figure : un petit texte demande quelques frappes. Le « taille
 réelle » de l’écran n’est juste qu’après le réglage par carte bancaire ; l’impression à
 100 % reste la référence. Dans une image, un objet dont la couleur est à moins de 6 unités
-Lab du fond (blanc cassé sur blanc) se confond avec lui, un trait en pointillé se découpe en
-points trop petits pour compter, un motif de hachures donne un objet par élément du motif,
-et l’épaisseur d’un trait lissé est connue à un demi-pixel près ; dans un SVG ou un PDF, les
-objets qui se touchent sont trouvés par leurs boîtes, et les remplissages en dégradé ou en
-motif n’ont pas de couleur.
+Lab du fond (blanc cassé sur blanc) se confond avec lui, une zone coupée par un objet plus
+épais qu’un trait (une colline derrière une maison) reste en morceaux d’une même série, un
+trait en pointillé se découpe en points trop petits pour compter, un motif de hachures donne
+un objet par élément du motif, et l’épaisseur d’un trait lissé est connue à un demi-pixel
+près ; dans un SVG ou un PDF, les objets qui se touchent sont trouvés par leurs boîtes, un
+élément caché en partie garde la boîte de tout son tracé, et les remplissages en dégradé
+fort ou en motif n’ont pas de couleur.
 
 ## Licence
 
