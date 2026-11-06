@@ -6,14 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=21eef34640';
-import { MM_PAR_PT } from './formats.js?v=21eef34640';
+import { versHex } from './apca.js?v=e9446f053d';
+import { MM_PAR_PT } from './formats.js?v=e9446f053d';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=21eef34640';
-import { T, nombre } from './i18n.js?v=21eef34640';
-import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=21eef34640';
+} from './couleur.js?v=e9446f053d';
+import { T, nombre } from './i18n.js?v=e9446f053d';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=e9446f053d';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,9 @@ export const RAYON_FOND = 6;
 // Lissage du grain : un voisin compte dans la moyenne d'un pixel s'il en diffère d'au plus
 // 10 sur 255 par canal.
 const LISSAGE = 10;
+// Croissance des régions : pas d'un pixel à son voisin, écart à la moyenne de la région.
+const CROISSANCE_PAS = 6;
+const CROISSANCE_DERIVE = 20;
 // Couleurs retenues au plus ; les nuances plus rares rejoignent la plus proche.
 const COULEURS_MAX = 64;
 // Une région de pixels compte dans l'analyse dès 0,25 mm² à l'impression, un carré d'un
@@ -304,7 +307,17 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
     }
   }
 
-  // Composantes connexes à 8 voisins : surface, boîte, sommes des couleurs.
+  // Régions par croissance, à 8 voisins : un pixel rejoint la région de son voisin s'il en
+  // diffère de moins de 6 unités Lab (un pas de dégradé, pas un bord) et reste à moins de 20
+  // de la couleur moyenne de la région (un dégradé fort se découpe en bandes). Les pixels sans
+  // couleur retenue (franges lissées, textes) restent hors des régions. Chaque région prend le
+  // groupe de couleur de sa moyenne, pour reconnaître le fond.
+  const lut = new Float32Array(262144 * 3).fill(NaN);
+  const lab = (p) => {
+    const k = ((rgb[p * 3] >> 2) << 12) | ((rgb[p * 3 + 1] >> 2) << 6) | (rgb[p * 3 + 2] >> 2);
+    if (Number.isNaN(lut[k * 3])) { const l = versLab([rgb[p * 3], rgb[p * 3 + 1], rgb[p * 3 + 2]]); lut[k * 3] = l[0]; lut[k * 3 + 1] = l[1]; lut[k * 3 + 2] = l[2]; }
+    return k * 3;
+  };
   const comp = new Int32Array(N);
   const pile = new Int32Array(N);
   const aire = [0], bx0 = [0], by0 = [0], bx1 = [0], by1 = [0], grp = [0];
@@ -312,24 +325,37 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   let nComp = 0;
   for (let depart = 0; depart < N; depart++) {
     if (!etiquette[depart] || comp[depart]) continue;
-    const e = etiquette[depart], id = ++nComp;
+    const id = ++nComp;
     let a = 0, x0 = W, y0 = H, x1 = -1, y1 = -1, r = 0, g = 0, b = 0, r2 = 0, g2 = 0, b2 = 0;
+    let mL = 0, mA = 0, mB = 0;
     let haut = 0;
     pile[haut++] = depart; comp[depart] = id;
-    const visiter = (q) => { if (!comp[q] && etiquette[q] === e) { comp[q] = id; pile[haut++] = q; } };
+    const visiter = (q, kp) => {
+      if (comp[q] || !etiquette[q]) return;
+      const kq = lab(q);
+      const dL = lut[kq] - lut[kp], dA = lut[kq + 1] - lut[kp + 1], dB = lut[kq + 2] - lut[kp + 2];
+      if (dL * dL + dA * dA + dB * dB >= CROISSANCE_PAS ** 2) return;
+      const eL = lut[kq] - mL, eA = lut[kq + 1] - mA, eB = lut[kq + 2] - mB;
+      if (a && eL * eL + eA * eA + eB * eB >= CROISSANCE_DERIVE ** 2) return;
+      comp[q] = id; pile[haut++] = q;
+    };
     while (haut) {
       const p = pile[--haut];
       const x = p % W, y = (p - x) / W;
+      const kp = lab(p);
       a++;
+      mL += (lut[kp] - mL) / a; mA += (lut[kp + 1] - mA) / a; mB += (lut[kp + 2] - mB) / a;
       if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
       const pr = rgb[p * 3], pg = rgb[p * 3 + 1], pb = rgb[p * 3 + 2];
       r += pr; g += pg; b += pb; r2 += pr * pr; g2 += pg * pg; b2 += pb * pb;
       const gauche = x > 0, droite = x < W - 1, dessus = y > 0, dessous = y < H - 1;
-      if (gauche) visiter(p - 1);
-      if (droite) visiter(p + 1);
-      if (dessus) { visiter(p - W); if (gauche) visiter(p - W - 1); if (droite) visiter(p - W + 1); }
-      if (dessous) { visiter(p + W); if (gauche) visiter(p + W - 1); if (droite) visiter(p + W + 1); }
+      if (gauche) visiter(p - 1, kp);
+      if (droite) visiter(p + 1, kp);
+      if (dessus) { visiter(p - W, kp); if (gauche) visiter(p - W - 1, kp); if (droite) visiter(p - W + 1, kp); }
+      if (dessous) { visiter(p + W, kp); if (gauche) visiter(p + W - 1, kp); if (droite) visiter(p + W + 1, kp); }
     }
+    const kMoy = ((Math.round(r / a) >> 3) << 10) | ((Math.round(g / a) >> 3) << 5) | (Math.round(b / a) >> 3);
+    const e = groupeDeCase[kMoy] >= 0 ? groupeDeCase[kMoy] + 1 : etiquette[depart];
     aire.push(a); bx0.push(x0); by0.push(y0); bx1.push(x1 + 1); by1.push(y1 + 1); grp.push(e);
     cr.push(r); cg.push(g); cb.push(b); cr2.push(r2); cg2.push(g2); cb2.push(b2);
   }

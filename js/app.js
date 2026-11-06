@@ -3,21 +3,21 @@
 // graphique). Dans la vue des textes, la vue résidu masque les textes connus pour laisser
 // voir ce qui a été oublié.
 
-import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=21eef34640';
-import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=21eef34640';
-import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=21eef34640';
-import { versHex } from './apca.js?v=21eef34640';
-import { ouvrir, ErreurSource } from './sources.js?v=21eef34640';
-import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=21eef34640';
-import { chargerDetecteur, fournirModele } from './detection.js?v=21eef34640';
-import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=21eef34640';
-import { precharger } from './prechargement.js?v=21eef34640';
-import { creerChargeur } from './chargeur.js?v=21eef34640';
-import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=21eef34640';
-import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=21eef34640';
-import { T, langueInitiale, nombre } from './i18n.js?v=21eef34640';
-import { explorateur, puce, rangeeNiveaux } from './explorateur.js?v=21eef34640';
-import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=21eef34640';
+import { FORMATS, zoneContenu, tailleFigure, versPoints, TAILLE_MIN_PT, SEUILS_LC, MM_PAR_PX, PPP_MIN, proportionDepuis } from './formats.js?v=e9446f053d';
+import { niveauTaille, niveauContraste, pireNiveau, agrandissement, couleurConforme, regrouper, diagnosticEnsemble, RATIO_X } from './analyse.js?v=e9446f053d';
+import { compte, visible, boiteNormalisee, recouvreUnTexte, exporterLecture, verdictProvisoire, trancherAVerifier, retablir } from './residu.js?v=e9446f053d';
+import { versHex } from './apca.js?v=e9446f053d';
+import { ouvrir, ErreurSource } from './sources.js?v=e9446f053d';
+import { lire, mesurerAjout, lireZone, prechauffer } from './lecture.js?v=e9446f053d';
+import { chargerDetecteur, fournirModele } from './detection.js?v=e9446f053d';
+import { verifierEnvironnement, lirePixelsPossible, sonderTravailleur } from './environnement.js?v=e9446f053d';
+import { precharger } from './prechargement.js?v=e9446f053d';
+import { creerChargeur } from './chargeur.js?v=e9446f053d';
+import { filtreFlou, simulerPerteContraste, lectureAcuite, PROFILS, MM_PAR_DEGRE, LECTURE_MM } from './vision.js?v=e9446f053d';
+import { SALLES, DIAPO, CM_PAR_PT, cadreFigure, largeurApparenteCm, minusculeMinCm } from './projection.js?v=e9446f053d';
+import { T, langueInitiale, nombre } from './i18n.js?v=e9446f053d';
+import { explorateur, puce, rangeeNiveaux } from './explorateur.js?v=e9446f053d';
+import { rendreObjets, exporterObjets, resumeObjetsCourant } from './objets.js?v=e9446f053d';
 
 const PX_PAR_MM_NOMINAL = 96 / 25.4;
 const CLE_CALIBRATION = 'szh-figure-check.pxParMm';
