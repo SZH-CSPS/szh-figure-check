@@ -317,7 +317,9 @@ franges lissées écartées (un pixel qui mélange ses deux voisins opposés). L
 réunissent en zones : deux régions voisines dont la couleur se continue sans saut (un
 dégradé, une ombre douce sur la surface qui la porte), deux régions de même couleur que
 coupe seulement un trait d’au plus 1 mm (une courbe ou une ligne de quadrillage sur une
-bande, le croisillon d’une fenêtre) ; un détail de moins de 1,5 mm² enclavé dans une zone
+bande, le croisillon d’une fenêtre), les paliers d’une courbe lissée sur une figure petite,
+les morceaux d’une surface qu’un objet épais posé dessus coupe (pas deux rectangles : des
+barres groupées restent des barres) ; un détail de moins de 1,5 mm² enclavé dans une zone
 lui revient, et une région qui se fond dans le fond en fait partie. Une zone dont les
 pixels restent à 20 unités Lab de sa couleur moyenne (95e centile) est un aplat ou un léger
 dégradé, pastel ou vif : une seule zone, jugée sur sa couleur moyenne et ses nuances claire
@@ -371,9 +373,9 @@ photo peut en recevoir plusieurs dizaines (plafond : 30). Le cadre au clavier se
 pas d’un centième de la figure : un petit texte demande quelques frappes. Le « taille
 réelle » de l’écran n’est juste qu’après le réglage par carte bancaire ; l’impression à
 100 % reste la référence. Dans une image, un objet dont la couleur est à moins de 6 unités
-Lab du fond (blanc cassé sur blanc) se confond avec lui, une zone coupée par un objet plus
-épais qu’un trait (une colline derrière une maison) reste en morceaux d’une même série, un
-trait en pointillé se découpe en points trop petits pour compter, un motif de hachures donne
+Lab du fond (blanc cassé sur blanc) se confond avec lui, deux secteurs de même couleur
+séparés par un troisième deviennent une seule zone (une surface coupée par un objet posé
+dessus est réunie si sa couleur reprend de l’autre côté), un trait en pointillé se découpe en points trop petits pour compter, un motif de hachures donne
 un objet par élément du motif, et l’épaisseur d’un trait lissé est connue à un demi-pixel
 près ; dans un SVG ou un PDF, les objets qui se touchent sont trouvés par leurs boîtes, un
 élément caché en partie garde la boîte de tout son tracé, et les remplissages en dégradé

@@ -107,11 +107,13 @@ Voie approchée (PNG), zones trouvées sur 46, zones découpées, intrus :
 
 | | Avant | Après |
 |---|---|---|
-| Sans grain | 37 / 46, 4 découpées, 22 intrus | 45 / 46, 1 découpée, 0 intrus |
-| Grain ±4 | 33 / 46, 8 découpées, 21 intrus | 45 / 46, 1 découpée, 0 intrus |
-| Grain ±6 | 30 / 46, 8 découpées, 1 707 intrus | 45 / 46, 1 découpée, 0 intrus |
+| Sans grain | 37 / 46, 4 découpées, 22 intrus | 46 / 46, 0 découpée, 0 intrus |
+| Grain ±4 | 33 / 46, 8 découpées, 21 intrus | 46 / 46, 0 découpée, 0 intrus |
+| Grain ±6 | 30 / 46, 8 découpées, 1 707 intrus | 46 / 46, 0 découpée, 0 intrus |
+| Réduite de moitié | 33 / 46, 7 découpées, 22 intrus | 46 / 46, 3 découpées, 0 intrus |
 
-La zone découpée restante est la colline lointaine (voir les limites). Durée : de 0,2 à
+Le détail des étapes (traits fins recollés, occlusion) et des variantes écartées est dans
+`docs/VARIANTES-ZONES.md`. Durée : de 0,2 à
 0,8 s par figure de 1200 × 800 sous Node, contre 0,2 à 0,5 s avant.
 
 Voie exacte (SVG), même vérité : avant 15 / 46 et 23 intrus, après 43 / 46 et 2 intrus (un
@@ -125,10 +127,11 @@ en deutéranopie (écart 11) et en gris (écart 7), le quadrillage reconnu, l’
 
 ## Limites connues
 
-- **Une zone coupée par un objet épais reste en morceaux.** La colline lointaine du paysage,
-  coupée par le tronc et par la maison, donne trois morceaux ; ils sont dans la même série,
-  contourés ensemble, et jugés une fois. Réunir des régions séparées par un objet plus épais
-  qu’un trait réunirait aussi deux barres d’une même série séparées par la barre d’une autre.
+- **Occlusion.** Une surface coupée par un objet épais posé dessus (la colline derrière
+  l’arbre et la maison) est réunie si sa couleur reprend de l’autre côté ; deux rectangles
+  ne le sont jamais (des barres groupées restent des barres). Deux secteurs de même couleur
+  séparés par un troisième deviennent une seule zone, de la même série (voir
+  `docs/VARIANTES-ZONES.md`).
 - **Voie exacte : boîtes d’éléments.** Un élément caché en partie par un autre garde la boîte
   de tout son tracé (la colline lointaine) ; les pointes de flèche dessinées par des
   marqueurs SVG ne sont pas comptées dans la boîte de la flèche ; les marqueurs ronds d’une
