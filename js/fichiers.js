@@ -6,15 +6,15 @@
 export const VENDOR = new URL('../vendor/', import.meta.url);
 const vers = (chemin) => new URL(chemin, VENDOR).href;
 
-export const TESSERACT = vers('tesseract/tesseract.min.js?v=e6b2e50046');
-export const TESSERACT_WORKER = vers('tesseract/worker.min.js?v=e6b2e50046');
+export const TESSERACT = vers('tesseract/tesseract.min.js?v=511f9a40eb');
+export const TESSERACT_WORKER = vers('tesseract/worker.min.js?v=511f9a40eb');
 export const TESSERACT_CORE_DOSSIER = vers('tesseract-core/');
 // Le moteur est demandé par Tesseract.js sans suffixe de version : le nom est assemblé pour
 // que outils/version.mjs n'en ajoute pas.
 export const TESSERACT_CORE = vers(`tesseract-core/${['tesseract-core-simd-lstm', 'wasm', 'js'].join('.')}`);
 export const TESSDATA_DOSSIER = vers('tessdata/');
-export const ORT = vers('onnxruntime/ort.wasm.min.js?v=e6b2e50046');
-export const ORT_MJS = vers('onnxruntime/ort-wasm-simd-threaded.mjs?v=e6b2e50046');
+export const ORT = vers('onnxruntime/ort.wasm.min.js?v=511f9a40eb');
+export const ORT_MJS = vers('onnxruntime/ort-wasm-simd-threaded.mjs?v=511f9a40eb');
 export const ORT_WASM = vers('onnxruntime/ort-wasm-simd-threaded.wasm');
 export const MODELE = vers('modele/ch_PP-OCRv3_det_infer.onnx');
 export const LANGUES_OCR = ['fra', 'deu', 'eng'];

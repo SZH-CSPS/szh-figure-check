@@ -450,3 +450,48 @@ test('endroits : à corriger d’abord, puis à améliorer, puis conforme ; sér
   assert.deepEqual(noms([[serie(1, 'ok'), serie(2, 'ok')], []]), ['s1', 's2']);
   assert.deepEqual(ordonnerEndroits([], []), []);
 });
+
+test('textes écartés des formes : tout texte lu ou ajouté, pas un texte retiré ni une suggestion', async () => {
+  const { boitesTextes } = await import('../js/objets.js');
+  const b = (x0, y0, x1, y1) => ({ x0, y0, x1, y1 });
+  const lecture = { lignes: [
+    { statut: 'confirme', origine: 'detecteur', mots: [b(10, 10, 40, 20), b(45, 10, 70, 20), b(200, 10, 230, 20)] },   // deux mots proches, un loin
+    { statut: 'a-verifier', origine: 'ocr', mots: [b(10, 50, 40, 60)] },
+    { statut: 'retire', origine: 'ocr', mots: [b(10, 80, 40, 90)] },
+    { statut: 'a-verifier', origine: 'suggestion', bbox: b(10, 110, 40, 120) },
+    { statut: 'confirme', origine: 'suggestion', bbox: b(10, 140, 40, 150) },
+    { statut: 'ajoute', origine: 'humain', bbox: b(10, 170, 40, 180) },
+    { statut: 'confirme', origine: 'ocr', vertical: true, mots: [b(300, 10, 310, 40), b(300, 45, 310, 70)] },
+  ] };
+  assert.deepEqual(boitesTextes(lecture), [
+    b(10, 10, 70, 20), b(200, 10, 230, 20), b(10, 50, 40, 60), b(10, 140, 40, 150), b(10, 170, 40, 180), b(300, 10, 310, 70),
+  ]);
+});
+
+test('quadrillage d’un seul tenant (lignes qui se croisent) reconnu, barres pâles qui le touchent à part', () => {
+  const GRIS = [0xd0, 0xd0, 0xd0], PALE = [0xb0, 0xd0, 0xd8], BLEU = [0x2a, 0x51, 0x64];
+  const { analyse } = detecter(600, 400, (x, y) => {
+    const ligne = (y % 50 === 0 && y >= 50 && y <= 350 && x >= 50 && x <= 550) || (x % 100 === 50 && x >= 50 && x <= 550 && y >= 50 && y <= 350);
+    if (x >= 70 && x < 90 && y >= 150 && y < 350) return PALE;          // barres collées au quadrillage
+    if (x >= 90 && x < 110 && y >= 120 && y < 350) return BLEU;
+    if (x >= 170 && x < 190 && y >= 200 && y < 350) return PALE;
+    if (ligne) return GRIS;
+    return BLANC;
+  });
+  const grille = analyse.series.find((s) => s.couleur[0] === s.couleur[1]);
+  assert.ok(grille && grille.quadrillage, JSON.stringify(analyse.series.map((s) => [s.couleur, s.quadrillage])));
+  const pales = analyse.objets.filter((o) => o.couleur[2] === PALE[2] && o.couleur[0] === PALE[0]);
+  assert.equal(pales.length, 2);
+  assert.ok(pales.every((o) => o.serie !== grille.id));
+});
+
+test('une étiquette plus large que sa barre ne la coupe pas en deux', () => {
+  const BARRE = [0xbf, 0xd8, 0xe4];
+  const texte = { x0: 92, y0: 150, x1: 168, y1: 170 };                  // plus large que la barre (100–160)
+  const { analyse } = detecter(400, 300, (x, y) => {
+    if (dans(x, y, texte)) return (x + y) % 3 ? BARRE : NOIR;
+    return x >= 100 && x < 160 && y >= 40 && y < 280 ? BARRE : BLANC;
+  }, { boites: [texte] });
+  assert.equal(analyse.objets.length, 1, analyse.objets.map((o) => JSON.stringify(o.boite)).join(' '));
+  assert.deepEqual(analyse.objets[0].boite, { x0: 100, y0: 40, x1: 160, y1: 280 });
+});

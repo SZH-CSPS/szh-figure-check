@@ -45,7 +45,7 @@
   <rect data-zone="porte" x="460" y="480" width="56" height="90" fill="#7c4a2d"/>
   <circle cx="505" cy="527" r="3.5" fill="#ffd43b"/>
   <rect data-zone="fenetre" x="400" y="450" width="44" height="44" fill="#9fd3fb"/>
-  <g stroke="#ffffff" stroke-width="3">
+  <g data-tolere="croisillon" stroke="#ffffff" stroke-width="3">
     <line x1="422" y1="450" x2="422" y2="494"/><line x1="400" y1="472" x2="444" y2="472"/>
   </g>
   <rect data-zone="fenetre-2" x="535" y="450" width="44" height="44" fill="#9fd3fb"/>

@@ -53,8 +53,12 @@ export function evaluerZones(figure, analyse, mmParPx) {
     if (trouvee) pris.add(trouvee);
     zones.push({ z, objet: trouvee, iou: m, de: trouvee ? ecart(trouvee.couleur, z.couleur) : null });
   }
+  // Un objet logé dans une zone tolérée plus petite qu'une zone attendue (le croisillon d'une
+  // fenêtre posé sur un mur) relève de la zone tolérée, pas d'un morceau de la grande.
+  const toleresPetits = (r) => figure.zones.filter((z) => z.role === 'toleree' && z.aire < r.z.aire);
   for (const r of zones) {
-    r.morceaux = objets.filter((o) => !pris.has(o) && inter(o.boite, r.z.boite) >= DEDANS * aire(o.boite) && (o.couleur == null || ecart(o.couleur, r.z.couleur) < DELTA_E_MORCEAU));
+    r.morceaux = objets.filter((o) => !pris.has(o) && inter(o.boite, r.z.boite) >= DEDANS * aire(o.boite) && (o.couleur == null || ecart(o.couleur, r.z.couleur) < DELTA_E_MORCEAU)
+      && !toleresPetits(r).some((z) => inter(o.boite, z.boite) >= DEDANS * aire(o.boite)));
     r.morceaux.forEach((o) => pris.add(o));
     r.analysee = Boolean(r.objet && r.objet.serie != null && r.de <= DELTA_E_ZONE);
   }

@@ -6,14 +6,14 @@
 // daltonismes et en niveaux de gris. objetsBitmap() et analyserObjets() n'ont pas besoin du
 // DOM ; rendreObjets() dessine le bloc du rapport et exporterObjets() rend le dernier résultat.
 
-import { versHex } from './apca.js?v=e6b2e50046';
-import { MM_PAR_PT } from './formats.js?v=e6b2e50046';
+import { versHex } from './apca.js?v=511f9a40eb';
+import { MM_PAR_PT } from './formats.js?v=511f9a40eb';
 import {
   versLab, distanceLab, ciede2000, simuler, ecartsPaire, contrasteGraphique, verdictPaire, teinteConforme, pire,
   WCAG_GRAPHIQUE, LC_GRAPHIQUE, DELTA_E_DISTINCT, DELTA_E_CONFONDU,
-} from './couleur.js?v=e6b2e50046';
-import { T, nombre } from './i18n.js?v=e6b2e50046';
-import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=e6b2e50046';
+} from './couleur.js?v=511f9a40eb';
+import { T, nombre } from './i18n.js?v=511f9a40eb';
+import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=511f9a40eb';
 
 // ── Constantes ──────────────────────────────────────────────────────────────────
 
@@ -21,11 +21,13 @@ import { explorateur, puce, rangeeNiveaux, SYMBOLES } from './explorateur.js?v=e
 // l'analyse tient en quelques secondes, et un trait de 0,25 pt, large de 1,8 px à 20 px/mm,
 // garde au moins un pixel.
 export const PIXELS_MAX = 10e6;
-// Deux nuances à moins de 12 unités Lab (CIE76) l'une de l'autre sont une seule couleur :
-// le bruit d'une image compressée reste en deçà, deux teintes d'une même gamme au-delà.
+// Deux nuances à moins de 8 unités Lab (CIE76) l'une de l'autre sont une seule couleur : le
+// grain d'une image compressée, lissé, reste en deçà ; une barre pâle et la ligne grise d'un
+// quadrillage qui la touche (9 unités) au-delà. Un dégradé découpé en bandes plus fines est
+// recollé par sa continuité.
 // La couleur la plus fréquente, en général le fond, ne réunit que les nuances à moins de
 // 6 : une surface pâle sur fond blanc reste un objet, dont le contraste sera jugé.
-export const RAYON_COULEUR = 12;
+export const RAYON_COULEUR = 8;
 export const RAYON_FOND = 6;
 // Lissage du grain : un voisin compte dans la moyenne d'un pixel s'il en diffère d'au plus
 // 10 sur 255 par canal.
@@ -87,7 +89,12 @@ const OCCLUSION_LIGNES = 0.4;
 // Paliers d'un trait lissé : au plus deux pixels de frange entre eux (trois prend, sous un
 // grain fort, des taches voisines pour des paliers).
 const FRANGE_ESCALIER = 2;
+const ESCALIER_COULEUR = 8;
 const PONT_PART = 0.5;
+// Et de part et d'autre, la même couleur, à 8 unités Lab près : une même surface coupée, pas
+// deux teintes voisines (une barre pâle et la ligne grise d'un quadrillage).
+const PONT_COULEUR = 8;
+const EPAISSEUR_RAPPORT = 2;
 // Taux de remplissage de la boîte : un rectangle la remplit (0,9 au moins, la place laissée
 // aux coins arrondis) ; une ellipse en couvre π/4 ≈ 0,785, de 0,72 à 0,85 une fois lissée.
 export const TAUX_RECTANGLE = 0.9;
@@ -128,6 +135,9 @@ const QUADRILLAGE_MIN = 3;
 const QUADRILLAGE_LONGUEUR = 0.4;
 const QUADRILLAGE_TOLERANCE = 0.15;
 const QUADRILLAGE_PART = 0.9;
+// Grille connexe : lignes et colonnes remplies au tiers au moins, qui portent 70 % du trait.
+const GRILLE_REMPLISSAGE = 0.33;
+const GRILLE_PART = 0.7;
 // Un tronçon rectangulaire appartient à une ligne quand son milieu, en travers, en est à moins
 // de la moitié de son épaisseur : le lissage des bords déplace d'un demi-pixel.
 const QUADRILLAGE_ALIGNEMENT = 0.5;
@@ -536,11 +546,29 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   const pontLong = Math.ceil(pontMaxPx) + 2 * FRANGE_MAX;
   const semblables = (a, b) => grp[a] === grp[b] || distanceLab(labDe(a), labDe(b)) < RAYON_COULEUR;
   const bord = (c) => c > 0 && role[c] === 1 && !fondu[c];
+  // Épaisseur d'une région (cœur de sa crête, ou petit côté d'un palier trop petit pour en
+  // avoir une) ; deux morceaux d'une même surface ou d'un même trait ont la même, à un
+  // facteur 2 près : une ligne de quadrillage d'un pixel n'est pas un morceau d'une barre.
+  const epaisseurs = new Float64Array(nComp + 1).fill(-1);
+  const epaisseurDe = (c) => (epaisseurs[c] >= 0 ? epaisseurs[c] : (epaisseurs[c] = indice[c] >= 0 ? epaisseurDepuisCrete(medianeCrete([c])) : Math.min(bx1[c] - bx0[c], by1[c] - by0[c])));
+  const memeEpaisseur = (a, c) => { const ea = epaisseurDe(a), ec = epaisseurDe(c); return Math.max(ea, ec) <= EPAISSEUR_RAPPORT * Math.max(1, Math.min(ea, ec)); };
   const finesse = new Int8Array(nComp + 1).fill(-1);
   // Fine : une région dont le cœur reste sous le pont, ou trop petite pour compter seule.
   const fin = (c) => indice[c] < 0 || (finesse[c] < 0 ? (finesse[c] = epaisseurDepuisCrete(medianeCrete([c])) <= pontMaxPx ? 1 : 0) : finesse[c]) === 1;
   // Palier d'escalier : une région, même trop petite pour compter seule, qui n'est pas du fond.
   const palier = (c) => c > 0 && role[c] !== 2 && aire[c] > 0 && !fondu[c];
+  // Un palier est petit (moins de 1,5 mm²) : deux grandes régions fines voisines (deux barres
+  // étroites d'une figure petite, une barre et le quadrillage) ne se recollent pas ainsi,
+  // seulement par un palier qui les relie. Et sa couleur est celle du trait, à 8 unités près.
+  const petit = (c) => aire[c] < zoneMinPx;
+  const memeTrait = (a, c) => distanceLab(labDe(a), labDe(c)) < ESCALIER_COULEUR;
+  // Les paliers d'un escalier se suivent en diagonale : leurs boîtes ne se recouvrent, dans
+  // chaque direction, pas plus que le double de l'épaisseur du trait. Deux morceaux posés
+  // côte à côte sur toute leur hauteur (deux barres étroites voisines) ne sont pas des paliers.
+  const enDiagonale = (a, c) => {
+    const ox = Math.min(bx1[a], bx1[c]) - Math.max(bx0[a], bx0[c]), oy = Math.min(by1[a], by1[c]) - Math.max(by0[a], by0[c]);
+    return Math.max(ox, oy) <= 2 * Math.max(2, epaisseurDe(a), epaisseurDe(c));
+  };
   const balayer = (debut, saut, n) => {
     for (let k = 0; k < n - 1; k++) {
       const a = comp[debut + k * saut];
@@ -550,7 +578,7 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
       for (let j = k + 1; j < n && trou <= pontLong; j++) {
         const c = comp[debut + j * saut];
         if (c === a || role[c] === 2) break;
-        if (bord(c) && semblables(a, c) && trou && trait) {
+        if (bord(c) && distanceLab(labDe(a), labDe(c)) < PONT_COULEUR && memeEpaisseur(a, c) && trou && trait) {
           const k2 = cle(a, c);
           let e = ponts.get(k2);
           if (!e) { e = { a: Math.min(a, c), b: Math.max(a, c), n: 0, px: 0 }; ponts.set(k2, e); }
@@ -565,9 +593,9 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   for (let y = 0; y < H; y++) balayer(y * W, 1, W);
   for (let x = 0; x < W; x++) balayer(x, W, H);
   // Escaliers : un trait fin lissé, sur une figure petite, n'est plus qu'une suite de paliers
-  // qui ne se touchent qu'en diagonale, à travers leur frange. Deux régions fines de même
-  // couleur à au plus deux pixels l'une de l'autre, dans n'importe quelle direction, sont le
-  // même trait.
+  // qui ne se touchent qu'en diagonale, à travers leur frange. Un petit palier fin et une
+  // région fine de la couleur du trait, à au plus deux pixels l'un de l'autre dans n'importe
+  // quelle direction, sont le même trait.
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const a = comp[y * W + x];
@@ -579,7 +607,7 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
           const xx = x + dx;
           if ((dy === 0 && dx <= 0) || xx < 0 || xx >= W) continue;
           const c = comp[yy * W + xx];
-          if (c !== a && palier(c) && racine(c) !== racine(a) && fin(c) && semblables(a, c)) unir(a, c);
+          if (c !== a && palier(c) && racine(c) !== racine(a) && fin(c) && (petit(a) || petit(c)) && memeTrait(a, c) && enDiagonale(a, c) && memeEpaisseur(a, c)) unir(a, c);
         }
       }
     }
@@ -629,6 +657,30 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
   const pontsRetenus = [];
   for (const e of ponts.values()) {
     if (e.n >= PONT_PART * Math.min(cote(e.a), cote(e.b))) { unir(e.a, e.b); pontsRetenus.push(e); }
+  }
+
+  // À travers un texte : une étiquette posée sur une barre, plus large qu'elle avec son halo,
+  // la coupe en deux. La même couleur qui reprend de part et d'autre de la boîte du texte
+  // (au-dessus et en dessous, ou à gauche et à droite), sur la moitié au moins de la largeur
+  // commune, recoud la zone.
+  const auDela = (p, saut, n) => {
+    for (let k = 0; k <= FRANGE_MAX && k < n; k++) { const c = comp[p + k * saut]; if (c) return c; }
+    return 0;
+  };
+  for (const t of cadres) {
+    const recoudre = new Map();
+    const noterTexte = (a, c) => {
+      if (!bord(a) || !bord(c) || a === c || racine(a) === racine(c) || distanceLab(labDe(a), labDe(c)) >= PONT_COULEUR) return;
+      const k2 = cle(a, c);
+      recoudre.set(k2, (recoudre.get(k2) || 0) + 1);
+    };
+    if (t.y0 > 0 && t.y1 < H) for (let x = t.x0; x < t.x1; x++) noterTexte(auDela((t.y0 - 1) * W + x, -W, t.y0), auDela(t.y1 * W + x, W, H - t.y1));
+    if (t.x0 > 0 && t.x1 < W) for (let y = t.y0; y < t.y1; y++) noterTexte(auDela(y * W + t.x0 - 1, -1, t.x0), auDela(y * W + t.x1, 1, W - t.x1));
+    for (const [k2, nT] of recoudre) {
+      const a = Math.floor(k2 / (nComp + 1)), c = k2 % (nComp + 1);
+      const commun = Math.max(Math.min(bx1[a], bx1[c]) - Math.max(bx0[a], bx0[c]), Math.min(by1[a], by1[c]) - Math.max(by0[a], by0[c]));
+      if (nT >= PONT_PART * Math.max(1, commun)) unir(a, c);
+    }
   }
 
   // Zones : une composante, ou les composantes réunies.
@@ -750,9 +802,24 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
         type = typeParTaux(taux, coinPlein);
       }
     }
+    // Grille : un trait (ou un cadre) d'un seul tenant qui couvre une bonne part de la figure dans les deux
+    // sens, et dont presque tous les pixels sont sur des lignes horizontales ou verticales qui
+    // la traversent (lignes et colonnes remplies au tiers au moins) : un quadrillage connexe.
+    let grille = false;
+    if (epaisseurPx != null && w >= QUADRILLAGE_LONGUEUR * W && h >= QUADRILLAGE_LONGUEUR * H) {
+      const lignes = new Uint32Array(h), colonnes = new Uint32Array(w);
+      for (let y = boite.y0; y < boite.y1; y++) for (let x = boite.x0; x < boite.x1; x++) if (membre(y * W + x)) { lignes[y - boite.y0]++; colonnes[x - boite.x0]++; }
+      let surLigne = 0, nH = 0, nV = 0;
+      for (let y = 0; y < h; y++) if (lignes[y] >= GRILLE_REMPLISSAGE * w) { nH += y === 0 || lignes[y - 1] < GRILLE_REMPLISSAGE * w; }
+      for (let x = 0; x < w; x++) if (colonnes[x] >= GRILLE_REMPLISSAGE * h) { nV += x === 0 || colonnes[x - 1] < GRILLE_REMPLISSAGE * h; }
+      for (let y = boite.y0; y < boite.y1; y++) for (let x = boite.x0; x < boite.x1; x++) {
+        if (membre(y * W + x) && (lignes[y - boite.y0] >= GRILLE_REMPLISSAGE * w || colonnes[x - boite.x0] >= GRILLE_REMPLISSAGE * h)) surLigne++;
+      }
+      grille = nH + nV >= QUADRILLAGE_MIN && surLigne >= GRILLE_PART * a;
+    }
     objetDeGroupe[k] = objets.length;
     objets.push({
-      type, couleur: couleur.map(Math.round), ecart, etendue, nuances, taux: Math.min(1, taux),
+      type, grille, couleur: couleur.map(Math.round), ecart, etendue, nuances, taux: Math.min(1, taux),
       boite: { x0: boite.x0 * pas, y0: boite.y0 * pas, x1: boite.x1 * pas, y1: boite.y1 * pas },
       aire: a * pas * pas, epaisseurPx: epaisseurPx == null ? null : epaisseurPx * pas, comps,
     });
@@ -773,7 +840,7 @@ export function objetsBitmap(rgba, largeur, hauteur, { boites = [], mmParPx, pas
     contacts.push({ a, b, force: (nPx * pas) / Math.min(perimetre(objets[a].boite), perimetre(objets[b].boite)) });
   }
 
-  return { fond, largeur, hauteur, pas, objets, contacts, carte: { comp, largeur: W, hauteur: H, nComp }, exact: false };
+  return { fond, largeur, hauteur, pas, objets, contacts, carte: { comp, texte: masque, largeur: W, hauteur: H, nComp }, exact: false };
 }
 
 // ── Voie exacte : géométrie commune ─────────────────────────────────────────────
@@ -1299,6 +1366,8 @@ export function analyserObjets(brut, { mmParPx, boites = [] } = {}) {
         && horizontaux.length + verticaux.length >= QUADRILLAGE_PART * filetsTraits.length
         && Math.max(lh.length, lv.length) >= QUADRILLAGE_MIN && regulier(lh, largeur) && regulier(lv, hauteur);
     }
+    // Un quadrillage d'un seul tenant (lignes horizontales et verticales qui se croisent).
+    if (comptes.some((o) => o.grille)) s.quadrillage = true;
 
     s.contrasteFond = contrasteDe([s.couleur, ...s.objets.flatMap((o) => o.nuances || [])], fond);
     // Trait le plus fin : parmi les traits d'au moins un cinquième de la longueur du plus
@@ -1397,7 +1466,28 @@ function element(nom, attributs = {}, ...enfants) {
   return el;
 }
 
-const boitesTextes = (lecture) => lecture.lignes.flatMap((l) => l.mots || [l.bbox]);
+// Boîtes de tout ce qui est détecté ou ajouté comme texte, écartées de la recherche des
+// formes : lignes lues (fichier, détecteur, OCR) et ajoutées, à vérifier comprises ; pas les
+// textes retirés (« ce n'est pas un texte ») ni les suggestions pas encore confirmées, qui
+// ne sont que des zones d'encre proposées (souvent des marqueurs alignés). Les mots d'une ligne séparés de moins
+// d'une hauteur de ligne forment une seule boîte : les espaces entre eux sont du texte aussi.
+export function boitesTextes(lecture) {
+  const boites = [];
+  for (const l of lecture.lignes) {
+    if (l.statut === 'retire' || (l.origine === 'suggestion' && l.statut === 'a-verifier')) continue;
+    const mots = [...(l.mots?.length ? l.mots : [l.bbox])].sort((a, b) => (l.vertical ? a.y0 - b.y0 : a.x0 - b.x0));
+    let courante = null;
+    for (const m of mots) {
+      const h = l.vertical ? m.x1 - m.x0 : m.y1 - m.y0;
+      const ecart = courante ? (l.vertical ? m.y0 - courante.y1 : m.x0 - courante.x1) : Infinity;
+      if (courante && ecart <= h) courante = union(courante, m);
+      else { if (courante) boites.push(courante); courante = { ...m }; }
+    }
+    if (courante) boites.push(courante);
+  }
+  return boites;
+}
+const cleTextes = (boites) => boites.map((b) => [b.x0, b.y0, b.x1, b.y1].map(Math.round).join(',')).join(';');
 
 // Détecte les objets selon la source : SVG et PDF exacts, image approchée ; un SVG ou un
 // PDF qui n'est qu'une image incorporée passe par la voie approchée. Une image est lue à sa
@@ -1449,7 +1539,7 @@ function calqueContours(analyse, brut) {
   const c = document.createElement('canvas');
   const couleurDe = (s) => PALETTE_CONTOURS[(s - 1) % PALETTE_CONTOURS.length];
   if (brut.carte) {
-    const { comp, largeur: W, hauteur: H, nComp } = brut.carte;
+    const { comp, texte, largeur: W, hauteur: H, nComp } = brut.carte;
     c.width = W; c.height = H;
     const serieDeComp = new Int16Array(nComp + 1).fill(-1);
     for (const o of analyse.objets) if (o.serie != null) for (const k of o.comps) serieDeComp[k] = o.serie;
@@ -1458,7 +1548,10 @@ function calqueContours(analyse, brut) {
       for (let x = 0; x < W; x++) {
         const p = y * W + x, cp = comp[p];
         if (!cp || serieDeComp[cp] < 0) continue;
-        if ((x > 0 && comp[p - 1] !== cp) || (x < W - 1 && comp[p + 1] !== cp) || (y > 0 && comp[p - W] !== cp) || (y < H - 1 && comp[p + W] !== cp)) {
+        // Un bord avec une autre série ou le fond ; un texte écarté posé sur la zone n'en fait
+        // pas un (une étiquette ne coupe pas sa barre à l'écran).
+        const autre = (q) => comp[q] !== cp && !(texte && texte[q]) && serieDeComp[comp[q]] !== serieDeComp[cp];
+        if ((x > 0 && autre(p - 1)) || (x < W - 1 && autre(p + 1)) || (y > 0 && autre(p - W)) || (y < H - 1 && autre(p + W))) {
           const s = serieDeComp[cp];
           if (!contours.has(s)) contours.set(s, []);
           contours.get(s).push(p);
@@ -1542,9 +1635,12 @@ export function rendreObjets(conteneur, lecture, source, largeurMm, langue, rapp
   }
   const t = (cle, valeurs) => T(langue, cle, valeurs);
   const mmParPx = largeurMm / lecture.canevas.width;
+  // La détection est refaite quand la largeur change, ou quand un texte est ajouté, retiré
+  // ou rétabli : ce qui est du texte n'entre jamais dans la recherche des formes.
+  const textes = cleTextes(boitesTextes(lecture));
   let entree = cache.get(lecture);
-  if (!entree || Math.abs(entree.largeurMm - largeurMm) > 0.01 * largeurMm) {
-    entree = { largeurMm, brut: null, erreur: null, duree: 0 };
+  if (!entree || Math.abs(entree.largeurMm - largeurMm) > 0.01 * largeurMm || entree.textes !== textes) {
+    entree = { largeurMm, textes, brut: null, erreur: null, duree: 0 };
     cache.set(lecture, entree);
     const debut = performance.now();
     entree.promesse = detecter(lecture, source, mmParPx)

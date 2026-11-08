@@ -64,6 +64,21 @@ Critères retenus après analyse des cinq figures ; les constantes sont dans `js
    restent. La continuité d’un dégradé se juge un pixel plus loin de part et d’autre d’une
    frontière, ce qu’un bord lissé ne passe pas.
 
+7. **Rien de ce qui est texte.** Tout ce que l’outil détecte ou lit comme texte, et tout
+   texte ajouté à la main, est écarté de la recherche des formes avec un halo, textes « à
+   vérifier » compris ; un texte retiré (« ce n’est pas un texte ») et une suggestion pas
+   encore confirmée y restent. Les mots d’une ligne séparés de moins d’une hauteur de ligne
+   forment une seule boîte. La recherche est refaite quand un texte est ajouté, retiré ou
+   rétabli. Une étiquette plus large que la barre qui la porte ne la coupe pas : la même
+   couleur qui reprend de part et d’autre de la boîte du texte recoud la zone, et le contour
+   ne suit pas le bord du texte.
+8. **Un quadrillage, même d’un seul tenant.** Les nuances se regroupent à 8 unités Lab près
+   (et non 12) : une barre pâle et la ligne grise d’un quadrillage qui la touche (9 unités)
+   restent distinctes. Un pont ou un escalier ne relie que des morceaux de même épaisseur (à
+   un facteur 2 près) et de même couleur (8 unités). Un trait d’un seul tenant qui couvre une
+   bonne part de la figure, fait de lignes horizontales et verticales qui la traversent, est
+   un quadrillage : ni son contraste ni son épaisseur ne sont jugés.
+
 Dans un SVG, les mêmes critères s’appliquent aux éléments : les arrêts d’un dégradé sont lus
 (`href` suivi) et un dégradé dont les arrêts restent à moins de 40 unités Lab les uns des
 autres a la couleur moyenne de ses arrêts et leurs extrêmes pour nuances ; un dégradé à

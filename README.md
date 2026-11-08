@@ -310,9 +310,9 @@ est alors exact et dit comme tel ; un dégradé SVG léger (arrêts à moins de 
 des autres) a la couleur moyenne de ses arrêts, une ombre floutée, un reflet transparent ou
 un élément moins opaque que 0,15 ne sont pas des objets. Dans une image, le résultat est
 approché : l’image est lue à sa résolution d’origine, lissée sans flouter les bords (le grain
-d’une compression s’efface), les couleurs regroupées (nuances à moins de 12 unités Lab, 6 pour
+d’une compression s’efface), les couleurs regroupées (nuances à moins de 8 unités Lab, 6 pour
 la couleur la plus fréquente, afin qu’une surface pâle sur fond blanc reste un objet), les
-textes lus écartés avec un halo (une case garde sa forme malgré le texte qu’elle porte), les
+tout ce qui est détecté ou ajouté comme texte écarté avec un halo, textes à vérifier compris, pas les textes retirés ni les suggestions non confirmées (une case garde sa forme malgré le texte qu’elle porte, une étiquette plus large que sa barre ne la coupe pas, et la recherche est refaite quand un texte est ajouté ou retiré), les
 franges lissées écartées (un pixel qui mélange ses deux voisins opposés). Les régions se
 réunissent en zones : deux régions voisines dont la couleur se continue sans saut (un
 dégradé, une ombre douce sur la surface qui la porte), deux régions de même couleur que
